@@ -1,0 +1,6 @@
+.vercel-global
+.playwright-cli
+node-compile-cache
+node_modules
+dist
+.env*

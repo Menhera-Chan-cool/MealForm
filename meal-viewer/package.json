@@ -1,0 +1,18 @@
+{
+  "name": "meal-menu-share",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "npm run build && node ../ShareSetup.test.cjs && node permissions.test.mjs && node history.test.mjs && node ocr-draft.test.mjs && node setup.test.mjs && node qol.test.mjs && node calendar-weeks.test.mjs && node advanced.test.mjs && node viewer-ui.test.mjs && node dashboard-model.test.mjs && node ../MealPermissions.test.js && node ../MealForm.test.js"
+  },
+  "dependencies": {
+    "google-auth-library": "11.0.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "vite": "8.3.0"
+  }
+}

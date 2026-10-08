@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import * as security from './api/security.mjs';
+assert.equal(typeof security.dashboardConfiguration, 'function');
+const secret = 'do-not-return-this-secret-01234567890123456789';
+const valid = { SESSION_SECRET: secret, GAS_HMAC_SECRET: secret, GAS_DASHBOARD_HMAC_SECRET: secret, GOOGLE_OAUTH_CLIENT_ID: 'test.apps.googleusercontent.com', VITE_GOOGLE_OAUTH_CLIENT_ID: 'test.apps.googleusercontent.com' };
+assert.deepEqual(security.dashboardConfiguration(valid), { session: true, viewer: true, dashboard: true, google: true });
+assert.equal(security.dashboardConfiguration({ ...valid, VITE_GOOGLE_OAUTH_CLIENT_ID: 'different' }).google, false);
+const cookie = security.createSessionToken({ sub: 'owner', email: 'owner@example.com' }, secret);
+const handler = security.createDashboardHandler({ secret, configuration: security.dashboardConfiguration(valid), callGas: async payload => payload.action === 'dashboard-authorize' ? { role: 'owner' } : { checks: [{ id: 'ocr', status: 'ok', message: 'Đã cấu hình, chưa đọc thử ảnh.' }] } });
+const result = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+await handler({ method: 'GET', headers: { cookie: `meal_session=${cookie}` }, query: { health: '1' } }, result);
+assert.equal(result.code, 200); assert.equal(JSON.stringify(result.body).includes(secret), false);
+assert.ok(result.body.checks.some(check => check.id === 'config-google' && check.status === 'ok'));
+console.log('Setup configuration matching and secret-free health report passed');

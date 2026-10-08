@@ -1,0 +1,11 @@
+.env*
+!.env.example
+.vercel/
+.vercel-global/
+.playwright-cli/
+node_modules/
+dist/
+node-compile-cache/
+ScriptProperties.json
+*.rar
+*.zip

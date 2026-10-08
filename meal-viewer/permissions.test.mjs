@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import { createDashboardHandler, createSessionToken } from './api/security.mjs';
+
+const script = new Map([['MEAL_FORM_OWNER_EMAIL', 'owner@example.com']]);
+const user = new Map([['MEAL_DASHBOARD_ALLOWED_EMAILS', '["legacy@example.com","reader@example.com"]'], ['MEAL_DASHBOARD_PERMISSIONS', '{"reader@example.com":{"view":true,"create":false,"manageResponses":false}}']]);
+let onWrite = () => {};
+const properties = map => ({ getProperty: key => map.get(key) || '', setProperty: (key, value) => { map.set(key, value); onWrite(key, map); }, deleteProperty: key => map.delete(key) });
+const gas = vm.createContext({ LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) }, PropertiesService: { getScriptProperties: () => properties(script), getUserProperties: () => properties(user) } });
+vm.runInContext(fs.readFileSync(new URL('../MealForm.gs', import.meta.url), 'utf8'), gas);
+assert.equal(typeof gas.getMealDashboardPermissions_, 'function', 'granular permissions must exist');
+const full = { view: true, create: true, manageResponses: true };
+assert.deepEqual(JSON.parse(JSON.stringify(gas.getMealDashboardPermissions_('owner@example.com'))), full);
+assert.deepEqual(JSON.parse(JSON.stringify(gas.getMealDashboardPermissions_('legacy@example.com'))), full);
+assert.equal(gas.getMealDashboardPermissions_('reader@example.com').create, false);
+assert.throws(() => gas.handleMealDashboardRequest_({ action: 'dashboard-ocr', email: 'reader@example.com' }), /quyền/);
+assert.throws(() => gas.analyzeMenuImage('', 'reader@example.com'), /quyền/);
+assert.throws(() => gas.createMealForm({}, 'reader@example.com'), /quyền/);
+for (const action of ['dashboard-delete', 'dashboard-restore', 'dashboard-health']) assert.throws(() => gas.handleMealDashboardRequest_({ action, email: 'reader@example.com' }), /quyền|chủ/);
+gas.updateMealDashboardAccess_('owner@example.com', 'new@example.com', true);
+assert.equal(gas.getMealDashboardPermissions_('new@example.com').create, false);
+assert.throws(() => gas.updateMealDashboardPermissions_('legacy@example.com', 'reader@example.com', full), /chủ/);
+assert.throws(() => gas.updateMealDashboardPermissions_('owner@example.com', 'owner@example.com', full), /chủ/);
+gas.updateMealDashboardPermissions_('owner@example.com', 'reader@example.com', { view: true, create: true, manageResponses: false });
+assert.equal(gas.getMealDashboardPermissions_('reader@example.com').create, true);
+assert.throws(() => gas.handleMealDashboardRequest_({ action: 'dashboard-delete', email: 'reader@example.com' }), /quyền/);
+let unsafeRevocation = false;
+onWrite = (_key, map) => { if (map === user && gas.getMealDashboardPermissions_('reader@example.com').manageResponses) unsafeRevocation = true; };
+gas.updateMealDashboardAccess_('owner@example.com', 'reader@example.com', false);
+assert.equal(unsafeRevocation, false, 'removal must not temporarily fall back to legacy full permissions');
+onWrite = () => {};
+user.set('MEAL_DASHBOARD_PERMISSIONS', '{bad-json');
+assert.equal(gas.getMealDashboardPermissions_('legacy@example.com').create, false, 'broken permissions fail closed');
+
+const secret = 'session-test-secret';
+const token = createSessionToken({ sub: 'reader', email: 'reader@example.com' }, secret);
+const res = () => ({ setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } });
+const calls = [];
+const handler = createDashboardHandler({ secret, callGas: async payload => { calls.push(payload); return { role: 'manager', permissions: { view: true, create: false, manageResponses: false } }; } });
+for (const [method, body] of [['POST', { action: 'ocr', image: 'test' }], ['POST', { action: 'create' }], ['DELETE', {}], ['POST', { action: 'restore' }], ['POST', { action: 'set-permissions', email: 'other@example.com', permissions: full }]]) {
+  const result = res(); const before = calls.length;
+  await handler({ method, headers: { cookie: `meal_session=${token}`, origin: 'https://example.com', host: 'example.com' }, body }, result);
+  assert.equal(result.code, 403);
+  assert.equal(calls.length, before + 1, 'denied action must not reach mutation');
+}
+const report = res();
+await handler({ method: 'GET', headers: { cookie: `meal_session=${token}` }, query: { health: '1' } }, report);
+assert.equal(report.code, 403);
+console.log('Granular permissions, legacy compatibility, and both server guards passed');
