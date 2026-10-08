@@ -1,3 +1,8 @@
+# MealForm
+
+## Cập nhật ngày 08/10/2026
+
+Mã backend đã đồng bộ các xử lý được giữ lại khi triển khai Apps Script phiên bản 68. Bốn tính năng gồm nháp OCR theo tài khoản, kho tuần cũ, phân quyền riêng và checklist cài đặt đã được kiểm thử; bản triển khai tham chiếu đạt 14/14 kiểm tra hệ thống. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
 
 ## Tính năng mới trong bản này
 

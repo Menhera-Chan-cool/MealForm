@@ -528,24 +528,18 @@ function getMealDashboardHistorySheet_(spreadsheet, createIfMissing) {
   const headers = ['id', 'action', 'at', 'actor', 'entryId', 'responseId', 'originalTimestamp', 'name', 'mealsJson', 'restorePayloadJson', 'restorable', 'note'];
   let sheet = spreadsheet.getSheetByName('_DashboardHistory');
   if (!sheet && !createIfMissing) return null;
-  if (!sheet) {
-    sheet = spreadsheet.insertSheet('_DashboardHistory');
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  } else if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  } else if (sheet.getRange(1, 1, 1, headers.length).getDisplayValues()[0].join('|') !== headers.join('|')) {
-    throw new Error('Cấu trúc lịch sử dashboard không hợp lệ; không thể thay đổi dữ liệu an toàn.');
-  }
+  if (!sheet) { sheet = spreadsheet.insertSheet('_DashboardHistory'); sheet.getRange(1, 1, 1, headers.length).setValues([headers]); }
+  else if (sheet.getLastRow() === 0) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  else if (sheet.getRange(1, 1, 1, headers.length).getDisplayValues()[0].join('|') !== headers.join('|')) throw new Error('Cấu trúc lịch sử dashboard không hợp lệ; không thể thay đổi dữ liệu an toàn.');
   if (!sheet.isSheetHidden()) sheet.hideSheet();
   return sheet;
 }
 
 function appendMealDashboardHistoryEvent_(sheet, event) {
   const id = Utilities.getUuid();
-  const row = [id, event.action, Date.now(), normalizeDashboardEmail_(event.actor), event.entryId || id,
+  sheet.appendRow([id, event.action, Date.now(), normalizeDashboardEmail_(event.actor), event.entryId || id,
     event.responseId || '', dashboardTimestampMs_(event.originalTimestamp), cleanMealText_(event.name),
-    JSON.stringify(event.meals || []), event.restorePayloadJson || '', event.restorable === true, cleanMealText_(event.note)];
-  sheet.appendRow(row);
+    JSON.stringify(event.meals || []), event.restorePayloadJson || '', event.restorable === true, cleanMealText_(event.note)]);
   return { id: id, rowNumber: sheet.getLastRow() };
 }
 
@@ -561,33 +555,26 @@ function readMealDashboardHistory_(sheet) {
   if (sheet.getLastRow() < 2) return [];
   return sheet.getRange(2, 1, sheet.getLastRow() - 1, 12).getValues().map(function(row, index) {
     let meals = [];
-    try { meals = JSON.parse(row[8] || '[]'); } catch (error) { /* Keep malformed history visible without meals. */ }
-    return {
-      id: cleanMealText_(row[0]), action: cleanMealText_(row[1]), at: dashboardTimestampMs_(row[2]),
+    try { meals = JSON.parse(row[8] || '[]'); } catch (error) { /* Leave malformed history visible. */ }
+    return { id: cleanMealText_(row[0]), action: cleanMealText_(row[1]), at: dashboardTimestampMs_(row[2]),
       actor: cleanMealText_(row[3]), entryId: cleanMealText_(row[4]), responseId: cleanMealText_(row[5]),
       originalTimestamp: dashboardTimestampMs_(row[6]), name: cleanMealText_(row[7]),
       meals: Array.isArray(meals) ? meals.map(cleanMealText_) : [], restorable: row[10] === true,
-      note: cleanMealText_(row[11]), rowNumber: index + 2, restorePayloadJson: cleanMealText_(row[9])
-    };
+      note: cleanMealText_(row[11]), rowNumber: index + 2, restorePayloadJson: cleanMealText_(row[9]) };
   });
 }
 
 function dashboardResponseRestorePayload_(form, response) {
   const items = form.getItems();
-  if (form.collectsEmail() || items.some(function(item) { return /e-?mail|gmail|địa chỉ.*thư/i.test(cleanMealText_(item.getTitle())); })) {
-    return { restorable: false, reason: 'Form có trường thu thập email; không lưu email để khôi phục.' };
-  }
+  if (form.collectsEmail() || items.some(function(item) { return /e-?mail|gmail|địa chỉ.*thư/i.test(cleanMealText_(item.getTitle())); })) return { restorable: false, reason: 'Form có trường thu thập email; không lưu email để khôi phục.' };
   const supported = [FormApp.ItemType.TEXT, FormApp.ItemType.MULTIPLE_CHOICE];
-  if (items.some(function(item) { return supported.indexOf(item.getType()) < 0; })) {
-    return { restorable: false, reason: 'Form có loại câu hỏi chưa hỗ trợ khôi phục.' };
-  }
+  if (items.some(function(item) { return supported.indexOf(item.getType()) < 0; })) return { restorable: false, reason: 'Form có loại câu hỏi chưa hỗ trợ khôi phục.' };
   const responses = response.getItemResponses();
   if (responses.length !== items.length) return { restorable: false, reason: 'Form thiếu câu trả lời hoặc đã đổi cấu trúc.' };
   const values = responses.map(function(itemResponse) {
-    const item = itemResponse.getItem();
-    const type = item.getType();
-    if (supported.indexOf(type) < 0) throw new Error('Form có loại câu hỏi chưa hỗ trợ khôi phục.');
-    return { itemId: item.getId(), type: String(type), value: String(itemResponse.getResponse() == null ? '' : itemResponse.getResponse()) };
+    const question = itemResponse.getItem();
+    const type = question.getType();
+    return { itemId: question.getId(), type: String(type), value: String(itemResponse.getResponse() == null ? '' : itemResponse.getResponse()) };
   });
   return { restorable: true, payloadJson: JSON.stringify(values), reason: '' };
 }
@@ -665,107 +652,72 @@ function getMealHistoryViewerData_(weekKey, forceRefresh) {
 }
 
 function dashboardResponseTarget_(response, layout, headers) {
-  const itemResponses = response.getItemResponses();
-  const timestamp = response.getTimestamp();
-  const titles = itemResponses.map(function(itemResponse) {
-    try { return normalizeResponseHeader_(itemResponse.getItem().getTitle()); } catch (error) { return ''; }
+  const answers = response.getItemResponses();
+  const titles = answers.map(function(answer) {
+    try { return normalizeResponseHeader_(answer.getItem().getTitle()); } catch (error) { return ''; }
   });
   const hasTitles = titles.some(Boolean);
   const responseForColumn = function(column, fallbackIndex) {
     const title = normalizeResponseHeader_((headers || [])[column]);
     const titleIndex = title ? titles.indexOf(title) : -1;
-    if (titleIndex >= 0) return itemResponses[titleIndex].getResponse();
-    return hasTitles ? '' : (itemResponses[fallbackIndex] ? itemResponses[fallbackIndex].getResponse() : '');
+    if (titleIndex >= 0) return answers[titleIndex].getResponse();
+    return hasTitles ? '' : (answers[fallbackIndex] ? answers[fallbackIndex].getResponse() : '');
   };
-  const name = responseForColumn(layout.nameIndex, 0) || (itemResponses[0] && itemResponses[0].getResponse());
+  const name = responseForColumn(layout.nameIndex, 0) || (answers[0] && answers[0].getResponse());
   return {
-    timestamp: timestamp,
+    timestamp: response.getTimestamp(),
     name: name,
-    meals: layout.dayIndexes.map(function(column, index) {
-      return responseForColumn(column, index + 1);
-    })
+    meals: layout.dayIndexes.map(function(column, index) { return responseForColumn(column, index + 1); })
   };
 }
 
 function getMealDashboardWeek_(weekKey) {
   const key = cleanMealText_(weekKey);
-  const registry = getMealFormRegistry_();
-  const item = registry[key];
-  if (!item || !isLiveMealFile_(item.spreadsheetId) || !isLiveMealFile_(item.formId)) {
-    throw new Error('Không tìm thấy tuần đã đăng ký.');
-  }
+  const item = getMealFormRegistry_()[key];
+  if (!item || !isLiveMealFile_(item.spreadsheetId) || !isLiveMealFile_(item.formId)) throw new Error('Không tìm thấy tuần đã đăng ký.');
   const spreadsheet = SpreadsheetApp.openById(item.spreadsheetId);
-  const responseSheet = spreadsheet.getSheets().find(function(sheet) { return Boolean(sheet.getFormUrl()); });
-  if (!responseSheet) throw new Error('Không tìm thấy trang câu trả lời của tuần.');
-  const columnCount = responseSheet.getLastColumn();
-  const headers = responseSheet.getRange(1, 1, 1, columnCount).getDisplayValues()[0];
+  const sheet = spreadsheet.getSheets().find(function(value) { return Boolean(value.getFormUrl()); });
+  if (!sheet) throw new Error('Không tìm thấy trang câu trả lời của tuần.');
+  const columnCount = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, columnCount).getDisplayValues()[0];
   const layout = getResponseLayout_(headers);
-  const rowCount = Math.max(responseSheet.getLastRow() - 1, 0);
-  const rows = rowCount ? responseSheet.getRange(2, 1, rowCount, columnCount).getValues() : [];
+  const rowCount = Math.max(sheet.getLastRow() - 1, 0);
+  const rows = rowCount ? sheet.getRange(2, 1, rowCount, columnCount).getValues() : [];
   const form = FormApp.openById(item.formId);
   const formResponses = form.getResponses();
   const responses = formResponses.map(function(response) {
     const target = dashboardResponseTarget_(response, layout, headers);
     const responseId = cleanMealText_(response.getId());
     const rowNumber = responseId ? findDashboardResponseRow_(rows, target, layout) : 0;
-    return {
-      responseId: responseId,
-      timestamp: dashboardTimestampMs_(target.timestamp),
-      name: cleanMealText_(target.name),
-      meals: target.meals.map(cleanMealText_),
-      rowNumber: rowNumber,
-      deletable: Boolean(responseId && rowNumber),
+    return { responseId: responseId, timestamp: dashboardTimestampMs_(target.timestamp), name: cleanMealText_(target.name),
+      meals: target.meals.map(cleanMealText_), rowNumber: rowNumber, deletable: Boolean(responseId && rowNumber),
       deleteToken: responseId && rowNumber ? createMealDashboardDeleteToken_(key, responseId, target) : '',
-      note: responseId && rowNumber ? '' : 'Không ghép được duy nhất phản hồi Form với hàng Sheet; không thể xóa an toàn.'
-    };
-  }).sort(function(left, right) { return right.timestamp - left.timestamp; });
+      note: responseId && rowNumber ? '' : 'Không ghép được duy nhất phản hồi Form với hàng Sheet; không thể xóa an toàn.' };
+  });
   rows.forEach(function(row, index) {
     const target = { timestamp: row[layout.timestampIndex], name: row[layout.nameIndex], meals: layout.dayIndexes.map(function(column) { return row[column]; }) };
-    const stillInForm = formResponses.some(function(response) {
-      return dashboardResponseMatches_(row, dashboardResponseTarget_(response, layout, headers), layout);
-    });
+    const stillInForm = formResponses.some(function(response) { return dashboardResponseMatches_(row, dashboardResponseTarget_(response, layout, headers), layout); });
     if (stillInForm) return;
     const matches = findDashboardResponseRows_(rows, target, layout);
     const responseId = 'sheet-orphan-' + (index + 2);
     responses.push({
-      responseId: responseId,
-      timestamp: dashboardTimestampMs_(target.timestamp),
-      name: cleanMealText_(target.name),
-      meals: target.meals.map(cleanMealText_),
-      rowNumber: index + 2,
-      partial: true,
-      deletable: matches.length === 1,
+      responseId: responseId, timestamp: dashboardTimestampMs_(target.timestamp), name: cleanMealText_(target.name),
+      meals: target.meals.map(cleanMealText_), rowNumber: index + 2, partial: true, deletable: matches.length === 1,
       deleteToken: matches.length === 1 ? createMealDashboardDeleteToken_(key, responseId, target) : '',
       note: matches.length === 1 ? '' : 'Có nhiều hàng Sheet giống nhau; cần kiểm tra thủ công.'
     });
   });
   responses.sort(function(left, right) { return right.timestamp - left.timestamp; });
-  return {
-    week: {
-      weekKey: key,
-      name: item.weekFolderName || spreadsheet.getName(),
-      formUrl: cleanMealText_(item.responseUrl) || form.getPublishedUrl(),
-      spreadsheetUrl: item.spreadsheetUrl || spreadsheet.getUrl(),
-      folderUrl: item.weekFolderUrl || '',
-      formStatus: form.isAcceptingResponses() ? 'open' : 'closed'
-    },
-    responseCount: rowCount,
-    responses: responses,
-    history: getMealDashboardHistoryForClient_(getMealDashboardHistorySheet_(spreadsheet, false))
-  };
+  return { week: { weekKey: key, name: item.weekFolderName || spreadsheet.getName(), formUrl: cleanMealText_(item.responseUrl) || form.getPublishedUrl(),
+      spreadsheetUrl: item.spreadsheetUrl || spreadsheet.getUrl(), folderUrl: item.weekFolderUrl || '',
+      formStatus: form.isAcceptingResponses() ? 'open' : 'closed' }, responseCount: rowCount, responses: responses, history: getMealDashboardHistoryForClient_(getMealDashboardHistorySheet_(spreadsheet, false)) };
 }
 
 function createMealDashboardDeleteToken_(weekKey, responseId, target) {
   const secret = PropertiesService.getScriptProperties().getProperty('MEAL_DASHBOARD_HMAC_SECRET');
   if (!secret) throw new Error('Chưa cấu hình chữ ký dashboard.');
-  const payload = JSON.stringify({
-    weekKey: weekKey,
-    responseId: responseId,
-    issuedAt: Date.now(),
-    timestamp: dashboardTimestampMs_(target.timestamp),
-    name: cleanMealText_(target.name),
-    meals: target.meals.map(cleanMealText_)
-  });
+  const payload = JSON.stringify({ weekKey: weekKey, responseId: responseId, issuedAt: Date.now(), timestamp: dashboardTimestampMs_(target.timestamp),
+    name: cleanMealText_(target.name), meals: (target.meals || []).map(cleanMealText_) });
   return Utilities.base64EncodeWebSafe(payload) + '.' + mealViewerHmacHex_(payload, secret);
 }
 
@@ -775,9 +727,7 @@ function readMealDashboardDeleteToken_(token) {
   const secret = PropertiesService.getScriptProperties().getProperty('MEAL_DASHBOARD_HMAC_SECRET');
   if (!secret) throw new Error('Chưa cấu hình chữ ký dashboard.');
   const payload = Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString('UTF-8');
-  if (!constantTimeMealViewerEqual_(mealViewerHmacHex_(payload, secret), parts[1].toLowerCase())) {
-    throw new Error('Mã xác nhận lượt gửi không hợp lệ.');
-  }
+  if (!constantTimeMealViewerEqual_(mealViewerHmacHex_(payload, secret), parts[1].toLowerCase())) throw new Error('Mã xác nhận lượt gửi không hợp lệ.');
   const target = JSON.parse(payload);
   if (!isFinite(Number(target.issuedAt)) || Date.now() - Number(target.issuedAt) > 900000 || Number(target.issuedAt) - Date.now() > 300000) {
     throw new Error('Mã xác nhận đã hết hạn; hãy tải lại danh sách lượt gửi.');
@@ -790,65 +740,45 @@ function deleteMealDashboardResponse_(request) {
   const weekKey = cleanMealText_(request.weekKey);
   const responseId = cleanMealText_(request.responseId);
   if (target.weekKey !== weekKey || target.responseId !== responseId) throw new Error('Lượt gửi đã thay đổi; hãy tải lại danh sách.');
-  const registry = getMealFormRegistry_();
-  const item = registry[weekKey];
+  const item = getMealFormRegistry_()[weekKey];
   if (!item || !isLiveMealFile_(item.spreadsheetId) || !isLiveMealFile_(item.formId)) throw new Error('Tuần này không còn trong sổ tuần.');
-
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
     const spreadsheet = SpreadsheetApp.openById(item.spreadsheetId);
-    const responseSheet = spreadsheet.getSheets().find(function(sheet) { return Boolean(sheet.getFormUrl()); });
+    const responseSheet = spreadsheet.getSheets().find(function(value) { return Boolean(value.getFormUrl()); });
     if (!responseSheet) throw new Error('Không tìm thấy trang câu trả lời của tuần.');
     const columnCount = responseSheet.getLastColumn();
     const headers = responseSheet.getRange(1, 1, 1, columnCount).getDisplayValues()[0];
     const layout = getResponseLayout_(headers);
     const form = FormApp.openById(item.formId);
     const currentResponses = form.getResponses();
-    const formResponse = currentResponses.find(function(response) { return cleanMealText_(response.getId()) === responseId; }) || null;
-    if (formResponse) {
-      const currentTarget = dashboardResponseTarget_(formResponse, layout, headers);
-      if (dashboardResponseFingerprint_(currentTarget) !== dashboardResponseFingerprint_(target)) {
-        throw new Error('Lượt gửi đã thay đổi; hãy tải lại danh sách.');
-      }
-    } else if (currentResponses.some(function(response) {
-      return dashboardResponseTargetsMatch_(dashboardResponseTarget_(response, layout, headers), target);
-    })) {
-      throw new Error('Lượt gửi đã thay đổi; hãy tải lại danh sách.');
-    }
+    const formResponse = currentResponses.find(function(value) { return cleanMealText_(value.getId()) === responseId; }) || null;
+    if (formResponse && dashboardResponseFingerprint_(dashboardResponseTarget_(formResponse, layout, headers)) !== dashboardResponseFingerprint_(target)) throw new Error('Lượt gửi đã thay đổi; hãy tải lại danh sách.');
+    if (!formResponse && currentResponses.some(function(value) { return dashboardResponseTargetsMatch_(dashboardResponseTarget_(value, layout, headers), target); })) throw new Error('Lượt gửi đã thay đổi; hãy tải lại danh sách.');
     const rowCount = Math.max(responseSheet.getLastRow() - 1, 0);
     const rows = rowCount ? responseSheet.getRange(2, 1, rowCount, columnCount).getValues() : [];
     const matchingRows = findDashboardResponseRows_(rows, target, layout);
     const rowNumber = matchingRows.length === 1 ? matchingRows[0] : 0;
     if (formResponse && !rowNumber) throw new Error('Không tìm thấy hàng Sheet duy nhất cho lượt gửi này; có thể không tồn tại hoặc bị trùng. Dữ liệu chưa bị xóa.');
     if (!formResponse && matchingRows.length > 1) throw new Error('Có nhiều hàng Sheet trùng lượt gửi còn sót; cần kiểm tra thủ công, không có dữ liệu nào bị xóa.');
-    if (!formResponse && matchingRows.length === 0) return { deleted: true, alreadyDeleted: true };
-
+    if (!formResponse && !rowNumber) return { deleted: true, alreadyDeleted: true };
     const historySheet = getMealDashboardHistorySheet_(spreadsheet, true);
-    const snapshot = formResponse ? dashboardResponseRestorePayload_(form, formResponse) : {
-      restorable: false, reason: 'Lượt Form đã mất trước khi xóa hàng Sheet; không thể khôi phục đầy đủ.'
-    };
+    const snapshot = formResponse ? dashboardResponseRestorePayload_(form, formResponse) : { restorable: false, reason: 'Lượt Form đã mất trước khi xóa hàng Sheet; không thể khôi phục đầy đủ.' };
     const audit = appendMealDashboardHistoryEvent_(historySheet, {
       action: 'delete-pending', actor: request.email, responseId: responseId,
       originalTimestamp: target.timestamp, name: target.name, meals: target.meals,
-      restorePayloadJson: snapshot.payloadJson || '', restorable: snapshot.restorable,
-      note: snapshot.reason || ''
+      restorePayloadJson: snapshot.payloadJson || '', restorable: snapshot.restorable, note: snapshot.reason || ''
     });
     const auditEvent = {
       id: audit.id, at: Date.now(), actor: normalizeDashboardEmail_(request.email), entryId: audit.id,
       responseId: responseId, originalTimestamp: target.timestamp, name: target.name,
       meals: target.meals, restorePayloadJson: snapshot.payloadJson || '', restorable: snapshot.restorable, note: snapshot.reason || ''
     };
-
     let formDeleted = false;
     try {
-      if (formResponse) {
-        form.deleteResponse(responseId);
-        formDeleted = true;
-      }
-      if (rowNumber) {
-        responseSheet.deleteRow(rowNumber);
-      }
+      if (formResponse) { form.deleteResponse(responseId); formDeleted = true; }
+      if (rowNumber) responseSheet.deleteRow(rowNumber);
     } catch (error) {
       auditEvent.action = formDeleted ? 'partial' : 'delete-review';
       auditEvent.restorable = false;
@@ -861,9 +791,7 @@ function deleteMealDashboardResponse_(request) {
     updateMealDashboardHistoryEvent_(historySheet, audit.rowNumber, auditEvent);
     try { CacheService.getScriptCache().remove('meal-viewer-v2:' + item.spreadsheetId); } catch (error) { /* Cache is best effort. */ }
     return { deleted: true, alreadyDeleted: false, restorable: snapshot.restorable, note: snapshot.reason || '' };
-  } finally {
-    lock.releaseLock();
-  }
+  } finally { lock.releaseLock(); }
 }
 
 function restoreMealDashboardResponse_(request) {
@@ -872,44 +800,31 @@ function restoreMealDashboardResponse_(request) {
   if (!/^[a-f0-9-]{20,50}$/i.test(entryId)) throw new Error('Lịch sử khôi phục không hợp lệ.');
   const item = getMealFormRegistry_()[weekKey];
   if (!item || !isLiveMealFile_(item.spreadsheetId) || !isLiveMealFile_(item.formId)) throw new Error('Tuần này không còn trong sổ tuần.');
-
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
     const spreadsheet = SpreadsheetApp.openById(item.spreadsheetId);
-    const responseSheet = spreadsheet.getSheets().find(function(sheet) { return Boolean(sheet.getFormUrl()); });
+    const responseSheet = spreadsheet.getSheets().find(function(value) { return Boolean(value.getFormUrl()); });
     const historySheet = getMealDashboardHistorySheet_(spreadsheet, false);
     if (!responseSheet || !historySheet) throw new Error('Không tìm thấy phản hồi hoặc lịch sử của tuần.');
     const history = readMealDashboardHistory_(historySheet);
-    const deletion = history.filter(function(event) { return event.id === entryId && event.entryId === entryId && event.action === 'deleted'; });
-    if (deletion.length !== 1 || !deletion[0].restorable || !deletion[0].restorePayloadJson) {
-      throw new Error('Lượt này không thể khôi phục hoặc lịch sử đã thay đổi.');
-    }
-    if (history.some(function(event) { return event.entryId === entryId && /^restore-/.test(event.action); })) {
-      throw new Error('Lượt này đã được khôi phục hoặc đang cần kiểm tra.');
-    }
-    const deleted = deletion[0];
+    const matches = history.filter(function(event) { return event.id === entryId && event.entryId === entryId && event.action === 'deleted'; });
+    if (matches.length !== 1 || !matches[0].restorable || !matches[0].restorePayloadJson) throw new Error('Lượt này không thể khôi phục hoặc lịch sử đã thay đổi.');
+    if (history.some(function(event) { return event.entryId === entryId && /^restore-/.test(event.action) || event.entryId === entryId && event.action === 'restored'; })) throw new Error('Lượt này đã được khôi phục hoặc đang cần kiểm tra.');
+    const deleted = matches[0];
     const columnCount = responseSheet.getLastColumn();
     const headers = responseSheet.getRange(1, 1, 1, columnCount).getDisplayValues()[0];
     const layout = getResponseLayout_(headers);
     const form = FormApp.openById(item.formId);
     if (!form.isAcceptingResponses()) throw new Error('Form đang đóng. Mở Form rồi tải lại Dashboard để khôi phục; hệ thống sẽ không tự mở Form ra công khai.');
     const formItems = form.getItems();
-    const questionTypes = [FormApp.ItemType.TEXT, FormApp.ItemType.MULTIPLE_CHOICE];
-    if (form.collectsEmail() || formItems.some(function(question) {
-      return /e-?mail|gmail|địa chỉ.*thư/i.test(cleanMealText_(question.getTitle())) || questionTypes.indexOf(question.getType()) < 0;
-    })) throw new Error('Form hiện đã có trường email hoặc loại câu hỏi không hỗ trợ; không thể khôi phục an toàn.');
-
+    const supported = [FormApp.ItemType.TEXT, FormApp.ItemType.MULTIPLE_CHOICE];
+    if (form.collectsEmail() || formItems.some(function(question) { return /e-?mail|gmail|địa chỉ.*thư/i.test(cleanMealText_(question.getTitle())) || supported.indexOf(question.getType()) < 0; })) throw new Error('Form hiện đã có trường email hoặc loại câu hỏi không hỗ trợ; không thể khôi phục an toàn.');
     const rowCount = Math.max(responseSheet.getLastRow() - 1, 0);
     const rows = rowCount ? responseSheet.getRange(2, 1, rowCount, columnCount).getValues() : [];
+    const nameIndex = layout.nameIndex >= 0 ? layout.nameIndex : 1;
     const wantedName = normalizeResponseName_(deleted.name);
-    if (form.getResponses().some(function(response) {
-      return normalizeResponseName_(dashboardResponseTarget_(response, layout, headers).name) === wantedName;
-    }) || rows.some(function(row) {
-      const nameIndex = layout.nameIndex >= 0 ? layout.nameIndex : 1;
-      return normalizeResponseName_(row[nameIndex]) === wantedName;
-    })) throw new Error('Đã có lượt đang hoạt động cùng tên. Hãy kiểm tra danh sách trước khi khôi phục để tránh ghi đè lượt mới hơn.');
-
+    if (form.getResponses().some(function(value) { return normalizeResponseName_(dashboardResponseTarget_(value, layout, headers).name) === wantedName; }) || rows.some(function(row) { return normalizeResponseName_(row[nameIndex]) === wantedName; })) throw new Error('Đã có lượt đang hoạt động cùng tên. Hãy kiểm tra danh sách trước khi khôi phục để tránh ghi đè lượt mới hơn.');
     let archivedItems;
     try { archivedItems = JSON.parse(deleted.restorePayloadJson); } catch (error) { archivedItems = null; }
     if (!Array.isArray(archivedItems) || archivedItems.length !== formItems.length) throw new Error('Cấu trúc Form đã đổi từ lúc xóa; không thể khôi phục an toàn.');
@@ -919,52 +834,39 @@ function restoreMealDashboardResponse_(request) {
       if (!isFinite(itemId) || !/^(TEXT|MULTIPLE_CHOICE)$/.test(saved.type)) throw new Error('Dữ liệu lịch sử không hợp lệ.');
       const question = form.getItemById(itemId);
       if (!question || String(question.getType()) !== saved.type) throw new Error('Cấu trúc Form đã đổi từ lúc xóa; không thể khôi phục an toàn.');
-      const itemResponse = saved.type === 'TEXT'
-        ? question.asTextItem().createResponse(String(saved.value))
-        : question.asMultipleChoiceItem().createResponse(String(saved.value));
+      const itemResponse = saved.type === 'TEXT' ? question.asTextItem().createResponse(String(saved.value)) : question.asMultipleChoiceItem().createResponse(String(saved.value));
       response.withItemResponse(itemResponse);
     });
-
-    const restoreAudit = appendMealDashboardHistoryEvent_(historySheet, {
-      action: 'restore-pending', actor: request.email, entryId: entryId,
-      originalTimestamp: deleted.originalTimestamp, name: deleted.name, meals: deleted.meals,
-      note: 'Đang khôi phục; thời điểm gửi mới sẽ khác thời điểm gửi gốc.'
-    });
-    const restoreEvent = {
-      id: restoreAudit.id, at: Date.now(), actor: normalizeDashboardEmail_(request.email), entryId: entryId,
-      responseId: '', originalTimestamp: deleted.originalTimestamp, name: deleted.name,
-      meals: deleted.meals, restorable: false, note: 'Đang khôi phục; thời điểm gửi mới sẽ khác thời điểm gửi gốc.'
-    };
+    const audit = appendMealDashboardHistoryEvent_(historySheet, { action: 'restore-pending', actor: request.email,
+      entryId: entryId, originalTimestamp: deleted.originalTimestamp, name: deleted.name, meals: deleted.meals,
+      note: 'Đang khôi phục; thời điểm gửi mới sẽ khác thời điểm gửi gốc.' });
+    const restoreEvent = { id: audit.id, at: Date.now(), actor: normalizeDashboardEmail_(request.email), entryId: entryId,
+      responseId: '', originalTimestamp: deleted.originalTimestamp, name: deleted.name, meals: deleted.meals,
+      restorable: false, note: 'Đang khôi phục; thời điểm gửi mới sẽ khác thời điểm gửi gốc.' };
     let submitted;
-    try {
-      submitted = response.submit();
-    } catch (error) {
+    try { submitted = response.submit(); }
+    catch (error) {
       restoreEvent.action = 'restore-review';
       restoreEvent.note = 'Không xác định chắc chắn Form đã nhận phản hồi hay chưa. Không bấm khôi phục lại; hãy kiểm tra Form và Sheet. ' + cleanMealText_(error && error.message);
-      updateMealDashboardHistoryEvent_(historySheet, restoreAudit.rowNumber, restoreEvent);
+      updateMealDashboardHistoryEvent_(historySheet, audit.rowNumber, restoreEvent);
       throw new Error('Khôi phục chưa xác nhận được. Lịch sử đã được đánh dấu cần kiểm tra để tránh tạo trùng.');
     }
-
     const restoredTarget = dashboardResponseTarget_(submitted, layout, headers);
-    const currentRowsCount = Math.max(responseSheet.getLastRow() - 1, 0);
-    const currentRows = currentRowsCount ? responseSheet.getRange(2, 1, currentRowsCount, columnCount).getValues() : [];
+    const currentCount = Math.max(responseSheet.getLastRow() - 1, 0);
+    const currentRows = currentCount ? responseSheet.getRange(2, 1, currentCount, columnCount).getValues() : [];
     const matchingRows = findDashboardResponseRows_(currentRows, restoredTarget, layout);
-    if (!submitted.getId() || !form.getResponses().some(function(current) { return cleanMealText_(current.getId()) === cleanMealText_(submitted.getId()); }) || matchingRows.length !== 1) {
-      restoreEvent.action = 'restore-review';
-      restoreEvent.responseId = cleanMealText_(submitted.getId());
+    if (!submitted.getId() || !form.getResponses().some(function(value) { return cleanMealText_(value.getId()) === cleanMealText_(submitted.getId()); }) || matchingRows.length !== 1) {
+      restoreEvent.action = 'restore-review'; restoreEvent.responseId = cleanMealText_(submitted.getId());
       restoreEvent.note = 'Form đã nhận phản hồi nhưng không ghép được duy nhất với Sheet; cần kiểm tra thủ công.';
-      updateMealDashboardHistoryEvent_(historySheet, restoreAudit.rowNumber, restoreEvent);
+      updateMealDashboardHistoryEvent_(historySheet, audit.rowNumber, restoreEvent);
       throw new Error('Form đã khôi phục nhưng chưa xác nhận được đúng một hàng Sheet; lịch sử được đánh dấu cần kiểm tra.');
     }
-    restoreEvent.action = 'restored';
-    restoreEvent.responseId = cleanMealText_(submitted.getId());
+    restoreEvent.action = 'restored'; restoreEvent.responseId = cleanMealText_(submitted.getId());
     restoreEvent.note = 'Đã khôi phục. Form ghi thời điểm gửi mới; thời điểm gốc vẫn được giữ trong lịch sử.';
-    updateMealDashboardHistoryEvent_(historySheet, restoreAudit.rowNumber, restoreEvent);
+    updateMealDashboardHistoryEvent_(historySheet, audit.rowNumber, restoreEvent);
     try { CacheService.getScriptCache().remove('meal-viewer-v2:' + item.spreadsheetId); } catch (error) { /* Cache is best effort. */ }
     return { restored: true, responseId: restoreEvent.responseId, timestamp: dashboardTimestampMs_(submitted.getTimestamp()) };
-  } finally {
-    lock.releaseLock();
-  }
+  } finally { lock.releaseLock(); }
 }
 
 function dashboardResponseFingerprint_(target) {
