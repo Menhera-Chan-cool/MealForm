@@ -647,10 +647,17 @@ function getMealHistoryViewerData_(weekKey, forceRefresh) {
   return getViewerData_(item.spreadsheetId, forceRefresh);
 }
 
-function dashboardResponseTarget_(response, layout, headers) {
+function dashboardResponseTarget_(response, layout, headers, itemTitles) {
   const answers = response.getItemResponses();
   const titles = answers.map(function(answer) {
-    try { return normalizeResponseHeader_(answer.getItem().getTitle()); } catch (error) { return ''; }
+    try {
+      const item = answer.getItem();
+      const id = itemTitles ? String(item.getId()) : '';
+      if (itemTitles && itemTitles[id] !== undefined) return itemTitles[id];
+      const title = normalizeResponseHeader_(item.getTitle());
+      if (itemTitles) itemTitles[id] = title;
+      return title;
+    } catch (error) { return ''; }
   });
   const hasTitles = titles.some(Boolean);
   const responseForColumn = function(column, fallbackIndex) {
@@ -681,8 +688,10 @@ function getMealDashboardWeek_(weekKey) {
   const rows = rowCount ? sheet.getRange(2, 1, rowCount, columnCount).getValues() : [];
   const form = FormApp.openById(item.formId);
   const formResponses = form.getResponses();
-  const responses = formResponses.map(function(response) {
-    const target = dashboardResponseTarget_(response, layout, headers);
+  const itemTitles = Object.create(null);
+  const formTargets = formResponses.map(function(response) { return dashboardResponseTarget_(response, layout, headers, itemTitles); });
+  const responses = formResponses.map(function(response, index) {
+    const target = formTargets[index];
     const responseId = cleanMealText_(response.getId());
     const rowNumber = responseId ? findDashboardResponseRow_(rows, target, layout) : 0;
     return { responseId: responseId, timestamp: dashboardTimestampMs_(target.timestamp), name: cleanMealText_(target.name),
@@ -692,7 +701,7 @@ function getMealDashboardWeek_(weekKey) {
   });
   rows.forEach(function(row, index) {
     const target = { timestamp: row[layout.timestampIndex], name: row[layout.nameIndex], meals: layout.dayIndexes.map(function(column) { return row[column]; }) };
-    const stillInForm = formResponses.some(function(response) { return dashboardResponseMatches_(row, dashboardResponseTarget_(response, layout, headers), layout); });
+    const stillInForm = formTargets.some(function(target) { return dashboardResponseMatches_(row, target, layout); });
     if (stillInForm) return;
     const matches = findDashboardResponseRows_(rows, target, layout);
     const responseId = 'sheet-orphan-' + (index + 2);
@@ -714,7 +723,7 @@ function createMealDashboardDeleteToken_(weekKey, responseId, target) {
   if (!secret) throw new Error('Chưa cấu hình chữ ký dashboard.');
   const payload = JSON.stringify({ weekKey: weekKey, responseId: responseId, issuedAt: Date.now(), timestamp: dashboardTimestampMs_(target.timestamp),
     name: cleanMealText_(target.name), meals: (target.meals || []).map(cleanMealText_) });
-  return Utilities.base64EncodeWebSafe(payload) + '.' + mealViewerHmacHex_(payload, secret);
+  return Utilities.base64EncodeWebSafe(payload, Utilities.Charset.UTF_8) + '.' + mealViewerHmacHex_(payload, secret);
 }
 
 function readMealDashboardDeleteToken_(token) {

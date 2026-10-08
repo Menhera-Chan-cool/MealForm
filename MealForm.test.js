@@ -161,16 +161,37 @@ context.Utilities = {
   Charset: { UTF_8: 'UTF-8' },
   getUuid: () => crypto.randomUUID(),
   computeHmacSha256Signature: (value, key) => Array.from(crypto.createHmac('sha256', key).update(value).digest(), byte => byte > 127 ? byte - 256 : byte),
-  base64EncodeWebSafe: value => Buffer.from(value).toString('base64url'),
+  base64EncodeWebSafe: (value, charset) => Buffer.from(charset === 'UTF-8' ? value : value.replace(/[^\x00-\x7f]/g, '?')).toString('base64url'),
   base64DecodeWebSafe: value => Array.from(Buffer.from(value, 'base64url')),
   newBlob: value => ({ getDataAsString: () => Buffer.from(value).toString('utf8') })
 };
 const deleteTarget = { timestamp: deleteTime, name: 'Nguyễn An', meals: ['THỊT RAM', 'CÁ KHO'] };
+let targetReads = 0;
+let titleReads = 0;
+for (const question of questions) {
+  const readTitle = question.getTitle;
+  question.getTitle = () => { titleReads++; return readTitle(); };
+}
+for (const response of [responseOne, responseTwo]) {
+  const readAnswers = response.getItemResponses;
+  response.getItemResponses = () => { targetReads++; return readAnswers(); };
+}
+const listedWeek = context.getMealDashboardWeek_('2026-09-21_2026-09-22_2026-09-23_2026-09-24_2026-09-25');
+assert.strictEqual(listedWeek.responses.length, 2);
+assert.strictEqual(listedWeek.responses.every(response => response.deletable), true);
+assert.strictEqual(targetReads, 2, 'read each Form response once, not once per Sheet row');
+assert.strictEqual(titleReads, 3, 'read each question title once per week request');
 const deleteRequest = {
   weekKey: '2026-09-21_2026-09-22_2026-09-23_2026-09-24_2026-09-25',
   responseId: 'response-two',
   deleteToken: context.createMealDashboardDeleteToken_('2026-09-21_2026-09-22_2026-09-23_2026-09-24_2026-09-25', 'response-two', deleteTarget)
 };
+const unicodeTarget = { timestamp: deleteTime, name: 'Tuất anh Beos', meals: ['XÍU MẠI SỐT TIÊU ĐEN', 'GÀ CHIÊN SỐT XÍ MUỘI'] };
+const unicodeToken = context.createMealDashboardDeleteToken_(deleteRequest.weekKey, 'unicode-response', unicodeTarget);
+const unicodeVerified = context.readMealDashboardDeleteToken_(unicodeToken);
+assert.strictEqual(unicodeVerified.name, 'Tuất anh Beos');
+assert.deepStrictEqual(Array.from(unicodeVerified.meals), ['XÍU MẠI SỐT TIÊU ĐEN', 'GÀ CHIÊN SỐT XÍ MUỘI']);
+assert.throws(() => context.readMealDashboardDeleteToken_(unicodeToken.slice(0, -1) + (unicodeToken.endsWith('0') ? '1' : '0')), /không hợp lệ/);
 const expiredTarget = JSON.parse(Buffer.from(deleteRequest.deleteToken.split('.')[0], 'base64url').toString('utf8'));
 expiredTarget.issuedAt = Date.now() - 900001;
 const expiredPayload = JSON.stringify(expiredTarget);

@@ -57,25 +57,30 @@ export function createGasEnvelope(payload, secret, now = Date.now(), nonce = ran
   };
 }
 
-async function requestAppsScript(url, secret, payload, fetchImpl = fetch, now = Date.now) {
+async function requestAppsScript(url, secret, payload, fetchImpl = fetch, now = Date.now, retried = false) {
   if (!url || !secret) throw new Error('Apps Script API is not configured.');
+  const readOnly = payload.action?.startsWith('read-') || ['dashboard-authorize', 'dashboard-overview', 'dashboard-week', 'dashboard-health'].includes(payload.action);
+  const signal = readOnly ? AbortSignal.timeout(20000) : undefined;
+  const retryRead = () => requestAppsScript(url, secret, payload, fetchImpl, now, true);
   const envelope = createGasEnvelope(payload, secret, now());
   const response = await fetchImpl(url, {
-    method: 'POST', redirect: 'manual', cache: 'no-store',
+    method: 'POST', redirect: 'manual', cache: 'no-store', signal,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(envelope)
   });
   const redirectStatus = [301, 302, 303, 307, 308].includes(response.status);
   const resultResponse = redirectStatus
-    ? await fetchImpl(new URL(response.headers?.get?.('location') || (() => { throw new Error('Apps Script redirect missing location.'); })(), url), { method: 'GET', redirect: 'follow', cache: 'no-store' })
+    ? await fetchImpl(new URL(response.headers?.get?.('location') || (() => { throw new Error('Apps Script redirect missing location.'); })(), url), { method: 'GET', redirect: 'follow', cache: 'no-store', signal })
     : response;
   const responseText = await resultResponse.text();
   if (!resultResponse.ok) {
+    if (readOnly && !retried && (resultResponse.status === 404 || resultResponse.status === 429 || resultResponse.status >= 500)) return retryRead();
     console.error('Apps Script HTTP error', resultResponse.status, responseText.slice(0, 240));
     throw new Error('Apps Script request failed.');
   }
   let result;
   try { result = JSON.parse(responseText); } catch {
+    if (readOnly && !retried) return retryRead();
     console.error('Apps Script returned non-JSON data', responseText.slice(0, 240));
     throw new Error('Apps Script returned invalid data.');
   }
