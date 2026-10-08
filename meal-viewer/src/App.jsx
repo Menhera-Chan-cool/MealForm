@@ -60,9 +60,8 @@ function App() {
   const isHistory = viewerPath.replace(/\/+$/, '') === '/history';
   const isHistoryList = isHistory && !new URLSearchParams(viewerSearch).get('week');
   const isNewestPage = viewerPath === '/newest' || viewerPath === '/newest/';
-  const isOldPage = viewerPath === '/old' || viewerPath === '/old/';
   const isNextPage = viewerPath === '/next' || viewerPath === '/next/';
-  const isWeekPage = isNewestPage || isOldPage || isNextPage;
+  const isWeekPage = isNewestPage || isNextPage;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const weekLink = weekNavigation(viewerPath);
   const [auth, setAuth] = useState('loading');
@@ -255,7 +254,7 @@ function App() {
   const days = Array.isArray(data?.days) ? data.days : [];
   const weekDates = days.map(day => typeof day === 'string' ? day : String(day?.day || ''))
     .map(label => label.match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0]).filter(Boolean);
-  const pageTitle = isNewestPage ? 'Thực đơn tuần này' : isOldPage ? 'Thực đơn tuần trước' : isNextPage ? 'Thực đơn tuần sau' : isHistory ? 'Kho thực đơn tuần cũ' : 'Thực đơn bán trú';
+  const pageTitle = isNewestPage ? 'Thực đơn tuần này' : isNextPage ? 'Thực đơn tuần sau' : isHistory ? 'Kho thực đơn tuần cũ' : 'Thực đơn bán trú';
   const nameOptions = useMemo(() => [...new Set((data?.rows || []).map(row => String(row?.[1] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')), [data]);
   const mealOptions = useMemo(() => [...new Set(days.flatMap(day => Array.isArray(day.meals) ? day.meals : []))].sort((a, b) => a.localeCompare(b, 'vi')), [days]);
   useEffect(() => {
@@ -310,7 +309,7 @@ function App() {
 
   if (isSetup) return <SetupChecklist authenticated={auth === 'authenticated'} />;
   if (isHistoryList && auth === 'loading') return <main><p>Đang xác nhận đăng nhập…</p></main>;
-  if (isHistoryList && auth === 'authenticated') return <main><header><h1>Kho thực đơn tuần cũ</h1><a href="/newest">← Tuần này</a></header><HistoryArchive onUnauthorized={() => setAuth('anonymous')} /></main>;
+  if (isHistoryList && auth === 'authenticated') return <main><header><h1>Kho thực đơn tuần cũ</h1><nav className="viewer-navigation" aria-label="Các trang"><a className="action-link" href="/newest">← Tuần này</a></nav></header><HistoryArchive onUnauthorized={() => setAuth('anonymous')} /></main>;
   if (isDashboard) {
     if (auth === 'loading') return <main><p className="message">Đang xác nhận đăng nhập và quyền dashboard…</p></main>;
     if (auth === 'anonymous') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p></section></main>;
@@ -326,7 +325,7 @@ function App() {
       </div>
       <MotionPreferenceToggle reducedMotion={reducedMotion} fullMotion={fullMotion} onToggle={() => setFullMotion(value => !value)} />
     </header>
-    <nav className="viewer-navigation" aria-label="Các trang"><a href="/newest">Tuần này</a><a href="/history">Kho tuần cũ</a>{isHistory && <a href="/history">← Chọn tuần khác</a>}</nav>
+    <nav className="viewer-navigation" aria-label="Các trang"><a className="action-link" href="/newest" aria-current={isNewestPage ? 'page' : undefined}>Tuần này</a><a className="action-link" href="/history">{isHistory ? '← Chọn tuần khác' : 'Kho tuần cũ'}</a></nav>
 
     {auth === 'anonymous' ? <section className="login-panel">
       <h2>{isWeekPage ? 'Đăng nhập hoặc xem với tư cách khách' : 'Đăng nhập để xem thực đơn'}</h2>

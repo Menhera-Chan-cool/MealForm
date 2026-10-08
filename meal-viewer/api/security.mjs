@@ -213,16 +213,16 @@ export function createViewerHandler({ secret, readViewerData, now = Date.now }) 
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed.' });
+    if (req.query?.old === '1') return res.status(410).json({ error: 'Tuần cũ đã chuyển sang /history. Đăng nhập Google để xem kho thực đơn.' });
     const isNewest = req.query?.newest === '1';
-    const isOld = req.query?.old === '1';
     const isNext = req.query?.next === '1';
-    const isWeek = isNewest || isOld || isNext;
+    const isWeek = isNewest || isNext;
     const session = readSessionToken(cookieValue(req.headers?.cookie, 'meal_session'), secret, now());
     if (!isWeek && !session) return res.status(401).json({ error: 'Đăng nhập Google để xem thực đơn.' });
     const sheetId = String(req.query?.view || '');
     if (!isWeek && !SHEET_ID.test(sheetId)) return res.status(400).json({ error: 'Liên kết bảng xem không hợp lệ.' });
     try {
-      const action = isNewest ? 'read-latest-viewer' : isOld ? 'read-previous-viewer' : isNext ? 'read-next-viewer' : 'read-viewer';
+      const action = isNewest ? 'read-latest-viewer' : isNext ? 'read-next-viewer' : 'read-viewer';
       const data = await readViewerData(sheetId, req.query?.refresh === '1', action);
       const result = publicViewerData(data);
       if (isNewest && data.formStatus === 'closed') {

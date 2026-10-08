@@ -2,7 +2,9 @@
 
 ## Cập nhật ngày 08/10/2026
 
-Mã backend đã đồng bộ các xử lý được giữ lại khi triển khai Apps Script phiên bản 68. Bốn tính năng gồm nháp OCR theo tài khoản, kho tuần cũ, phân quyền riêng và checklist cài đặt đã được kiểm thử; bản triển khai tham chiếu đạt 14/14 kiểm tra hệ thống. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
+Mã backend giữ các xử lý đã đồng bộ khi triển khai Apps Script phiên bản 68. Bốn tính năng gồm nháp OCR theo tài khoản, kho tuần cũ, phân quyền riêng và checklist cài đặt đã được kiểm thử; bản triển khai tham chiếu đạt 14/14 kiểm tra hệ thống. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
+
+Điều hướng dùng nút xanh đồng bộ trên điện thoại và máy tính. Kho tuần cũ ở `/history` yêu cầu đăng nhập; `/old` đã ngừng phục vụ thực đơn và chuyển hướng về kho tuần. Không xóa dữ liệu các tuần cũ.
 
 ## Tính năng mới trong bản này
 
@@ -109,7 +111,7 @@ Website chỉ xác minh danh tính với email/profile/openid; không xin quyề
 3. Mở `/dashboard`, đăng nhập bằng email chủ mới; Dashboard → Hệ thống kiểm tra cấu hình/quyền.
 4. OCR một ảnh có đủ ngày; đối chiếu ảnh, sửa tên món/ngày và xác nhận trước khi Tạo Form và Sheet. Ngày sai hoặc ít hơn hai món bị chặn.
 5. Kiểm tra thư mục tuần được tạo trong Drive riêng, Form và Spreadsheet liên kết đúng. Bản hiện tại tạo một Form và một Spreadsheet cho mỗi tuần, không tự tạo hai Form.
-6. Kiểm tra `/newest` tuần hiện tại, `/old` tuần liền trước, `/next` tuần kế tiếp; chưa có tuần tương ứng thì hiện chưa có thực đơn. Không tự chuyển tuần tương lai thành tuần này.
+6. Kiểm tra `/newest` tuần hiện tại, `/next` tuần kế tiếp và `/history` để chọn tuần cũ sau đăng nhập; chưa có tuần tương ứng thì hiện chưa có thực đơn. `/old` chỉ chuyển hướng về kho tuần. Không tự chuyển tuần tương lai thành tuần này.
 7. Khi tuần bắt đầu thứ Hai 00:00 theo giờ Việt Nam, Form tuần đó được lên lịch đóng. Trigger Google có thể chạy trễ; truy cập dữ liệu cũng kiểm tra và đóng Form đến hạn. Không tự xóa Form/Sheet.
 8. Chủ thêm/gỡ và bật quyền từng người qua tab Quyền Gmail. Gmail mới chỉ xem; bật OCR/tạo và xóa/khôi phục nếu cần. Chỉ test xóa/khôi phục trên lượt thử của bản mới, không sao chép registry hoặc dữ liệu của người gửi.
 9. Mở `/setup` xem hướng dẫn/kiểm tra bằng tài khoản chủ; `/history` cần Google login và chỉ có tuần trước tuần hiện tại.

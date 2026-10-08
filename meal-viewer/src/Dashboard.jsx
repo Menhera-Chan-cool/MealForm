@@ -288,7 +288,7 @@ function Dashboard({ initialData, onUnauthorized }) {
       <div className="dashboard-header-actions">
         {overview.role === 'owner' && <button className="secondary" type="button" disabled={busy} onClick={() => void authorizeScript()}>Cấp quyền Apps Script</button>}
         <a className="form-link" href="/newest">Mở trang xem</a>
-        <a className="secondary" href="/setup">Cài đặt</a>
+        <a className="action-link" href="/setup">Cài đặt</a>
       </div>
     </header>
     <nav className="dashboard-tabs" aria-label="Chức năng quản trị">
@@ -298,7 +298,7 @@ function Dashboard({ initialData, onUnauthorized }) {
       {overview.role === 'owner' && <button className={tab === 'health' ? 'active' : 'secondary'} onClick={() => setTab('health')}>Hệ thống</button>}
       {overview.role === 'owner' && <button className={tab === 'access' ? 'active' : 'secondary'} onClick={() => setTab('access')}>Quyền Gmail</button>}
     </nav>
-    {message && <p className={`dashboard-message ${/không|lỗi|chưa/i.test(message) ? 'error' : ''}`} role="status" aria-live="polite">{message}{authorizationUrl && <> <a href={authorizationUrl} target="_blank" rel="noopener noreferrer">Mở trang cấp quyền Google</a></>}</p>}
+    {message && <p className={`dashboard-message ${/không|lỗi|chưa/i.test(message) ? 'error' : ''}`} role="status" aria-live="polite">{message}{authorizationUrl && <> <a className="action-link" href={authorizationUrl} target="_blank" rel="noopener noreferrer">Mở trang cấp quyền Google</a></>}</p>}
 
     {tab === 'overview' && <section className="dashboard-panel">
       <div className="dashboard-section-title"><h2>Sổ tuần</h2><button className="secondary" disabled={busy} onClick={() => void refreshOverview()}>Tải lại</button></div>

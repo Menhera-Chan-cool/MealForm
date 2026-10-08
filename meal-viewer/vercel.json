@@ -1,11 +1,14 @@
 {
+  "redirects": [
+    { "source": "/old", "destination": "/history", "permanent": true },
+    { "source": "/old/", "destination": "/history", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/history", "destination": "/index.html" },
     { "source": "/setup", "destination": "/index.html" },
     { "source": "/dashboard", "destination": "/index.html" },
     { "source": "/newform", "destination": "/index.html" },
     { "source": "/newest", "destination": "/index.html" },
-    { "source": "/next", "destination": "/index.html" },
-    { "source": "/old", "destination": "/index.html" }
+    { "source": "/next", "destination": "/index.html" }
   ]
 }

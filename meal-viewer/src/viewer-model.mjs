@@ -77,13 +77,14 @@ export function readViewerFilters(raw) {
 
 export function rootRedirectTarget(pathname, search) {
   const path = String(pathname || '/').replace(/\/+$/, '') || '/';
+  if (path === '/old') return '/history';
   return path === '/' && !new URLSearchParams(search || '').get('view') ? '/newest' : '';
 }
 
 export function weekNavigation(pathname) {
   const path = String(pathname || '/').replace(/\/+$/, '') || '/';
-  if (path === '/newest') return [{ href: '/old', label: 'Tuần trước đó' }, { href: '/next', label: 'Tuần sau' }];
-  if (path === '/old' || path === '/next') return [{ href: '/newest', label: 'Tuần này' }];
+  if (path === '/newest') return [{ href: '/next', label: 'Tuần sau' }];
+  if (path === '/next') return [{ href: '/newest', label: 'Tuần này' }];
   return [];
 }
 
@@ -99,9 +100,9 @@ export function formatFilterSummary(filters) {
 export function viewerApiUrl(pathname, search, forceRefresh = false, guest = false) {
   const path = String(pathname || '').replace(/\/+$/, '') || '/';
   const newest = path === '/newest';
-  const old = path === '/old';
+  if (path === '/old') return '';
   const next = path === '/next';
-  const week = newest ? 'newest' : old ? 'old' : next ? 'next' : '';
+  const week = newest ? 'newest' : next ? 'next' : '';
   let url = week ? `/api/viewer?${week}=1` : '';
   if (path === '/history') {
     const key = new URLSearchParams(search || '').get('week') || '';

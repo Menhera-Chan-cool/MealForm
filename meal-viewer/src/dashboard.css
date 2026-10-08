@@ -23,3 +23,4 @@
 .menu-review input[aria-invalid=true]{border-color:#cf5e53;background:#fff2f0}.menu-review input.menu-meal-missing:not([aria-invalid=true]){border-color:#d3ad54;background:#fff9e7}
 .menu-inline-error,.menu-inline-warning{margin:0;font-size:.88em;line-height:1.45}.menu-inline-error{color:#a52a21}.menu-inline-warning{color:#805c00}
 @media(max-width:900px){.menu-review-layout{grid-template-columns:1fr}.menu-image-pane{position:static}.menu-image-viewport{max-height:min(50dvh,420px)}.menu-image-dialog{width:96vw;padding:12px}.menu-image-dialog-header h2{font-size:20px}}
+.viewer-navigation{gap:8px}.viewer-navigation>.action-link{flex:0 1 auto}@media(max-width:700px){.viewer-navigation{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.viewer-navigation>.action-link{width:100%;padding-inline:8px}}

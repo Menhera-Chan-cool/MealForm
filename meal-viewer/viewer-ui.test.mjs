@@ -22,6 +22,10 @@ try {
   const { shouldAnimateDisclosureClose } = await vite.ssrLoadModule('/src/useDisclosureAnimation.js');
   const { shouldShowViewerMessage } = await vite.ssrLoadModule('/src/viewer-model.mjs');
   const { MotionPreferenceToggle } = await vite.ssrLoadModule('/src/App.jsx');
+  const { default: SetupChecklist } = await vite.ssrLoadModule('/src/SetupChecklist.jsx');
+  const setup = renderToStaticMarkup(createElement(SetupChecklist, { authenticated: false }));
+  assert.match(setup, /class="action-link"[^>]*href="\/newest"/);
+  assert.match(setup, /class="action-link"[^>]*href="https:\/\/drive\.google\.com\//);
   const html = renderToStaticMarkup(createElement(DetailTable, {
     model: {
       headers: ['Dấu thời gian', 'Họ và tên', 'Thứ 2'],

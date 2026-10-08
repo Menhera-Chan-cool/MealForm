@@ -39,8 +39,8 @@ export default function SetupChecklist({ authenticated }) {
     finally { setBusy(false); }
   }
   return <main className="dashboard-shell">
-    <header><h1>Cài đặt &amp; kiểm tra</h1><p>Hướng dẫn mở được ngay cả khi bản mới chưa cấu hình. Không nhập khóa bí mật vào trang này.</p><div className="dashboard-header-actions"><a className="form-link" href="/dashboard">Mở Dashboard / đăng nhập</a><a className="secondary" href="/newest">Trang xem</a></div></header>
-    <ol className="setup-steps">{STEPS.map(([title, text, url]) => <li key={title}><h2>{title}</h2><p>{text}</p>{url && <a href={url} target="_blank" rel="noopener noreferrer">Mở hướng dẫn / dịch vụ →</a>}</li>)}</ol>
+    <header><h1>Cài đặt &amp; kiểm tra</h1><p>Hướng dẫn mở được ngay cả khi bản mới chưa cấu hình. Không nhập khóa bí mật vào trang này.</p><div className="dashboard-header-actions"><a className="form-link" href="/dashboard">Mở Dashboard / đăng nhập</a><a className="action-link" href="/newest">Trang xem</a></div></header>
+    <ol className="setup-steps">{STEPS.map(([title, text, url]) => <li key={title}><h2>{title}</h2><p>{text}</p>{url && <a className="action-link" href={url} target="_blank" rel="noopener noreferrer">Mở hướng dẫn / dịch vụ →</a>}</li>)}</ol>
     <section className="dashboard-panel"><h2>Kiểm tra kết nối thực tế</h2>
       {role === 'owner' ? <button disabled={busy} onClick={() => void check()}>{busy ? 'Đang kiểm tra…' : 'Kiểm tra hệ thống'}</button> : <p>Đăng nhập bằng Gmail chủ trong Dashboard rồi quay lại trang này để kiểm tra cấu hình riêng.</p>}
       <p>Chưa đọc ảnh thử: có key/model không chứng minh OCR hoạt động. Authorized origins Google được xác nhận qua đăng nhập thực tế. Chưa có tuần là cảnh báo, không phải lỗi cài đặt.</p>

@@ -47,9 +47,10 @@ assert.equal(context.getViewerUrl_('2026-10-05', { days: [{ date: '05/10/2026' }
 context.verifyMealViewerEnvelope_ = envelope => JSON.parse(envelope.payload);
 context.createMealViewerJsonOutput_ = value => value;
 context.getViewerData_ = spreadsheetId => ({ spreadsheetId });
-for (const [action, expected] of [['read-latest-viewer', '2026-09-28'], ['read-previous-viewer', '2026-09-21'], ['read-next-viewer', '2026-10-05']]) {
+for (const [action, expected] of [['read-latest-viewer', '2026-09-28'], ['read-next-viewer', '2026-10-05']]) {
   assert.equal(context.doPost({ postData: { contents: JSON.stringify({ payload: JSON.stringify({ action }) }) } }).data.spreadsheetId, expected);
 }
+assert.equal(context.doPost({ postData: { contents: JSON.stringify({ payload: JSON.stringify({ action: 'read-previous-viewer' }) }) } }).error, 'Yêu cầu không hợp lệ.');
 clock = '2026-10-04T17:00:00Z';
 registry.delete(key('2026-10-12'));
 assert.equal(context.getLatestMealFormRegistration_().spreadsheetId, '2026-10-05');
@@ -57,7 +58,7 @@ assert.equal(context.getPreviousMealFormRegistration_().spreadsheetId, '2026-09-
 assert.equal(context.getNextMealFormRegistration_(), null, 'next stays empty until the following week is created');
 assert.equal(context.doPost({ postData: { contents: JSON.stringify({ payload: JSON.stringify({ action: 'read-next-viewer' }) }) } }).error, 'Chưa có thực đơn cho tuần sau.');
 assert.equal(context.getViewerUrl_('2026-10-05', { days: [{ date: '05/10/2026' }] }), 'https://recipient.example/newest');
-assert.equal(context.getViewerUrl_('2026-09-28', { days: [{ date: '28/09/2026' }] }), 'https://recipient.example/old');
+assert.equal(context.getViewerUrl_('2026-09-28', { days: [{ date: '28/09/2026' }] }), 'https://recipient.example/history?week=2026-09-28_week');
 
 assert.equal(viewerApiUrl('/next/', '', true, true), '/api/viewer?next=1&guest=1&refresh=1');
 assert.ok(weekNavigation('/newest').some(link => link.href === '/next' && link.label === 'Tuần sau'));

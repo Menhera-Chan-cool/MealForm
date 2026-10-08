@@ -36,7 +36,8 @@ function getViewerUrl_(spreadsheetId, menu) {
   const id = normalizeViewerSheetId_(spreadsheetId);
   const start = parseDateKey_(menu && menu.days && menu.days[0] && menu.days[0].date);
   const current = getMealCalendarWeekStart_(0);
-  const route = start === current ? 'newest' : start === addDateKey_(current, -7) ? 'old' : start === addDateKey_(current, 7) ? 'next' : '';
+  const weekKey = start && start < current ? getMenuWeekKey_(menu) || getMealFormWeekKeyBySpreadsheetId_(id) : '';
+  const route = start === current ? 'newest' : start === addDateKey_(current, 7) ? 'next' : weekKey ? 'history?week=' + encodeURIComponent(weekKey) : '';
   return getMealViewerOrigin_() + '/' + (route || '?view=' + encodeURIComponent(id));
 }
 
@@ -72,18 +73,13 @@ function doPost(e) {
     }
     if (contents.length > 10000) throw new Error('Yêu cầu không hợp lệ.');
     const request = verifyMealViewerEnvelope_(envelope);
-    if (!request || ['read-viewer', 'read-latest-viewer', 'read-previous-viewer', 'read-next-viewer', 'read-history', 'read-history-viewer'].indexOf(request.action) < 0) throw new Error('Yêu cầu không hợp lệ.');
+    if (!request || ['read-viewer', 'read-latest-viewer', 'read-next-viewer', 'read-history', 'read-history-viewer'].indexOf(request.action) < 0) throw new Error('Yêu cầu không hợp lệ.');
     if (request.action === 'read-history') return createMealViewerJsonOutput_({ data: { weeks: getMealHistoryWeeks_() } });
     if (request.action === 'read-history-viewer') return createMealViewerJsonOutput_({ data: getMealHistoryViewerData_(request.weekKey, request.forceRefresh === true) });
     if (request.action === 'read-latest-viewer') {
       const latest = getLatestMealFormRegistration_();
       if (!latest) throw new Error('Chưa có thực đơn cho tuần này.');
       return createMealViewerJsonOutput_({ data: getViewerData_(latest.spreadsheetId, request.forceRefresh === true) });
-    }
-    if (request.action === 'read-previous-viewer') {
-      const previous = getPreviousMealFormRegistration_();
-      if (!previous) throw new Error('Chưa có thực đơn cho tuần trước.');
-      return createMealViewerJsonOutput_({ data: getViewerData_(previous.spreadsheetId, request.forceRefresh === true) });
     }
     if (request.action === 'read-next-viewer') {
       const next = getNextMealFormRegistration_();
