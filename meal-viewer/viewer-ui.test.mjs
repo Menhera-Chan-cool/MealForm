@@ -23,6 +23,14 @@ try {
   const { shouldShowViewerMessage } = await vite.ssrLoadModule('/src/viewer-model.mjs');
   const { MotionPreferenceToggle } = await vite.ssrLoadModule('/src/App.jsx');
   const { default: SetupChecklist } = await vite.ssrLoadModule('/src/SetupChecklist.jsx');
+  const { dashboardRequest } = await vite.ssrLoadModule('/src/Dashboard.jsx');
+  const originalFetch = globalThis.fetch;
+  try {
+    let unauthorizedStatus = 0;
+    globalThis.fetch = async () => ({ status: 401, ok: false, json: async () => ({ error: 'Phiên đã hết hạn.' }) });
+    await assert.rejects(dashboardRequest('/api/dashboard', {}, (_, status) => { unauthorizedStatus = status; }), /hết hạn/);
+    assert.equal(unauthorizedStatus, 401, 'expired requests must return directly to login, not require a manual logout');
+  } finally { globalThis.fetch = originalFetch; }
   const setup = renderToStaticMarkup(createElement(SetupChecklist, { authenticated: false }));
   assert.match(setup, /class="action-link"[^>]*href="\/newest"/);
   assert.match(setup, /class="action-link"[^>]*href="https:\/\/drive\.google\.com\//);

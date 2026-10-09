@@ -8,10 +8,14 @@ import './dashboard.css';
 const IMAGE_LIMIT = 2_800_000;
 const MEAL_SLOTS = [0, 1, 2];
 
-async function dashboardRequest(url = '/api/dashboard', options = {}) {
+export async function dashboardRequest(url = '/api/dashboard', options = {}, onUnauthorized) {
   const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', ...options });
   const body = await response.json();
-  if (!response.ok) throw new Error(errorMessage(body.error, 'Không thể hoàn tất thao tác.'));
+  if (!response.ok) {
+    const message = errorMessage(body.error, 'Không thể hoàn tất thao tác.');
+    if (response.status === 401 || response.status === 403) onUnauthorized?.(message, response.status);
+    throw Object.assign(new Error(message), { status: response.status });
+  }
   return body;
 }
 
@@ -34,7 +38,8 @@ function historyActionLabel(action) {
   })[action] || action;
 }
 
-function Dashboard({ initialData, onUnauthorized }) {
+function Dashboard({ initialData, onUnauthorized, onSignOut }) {
+  const request = (url, options) => dashboardRequest(url, options, onUnauthorized);
   const [overview, setOverview] = useState(initialData || { role: '', weeks: [], allowedEmails: [] });
   const [tab, setTab] = useState(() => {
     const initialTab = new URLSearchParams(window.location.search).get('tab');
@@ -50,6 +55,7 @@ function Dashboard({ initialData, onUnauthorized }) {
   const [menu, setMenu] = useState(null);
   const [allowMissing, setAllowMissing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [message, setMessage] = useState('');
   const [authorizationUrl, setAuthorizationUrl] = useState('');
   const [health, setHealth] = useState(null);
@@ -70,13 +76,12 @@ function Dashboard({ initialData, onUnauthorized }) {
 
   async function refreshOverview() {
     try {
-      const data = await dashboardRequest();
+      const data = await request();
       setOverview(data);
       if (!weekKey && data.weeks?.length) setWeekKey(data.weeks[0].weekKey);
       return data;
     } catch (error) {
-      if (/chưa được cấp quyền|đăng nhập/i.test(error.message)) onUnauthorized(error.message);
-      else setMessage(error.message);
+      setMessage(error.message);
       return null;
     }
   }
@@ -85,7 +90,7 @@ function Dashboard({ initialData, onUnauthorized }) {
     if (!key) { setWeekData(null); return; }
     setBusy(true);
     try {
-      setWeekData(await dashboardRequest(`/api/dashboard?week=${encodeURIComponent(key)}`));
+      setWeekData(await request(`/api/dashboard?week=${encodeURIComponent(key)}`));
       setMessage('');
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
@@ -104,7 +109,7 @@ function Dashboard({ initialData, onUnauthorized }) {
     try {
       const response = await fetch(`/api/dashboard?health=1&week=${encodeURIComponent(weekKey)}`, { credentials: 'same-origin', cache: 'no-store' });
       const report = await response.json();
-      if (response.status === 401 || response.status === 403) { onUnauthorized(errorMessage(report.error)); return; }
+      if (response.status === 401 || response.status === 403) { onUnauthorized(errorMessage(report.error), response.status); return; }
       if (!Array.isArray(report.checks)) throw new Error('Không nhận được kết quả kiểm tra.');
       setHealth(report);
     } catch (error) {
@@ -142,7 +147,7 @@ function Dashboard({ initialData, onUnauthorized }) {
     if (!image) { setMessage('Hãy chọn ảnh thực đơn trước.'); return; }
     setBusy(true); setMessage('Đang đọc ảnh thực đơn…');
     try {
-      const result = await dashboardRequest('/api/dashboard', {
+      const result = await request('/api/dashboard', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'ocr', image })
       });
@@ -175,7 +180,7 @@ function Dashboard({ initialData, onUnauthorized }) {
     };
     setBusy(true); setMessage('Đang tạo Form và Sheet cho tuần…');
     try {
-      const result = await dashboardRequest('/api/dashboard', {
+      const result = await request('/api/dashboard', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'create', menu: payload })
       });
@@ -199,7 +204,7 @@ function Dashboard({ initialData, onUnauthorized }) {
     if (!window.confirm(prompt)) return;
     setBusy(true); setMessage('Đang xóa lượt gửi…');
     try {
-      await dashboardRequest('/api/dashboard', {
+      await request('/api/dashboard', {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ weekKey, responseId: response.responseId, deleteToken: response.deleteToken })
       });
@@ -218,7 +223,7 @@ function Dashboard({ initialData, onUnauthorized }) {
     if (!window.confirm(`Khôi phục lượt của ${event.name} (gửi gốc lúc ${originalTime})? Lượt sẽ được tạo mới trong Form, nên thời điểm gửi trong Form sẽ là thời điểm hiện tại.`)) return;
     setBusy(true); setMessage('Đang khôi phục lượt gửi…');
     try {
-      await dashboardRequest('/api/dashboard', {
+      await request('/api/dashboard', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'restore', weekKey, entryId: event.entryId })
       });
@@ -234,7 +239,7 @@ function Dashboard({ initialData, onUnauthorized }) {
     if (!target) return;
     setBusy(true); setMessage('Đang cập nhật quyền…');
     try {
-      const result = await dashboardRequest('/api/dashboard', {
+      const result = await request('/api/dashboard', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, email: target, permissions: memberPermissions })
       });
@@ -251,7 +256,7 @@ function Dashboard({ initialData, onUnauthorized }) {
     setAuthorizationUrl('');
     setMessage('Đang kiểm tra quyền Apps Script…');
     try {
-      const result = await dashboardRequest('/api/dashboard', {
+      const result = await request('/api/dashboard', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'authorize-script' })
       });
@@ -289,6 +294,12 @@ function Dashboard({ initialData, onUnauthorized }) {
         {overview.role === 'owner' && <button className="secondary" type="button" disabled={busy} onClick={() => void authorizeScript()}>Cấp quyền Apps Script</button>}
         <a className="form-link" href="/newest">Mở trang xem</a>
         <a className="action-link" href="/setup">Cài đặt</a>
+        <button className="secondary" type="button" disabled={busy || signingOut} onClick={async () => {
+          setSigningOut(true);
+          try { await onSignOut(); }
+          catch (error) { setMessage(errorMessage(error, 'Chưa đăng xuất được. Hãy thử lại.')); }
+          finally { setSigningOut(false); }
+        }}>{signingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</button>
       </div>
     </header>
     <nav className="dashboard-tabs" aria-label="Chức năng quản trị">

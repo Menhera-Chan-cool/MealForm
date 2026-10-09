@@ -9,6 +9,7 @@ import ChevronIcon from './ChevronIcon.jsx';
 import useDisclosureAnimation from './useDisclosureAnimation.js';
 import HistoryArchive from './HistoryArchive.jsx';
 import SetupChecklist from './SetupChecklist.jsx';
+import { readLoginState } from './session-client.mjs';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '';
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
@@ -85,6 +86,7 @@ function App() {
   const [weekUnavailable, setWeekUnavailable] = useState(false);
   const [serverClockOffset, setServerClockOffset] = useState(0);
   const signInRoot = useRef(null);
+  const authRequest = useRef(0);
   const loading = useRef(false);
   const rolloverTimer = useRef(null);
   const dataRef = useRef(data);
@@ -157,29 +159,36 @@ function App() {
 
   useEffect(() => () => window.clearTimeout(rolloverTimer.current), [loadData]);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/session', { credentials: 'same-origin', cache: 'no-store' })
-      .then(response => response.json())
-      .then(async result => {
-        if (cancelled) return;
-        if (!result.authenticated) { setAuth('anonymous'); setMessage('Đăng nhập bằng Google để xem thực đơn.'); return; }
-        if (!isDashboard) { setAuth('authenticated'); if (!isSetup && !isHistoryList) void loadData(false); return; }
-        try {
-          const access = await fetch('/api/dashboard', { credentials: 'same-origin', cache: 'no-store' });
-          const body = await access.json();
-          if (cancelled) return;
-          if (!access.ok) { setAuth('forbidden'); setMessage(errorMessage(body.error, 'Tài khoản chưa được cấp quyền dashboard.')); return; }
-          setDashboardData(body);
-          setAuth('authenticated');
-          setMessage('');
-        } catch (error) {
-          if (!cancelled) { setAuth('forbidden'); setMessage(errorMessage(error, 'Không thể xác nhận quyền dashboard.')); }
-        }
-      })
-      .catch(() => { if (!cancelled) { setAuth('anonymous'); setMessage('Hãy đăng nhập bằng Google để tiếp tục.'); } });
-    return () => { cancelled = true; };
+  const checkSession = useCallback(async () => {
+    const request = ++authRequest.current;
+    setAuth('loading');
+    const result = await readLoginState(isDashboard);
+    if (request !== authRequest.current) return;
+    setAuth(result.auth);
+    setMessage(result.message);
+    setDashboardData(result.dashboardData || null);
+    if (result.auth === 'authenticated' && !isDashboard && !isSetup && !isHistoryList) void loadData(false);
   }, [isDashboard, isSetup, isHistoryList, loadData]);
+
+  useEffect(() => {
+    void checkSession();
+    return () => { authRequest.current++; };
+  }, [checkSession]);
+
+  useEffect(() => {
+    if (auth !== 'authenticated') return undefined;
+    const renew = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const request = authRequest.current;
+      const result = await readLoginState();
+      if (request === authRequest.current && result.auth === 'anonymous') {
+        setAuth('anonymous'); setDashboardData(null); setData(null);
+        setMessage('Phiên đã hết hạn hoặc đã đăng xuất. Hãy đăng nhập lại.');
+      }
+    };
+    document.addEventListener('visibilitychange', renew);
+    return () => document.removeEventListener('visibilitychange', renew);
+  }, [auth]);
 
   useEffect(() => {
     if (isDashboard || isSetup || isHistoryList || (auth !== 'authenticated' && auth !== 'guest')) return undefined;
@@ -226,17 +235,7 @@ function App() {
             });
             const body = await result.json();
             if (!result.ok) throw new Error(errorMessage(body.error, 'Không thể đăng nhập.'));
-            if (isDashboard) {
-              const access = await fetch('/api/dashboard', { credentials: 'same-origin', cache: 'no-store' });
-              const accessBody = await access.json();
-              if (!access.ok) { setAuth('forbidden'); setMessage(errorMessage(accessBody.error, 'Tài khoản chưa được cấp quyền dashboard.')); return; }
-              setDashboardData(accessBody);
-              setAuth('authenticated');
-              setMessage('');
-            } else {
-              setAuth('authenticated');
-              await loadData(false);
-            }
+            await checkSession();
           } catch (error) { setMessage(errorMessage(error, 'Không thể đăng nhập Google.')); }
         }
       });
@@ -249,7 +248,7 @@ function App() {
     };
     if (!renderButton()) timer = window.setInterval(() => { if (renderButton()) window.clearInterval(timer); }, 150);
     return () => window.clearInterval(timer);
-  }, [auth, loadData]);
+  }, [auth, checkSession]);
 
   const days = Array.isArray(data?.days) ? data.days : [];
   const weekDates = days.map(day => typeof day === 'string' ? day : String(day?.day || ''))
@@ -302,19 +301,25 @@ function App() {
   }
 
   async function signOutDashboard() {
-    await fetch('/api/session', { method: 'DELETE', credentials: 'same-origin' });
+    const response = await fetch('/api/session', { method: 'DELETE', credentials: 'same-origin' });
+    if (!response.ok) throw new Error('Chưa đăng xuất được. Hãy thử lại.');
+    authRequest.current++;
+    window.google?.accounts?.id?.disableAutoSelect?.();
+    setDashboardData(null);
+    setData(null);
     setAuth('anonymous');
     setMessage('Đã đăng xuất. Hãy dùng Gmail được cấp quyền dashboard.');
   }
 
   if (isSetup) return <SetupChecklist authenticated={auth === 'authenticated'} />;
+  if (auth === 'error') return <main><section className="login-panel"><h1>Chưa kết nối được</h1><p role="alert">{message}</p><p>Thông tin phiên chưa bị xóa. Bạn không cần đăng xuất để thử lại.</p><div className="actions"><button type="button" onClick={() => void checkSession()}>Kiểm tra lại</button><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đăng xuất</button>{isWeekPage && <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>}</div></section></main>;
   if (isHistoryList && auth === 'loading') return <main><p>Đang xác nhận đăng nhập…</p></main>;
   if (isHistoryList && auth === 'authenticated') return <main><header><h1>Kho thực đơn tuần cũ</h1><nav className="viewer-navigation" aria-label="Các trang"><a className="action-link" href="/newest">← Tuần này</a></nav></header><HistoryArchive onUnauthorized={() => setAuth('anonymous')} /></main>;
   if (isDashboard) {
     if (auth === 'loading') return <main><p className="message">Đang xác nhận đăng nhập và quyền dashboard…</p></main>;
     if (auth === 'anonymous') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p></section></main>;
-    if (auth === 'forbidden') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard()}>Đổi tài khoản Google</button></section></main>;
-    return <Dashboard initialData={dashboardData} onUnauthorized={message => { setAuth('forbidden'); setMessage(message); }} />;
+    if (auth === 'forbidden') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đổi tài khoản Google</button></section></main>;
+    return <Dashboard initialData={dashboardData} onSignOut={signOutDashboard} onUnauthorized={(message, status) => { authRequest.current++; setDashboardData(null); setAuth(status === 401 ? 'anonymous' : 'forbidden'); setMessage(message); }} />;
   }
 
   return <main>

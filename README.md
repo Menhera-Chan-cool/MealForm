@@ -8,6 +8,7 @@ Mã backend giữ các xử lý đã đồng bộ khi triển khai Apps Script p
 
 ## Tính năng mới trong bản này
 
+- Ghi nhớ đăng nhập 30 ngày bằng cookie HttpOnly/Secure; tự gia hạn khi quay lại hoặc mở lại tab. Dashboard có nút Đăng xuất. Lỗi kết nối có nút Kiểm tra lại, không buộc đăng xuất; phiên hết hạn trở về đăng nhập. Không lưu mật khẩu Google. Máy dùng chung nên đăng xuất sau khi dùng; xóa cookie hoặc chế độ ẩn danh không giữ phiên lâu dài.
 - Nháp OCR tự lưu ảnh và món trong IndexedDB theo danh tính đã xác minh. Reload giữ nội dung; cần rà soát lại checkbox thiếu món. Có nút Xóa nháp; tạo thành công xóa nháp, lỗi tạo giữ lại. Chỉ lưu trên thiết bị/origin này, không mã hóa riêng hoặc đồng bộ giữa máy.
 - `/history`: đăng nhập Google, chọn tháng/tuần cũ trong registry và dùng lại viewer. Không hiện tuần tương lai hoặc dò Drive; khách không đọc lịch sử.
 - Quyền Gmail: mới thêm chỉ xem; chủ bật riêng OCR/tạo và xóa/khôi phục. Gmail cũ giữ quyền đến khi chủ chỉnh. API và Apps Script đều kiểm tra quyền. Chỉ chủ xem private health/cấp quyền/quản lý Gmail.

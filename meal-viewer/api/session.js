@@ -1,9 +1,13 @@
 import { OAuth2Client } from 'google-auth-library';
-import { cookieValue, createSessionToken, isGoogleIdentity, readSessionToken, requestBody } from './security.mjs';
+import { cookieValue, createSessionToken, isGoogleIdentity, readSessionToken, requestBody, SESSION_SECONDS } from './security.mjs';
 
 const COOKIE = 'meal_session';
-const SESSION_SECONDS = 60 * 60;
 const google = new OAuth2Client();
+
+function setSessionCookie(req, res, identity, secret) {
+  const secure = process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https';
+  res.setHeader('Set-Cookie', `${COOKIE}=${createSessionToken(identity, secret)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_SECONDS}${secure ? '; Secure' : ''}`);
+}
 
 function sameOrigin(req) {
   try {
@@ -24,7 +28,9 @@ export default async function handler(req, res) {
   noStore(res);
   const sessionSecret = process.env.SESSION_SECRET;
   if (req.method === 'GET') {
-    return res.status(200).json({ authenticated: Boolean(readSessionToken(cookieValue(req.headers.cookie, COOKIE), sessionSecret)) });
+    const identity = readSessionToken(cookieValue(req.headers.cookie, COOKIE), sessionSecret);
+    if (identity) setSessionCookie(req, res, identity, sessionSecret);
+    return res.status(200).json({ authenticated: Boolean(identity) });
   }
   if (!sameOrigin(req)) return res.status(403).json({ error: 'Origin không hợp lệ.' });
   if (req.method === 'DELETE') {
@@ -41,9 +47,7 @@ export default async function handler(req, res) {
     const ticket = await google.verifyIdToken({ idToken: credential, audience: clientId });
     const claims = ticket.getPayload();
     if (!isGoogleIdentity(claims, clientId)) return res.status(401).json({ error: 'Không xác minh được tài khoản Google.' });
-    const session = createSessionToken({ sub: claims.sub, email: claims.email }, sessionSecret);
-    const secure = process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https';
-    res.setHeader('Set-Cookie', `${COOKIE}=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_SECONDS}${secure ? '; Secure' : ''}`);
+    setSessionCookie(req, res, { sub: claims.sub, email: claims.email }, sessionSecret);
     return res.status(200).json({ authenticated: true });
   } catch {
     return res.status(401).json({ error: 'Không xác minh được tài khoản Google.' });

@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-const SESSION_SECONDS = 60 * 60;
+export const SESSION_SECONDS = 30 * 24 * 60 * 60;
 const SHEET_ID = /^[A-Za-z0-9_-]{1,100}$/;
 
 function mac(value, secret, encoding = 'base64url') {
