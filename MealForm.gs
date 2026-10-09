@@ -73,7 +73,8 @@ function doPost(e) {
     }
     if (contents.length > 10000) throw new Error('Yêu cầu không hợp lệ.');
     const request = verifyMealViewerEnvelope_(envelope);
-    if (!request || ['read-viewer', 'read-latest-viewer', 'read-next-viewer', 'read-history', 'read-history-viewer'].indexOf(request.action) < 0) throw new Error('Yêu cầu không hợp lệ.');
+    if (!request || ['read-viewer', 'read-latest-viewer', 'read-next-viewer', 'read-history', 'read-history-viewer', 'read-branding'].indexOf(request.action) < 0) throw new Error('Yêu cầu không hợp lệ.');
+    if (request.action === 'read-branding') return createMealViewerJsonOutput_({ data: getMealBranding_() });
     if (request.action === 'read-history') return createMealViewerJsonOutput_({ data: { weeks: getMealHistoryWeeks_() } });
     if (request.action === 'read-history-viewer') return createMealViewerJsonOutput_({ data: getMealHistoryViewerData_(request.weekKey, request.forceRefresh === true) });
     if (request.action === 'read-latest-viewer') {
@@ -355,6 +356,11 @@ function handleMealDashboardRequest_(request) {
   if (request.action === 'dashboard-authorize') return { role: role, permissions: permissions };
   if (!role) throw new Error('Tài khoản này chưa được cấp quyền dashboard.');
   assertMealDashboardAccess_(request.email);
+  if (request.action === 'dashboard-form-control' || request.action === 'dashboard-set-branding') {
+    if (role !== 'owner') throw new Error('Chỉ chủ sở hữu được thay đổi Form và thương hiệu.');
+    return request.action === 'dashboard-form-control' ? controlMealDashboardForm_(request) : setMealBranding_(request);
+  }
+  if (request.action === 'dashboard-reconcile') return getMealDashboardWeek_(request.weekKey, true);
   if (['dashboard-ocr', 'dashboard-create'].indexOf(request.action) >= 0) assertMealDashboardAccess_(request.email, 'create');
   if (['dashboard-delete', 'dashboard-restore'].indexOf(request.action) >= 0) assertMealDashboardAccess_(request.email, 'manageResponses');
   if (request.action === 'dashboard-health') {
@@ -468,7 +474,7 @@ function getMealDashboardHealth_(weekKey) {
     const missing = Object.keys(registry).some(function(key) {
       const entry = registry[key];
       const date = parseDateKey_(key.split('_')[0]);
-      const deadline = date + 'T00:00:00+07:00';
+      const deadline = getMealFormLockDeadline_(key, entry);
       return date && entry && !entry.locked && (new Date(deadline).getTime() <= Date.now() || entry.lockAt !== deadline || triggerIds.indexOf(entry.lockTriggerId) < 0);
     });
     if (missing) throw new Error('missing');
@@ -523,11 +529,12 @@ function findDashboardResponseRows_(rows, target, layout) {
 function getMealDashboardHistorySheet_(spreadsheet, createIfMissing) {
   const headers = ['id', 'action', 'at', 'actor', 'entryId', 'responseId', 'originalTimestamp', 'name', 'mealsJson', 'restorePayloadJson', 'restorable', 'note'];
   let sheet = spreadsheet.getSheetByName('_DashboardHistory');
+  if (sheet && !createIfMissing && sheet.getLastRow() === 0) return null;
   if (!sheet && !createIfMissing) return null;
   if (!sheet) { sheet = spreadsheet.insertSheet('_DashboardHistory'); sheet.getRange(1, 1, 1, headers.length).setValues([headers]); }
   else if (sheet.getLastRow() === 0) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   else if (sheet.getRange(1, 1, 1, headers.length).getDisplayValues()[0].join('|') !== headers.join('|')) throw new Error('Cấu trúc lịch sử dashboard không hợp lệ; không thể thay đổi dữ liệu an toàn.');
-  if (!sheet.isSheetHidden()) sheet.hideSheet();
+  if (createIfMissing && !sheet.isSheetHidden()) sheet.hideSheet();
   return sheet;
 }
 
@@ -605,7 +612,7 @@ function getMealDashboardWeeks_() {
         formUrl: cleanMealText_(item.responseUrl) || form.getPublishedUrl(),
         spreadsheetUrl: item.spreadsheetUrl || spreadsheet.getUrl(),
         folderUrl: item.weekFolderUrl || '',
-        lockAt: item.lockAt || ''
+        lockAt: getMealFormLockDeadline_(weekKey, item)
       };
     } catch (error) {
       return {
@@ -616,7 +623,7 @@ function getMealDashboardWeeks_() {
         formUrl: item.responseUrl || '',
         spreadsheetUrl: item.spreadsheetUrl || '',
         folderUrl: item.weekFolderUrl || '',
-        lockAt: item.lockAt || '',
+        lockAt: getMealFormLockDeadline_(weekKey, item),
         error: 'Không đọc được trạng thái tuần.'
       };
     }
@@ -666,7 +673,8 @@ function dashboardResponseTarget_(response, layout, headers, itemTitles) {
     if (titleIndex >= 0) return answers[titleIndex].getResponse();
     return hasTitles ? '' : (answers[fallbackIndex] ? answers[fallbackIndex].getResponse() : '');
   };
-  const name = responseForColumn(layout.nameIndex, 0) || (answers[0] && answers[0].getResponse());
+  const fallbackName = answers[0] && !/E-?MAIL|GMAIL|THU.*DIEN.*TU/i.test(titles[0]) ? answers[0].getResponse() : '';
+  const name = responseForColumn(layout.nameIndex, 0) || fallbackName;
   return {
     timestamp: response.getTimestamp(),
     name: name,
@@ -674,7 +682,7 @@ function dashboardResponseTarget_(response, layout, headers, itemTitles) {
   };
 }
 
-function getMealDashboardWeek_(weekKey) {
+function getMealDashboardWeek_(weekKey, onlyReconciliation) {
   const key = cleanMealText_(weekKey);
   const item = getMealFormRegistry_()[key];
   if (!item || !isLiveMealFile_(item.spreadsheetId) || !isLiveMealFile_(item.formId)) throw new Error('Không tìm thấy tuần đã đăng ký.');
@@ -690,17 +698,23 @@ function getMealDashboardWeek_(weekKey) {
   const formResponses = form.getResponses();
   const itemTitles = Object.create(null);
   const formTargets = formResponses.map(function(response) { return dashboardResponseTarget_(response, layout, headers, itemTitles); });
+  const candidateRows = formTargets.map(function(target) { return findDashboardResponseRows_(rows, target, layout); });
+  const rowUses = rows.map(function(_row, index) { return candidateRows.filter(function(matches) { return matches.indexOf(index + 2) >= 0; }).length; });
+  const issues = [];
   const responses = formResponses.map(function(response, index) {
     const target = formTargets[index];
     const responseId = cleanMealText_(response.getId());
-    const rowNumber = responseId ? findDashboardResponseRow_(rows, target, layout) : 0;
+    const matches = candidateRows[index];
+    const rowNumber = responseId && matches.length === 1 && rowUses[matches[0] - 2] === 1 ? matches[0] : 0;
+    if (!rowNumber) issues.push({ kind: matches.length ? 'ambiguous' : 'form-only', source: 'form', name: cleanMealText_(target.name), timestamp: dashboardTimestampMs_(target.timestamp), meals: target.meals.map(cleanMealText_), rows: matches });
     return { responseId: responseId, timestamp: dashboardTimestampMs_(target.timestamp), name: cleanMealText_(target.name),
       meals: target.meals.map(cleanMealText_), rowNumber: rowNumber, deletable: Boolean(responseId && rowNumber),
-      deleteToken: responseId && rowNumber ? createMealDashboardDeleteToken_(key, responseId, target) : '',
+      deleteToken: !onlyReconciliation && responseId && rowNumber ? createMealDashboardDeleteToken_(key, responseId, target) : '',
       note: responseId && rowNumber ? '' : 'Không ghép được duy nhất phản hồi Form với hàng Sheet; không thể xóa an toàn.' };
   });
   rows.forEach(function(row, index) {
     const target = { timestamp: row[layout.timestampIndex], name: row[layout.nameIndex], meals: layout.dayIndexes.map(function(column) { return row[column]; }) };
+    if (rowUses[index] !== 1 || candidateRows.some(function(matches) { return matches.length !== 1 && matches.indexOf(index + 2) >= 0; })) issues.push({ kind: rowUses[index] ? 'ambiguous' : 'sheet-only', source: 'sheet', name: cleanMealText_(target.name), timestamp: dashboardTimestampMs_(target.timestamp), meals: target.meals.map(cleanMealText_), rows: [index + 2] });
     const stillInForm = formTargets.some(function(target) { return dashboardResponseMatches_(row, target, layout); });
     if (stillInForm) return;
     const matches = findDashboardResponseRows_(rows, target, layout);
@@ -708,14 +722,16 @@ function getMealDashboardWeek_(weekKey) {
     responses.push({
       responseId: responseId, timestamp: dashboardTimestampMs_(target.timestamp), name: cleanMealText_(target.name),
       meals: target.meals.map(cleanMealText_), rowNumber: index + 2, partial: true, deletable: matches.length === 1,
-      deleteToken: matches.length === 1 ? createMealDashboardDeleteToken_(key, responseId, target) : '',
+      deleteToken: !onlyReconciliation && matches.length === 1 ? createMealDashboardDeleteToken_(key, responseId, target) : '',
       note: matches.length === 1 ? '' : 'Có nhiều hàng Sheet giống nhau; cần kiểm tra thủ công.'
     });
   });
   responses.sort(function(left, right) { return right.timestamp - left.timestamp; });
+  const reconciliation = { formCount: formResponses.length, sheetCount: rowCount, matchedCount: candidateRows.filter(function(matches) { return matches.length === 1 && rowUses[matches[0] - 2] === 1; }).length, issues: issues };
+  if (onlyReconciliation) return reconciliation;
   return { week: { weekKey: key, name: item.weekFolderName || spreadsheet.getName(), formUrl: cleanMealText_(item.responseUrl) || form.getPublishedUrl(),
       spreadsheetUrl: item.spreadsheetUrl || spreadsheet.getUrl(), folderUrl: item.weekFolderUrl || '',
-      formStatus: form.isAcceptingResponses() ? 'open' : 'closed' }, responseCount: rowCount, responses: responses, history: getMealDashboardHistoryForClient_(getMealDashboardHistorySheet_(spreadsheet, false)) };
+      formStatus: form.isAcceptingResponses() ? 'open' : 'closed', lockAt: getMealFormLockDeadline_(key, item) }, responseCount: rowCount, responses: responses, reconciliation: reconciliation, history: getMealDashboardHistoryForClient_(getMealDashboardHistorySheet_(spreadsheet, false)) };
 }
 
 function createMealDashboardDeleteToken_(weekKey, responseId, target) {
@@ -760,7 +776,10 @@ function deleteMealDashboardResponse_(request) {
     const currentResponses = form.getResponses();
     const formResponse = currentResponses.find(function(value) { return cleanMealText_(value.getId()) === responseId; }) || null;
     if (formResponse && dashboardResponseFingerprint_(dashboardResponseTarget_(formResponse, layout, headers)) !== dashboardResponseFingerprint_(target)) throw new Error('Lượt gửi đã thay đổi; hãy tải lại danh sách.');
-    if (!formResponse && currentResponses.some(function(value) { return dashboardResponseTargetsMatch_(dashboardResponseTarget_(value, layout, headers), target); })) throw new Error('Lượt gửi đã thay đổi; hãy tải lại danh sách.');
+    const sameSecond = currentResponses.filter(function(value) { return Math.floor(dashboardTimestampMs_(value.getTimestamp()) / 1000) === Math.floor(dashboardTimestampMs_(target.timestamp) / 1000); });
+    const matchingForms = sameSecond.filter(function(value) { return dashboardResponseTargetsMatch_(dashboardResponseTarget_(value, layout, headers), target); });
+    if (formResponse && matchingForms.length !== 1) throw new Error('Phản hồi Form ghép không duy nhất; dữ liệu chưa bị xóa.');
+    if (!formResponse && matchingForms.length) throw new Error('Lượt gửi đã thay đổi; hãy tải lại danh sách.');
     const rowCount = Math.max(responseSheet.getLastRow() - 1, 0);
     const rows = rowCount ? responseSheet.getRange(2, 1, rowCount, columnCount).getValues() : [];
     const matchingRows = findDashboardResponseRows_(rows, target, layout);
@@ -1418,7 +1437,7 @@ function ensureMealFormLockTrigger_(weekKey) {
   if (!item || item.locked || !item.formId) return;
   const firstDate = parseDateKey_(String(weekKey).split('_')[0]);
   if (!firstDate) return;
-  const desiredLockAt = firstDate + 'T00:00:00+07:00';
+  const desiredLockAt = getMealFormLockDeadline_(weekKey, item);
   if (item.lockAt !== desiredLockAt) {
     removeMealFormLockTrigger_(item.lockTriggerId);
     item.lockAt = desiredLockAt;
@@ -1479,7 +1498,7 @@ function lockScheduledMealForms_(nowValue) {
     if (!item || item.locked || !item.formId) return;
     const firstDate = parseDateKey_(String(weekKey).split('_')[0]);
     if (!firstDate) return;
-    const lockAt = firstDate + 'T00:00:00+07:00';
+    const lockAt = getMealFormLockDeadline_(weekKey, item);
     const lockTime = new Date(lockAt).getTime();
     if (!isFinite(lockTime) || lockTime > now) return;
     try {
@@ -1749,4 +1768,97 @@ function formatResponseSheet_(sheet, columnCount) {
   sheet.setColumnWidth((layout.nameIndex >= 0 ? layout.nameIndex : 1) + 1, 240);
   if (columnCount > 2) sheet.setColumnWidths(3, columnCount - 2, 320);
   if (layout.emailIndex >= 0 && typeof sheet.hideColumns === 'function') sheet.hideColumns(layout.emailIndex + 1);
+}
+
+
+function parseMealDashboardDeadline_(value) {
+  const text = cleanMealText_(value);
+  const match = text.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(Z|\+07:00)$/);
+  if (!match || !parseDateKey_(match[1]) || Number(match[2]) > 23 || Number(match[3]) > 59 || Number(match[4] || 0) > 59 || !isFinite(new Date(text).getTime())) throw new Error('Hạn đăng ký không hợp lệ.');
+  if (new Date(text).getTime() <= Date.now()) throw new Error('Hạn đăng ký phải ở tương lai.');
+  return match[1] + 'T' + match[2] + ':' + match[3] + ':' + (match[4] || '00') + match[5];
+}
+
+function controlMealDashboardForm_(request) {
+  const key = cleanMealText_(request.weekKey);
+  if (['open', 'close', 'deadline'].indexOf(request.mode) < 0) throw new Error('Thao tác Form không hợp lệ.');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    const registry = getMealFormRegistry_();
+    const item = registry[key];
+    if (!item || !isLiveMealFile_(item.formId) || !isLiveMealFile_(item.spreadsheetId)) throw new Error('Không tìm thấy tuần đã đăng ký.');
+    const form = FormApp.openById(item.formId);
+    const before = { formStatus: form.isAcceptingResponses() ? 'open' : 'closed', lockAt: getMealFormLockDeadline_(key, item) };
+    if (request.expectedStatus !== before.formStatus || request.expectedLockAt !== before.lockAt) throw new Error('Trạng thái Form hoặc hạn đăng ký đã thay đổi; hãy tải lại.');
+    const deadline = request.mode === 'close' ? before.lockAt : parseMealDashboardDeadline_(request.deadline || before.lockAt);
+    const after = { formStatus: request.mode === 'deadline' ? before.formStatus : request.mode === 'open' ? 'open' : 'closed', lockAt: deadline };
+    const sheet = getMealDashboardHistorySheet_(SpreadsheetApp.openById(item.spreadsheetId), true);
+    const audit = appendMealDashboardHistoryEvent_(sheet, { action: 'form-control-pending', actor: request.email, name: 'Điều khiển Form', note: JSON.stringify({ before: before, after: after }) });
+    const event = { id: audit.id, entryId: audit.id, at: Date.now(), actor: normalizeDashboardEmail_(request.email), name: 'Điều khiển Form', restorable: false, note: JSON.stringify({ before: before, after: after }) };
+    try {
+      if (request.mode !== 'deadline') form.setAcceptingResponses(after.formStatus === 'open');
+      if ((form.isAcceptingResponses() ? 'open' : 'closed') !== after.formStatus) throw new Error('Không xác nhận được trạng thái Form.');
+      removeMealFormLockTrigger_(item.lockTriggerId);
+      delete item.lockTriggerId;
+      item.locked = after.formStatus === 'closed';
+      item.lockAt = deadline;
+      if (request.mode !== 'close') item.customLockAt = deadline;
+      saveMealFormRegistry_(registry);
+      ensureMealFormLockTrigger_(key);
+      event.action = request.mode === 'open' ? 'form-opened' : request.mode === 'close' ? 'form-closed' : 'form-deadline-updated';
+      updateMealDashboardHistoryEvent_(sheet, audit.rowNumber, event);
+    } catch (error) {
+      event.action = 'form-control-review';
+      event.note += ' | Chưa hoàn tất: ' + cleanMealText_(error && error.message);
+      try { updateMealDashboardHistoryEvent_(sheet, audit.rowNumber, event); } catch (auditError) { /* Original failure remains visible. */ }
+      throw new Error('Thay đổi Form chưa hoàn tất; hãy kiểm tra trạng thái, hạn và lịch sử trước khi thử lại.');
+    } finally {
+      try { CacheService.getScriptCache().remove('meal-viewer-v2:' + item.spreadsheetId); } catch (cacheError) { /* Cache is best effort. */ }
+    }
+    return { changed: true, formStatus: after.formStatus, lockAt: deadline };
+  } finally { lock.releaseLock(); }
+}
+
+function normalizeMealBranding_(value) {
+  if (!value || typeof value.schoolName !== 'string' || value.schoolName.length > 100 || /[\x00-\x1f]/.test(value.schoolName)) throw new Error('Tên trường không hợp lệ (tối đa 100 ký tự).');
+  const logo = typeof value.logoUrl === 'string' ? value.logoUrl.trim() : '';
+  if (logo.length > 512 || (logo && !/^https:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d{1,5})?(?:[/?#][^\s\x00-\x1f]*)?$/i.test(logo))) throw new Error('Logo phải là URL ảnh HTTPS hợp lệ, không có tài khoản/mật khẩu.');
+  if (typeof value.primaryColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(value.primaryColor)) throw new Error('Màu chủ đạo không hợp lệ.');
+  return { schoolName: value.schoolName.trim(), logoUrl: logo, primaryColor: value.primaryColor.toLowerCase(), updatedAt: Number(value.updatedAt) || 0 };
+}
+
+function getMealBranding_(fresh) {
+  const defaults = { schoolName: '', logoUrl: '', primaryColor: '#087f5b', updatedAt: 0 };
+  try {
+    const cache = typeof CacheService !== 'undefined' ? CacheService.getScriptCache() : null;
+    if (!fresh && cache && typeof cache.get === 'function') {
+      const cached = cache.get('meal-branding-v1');
+      if (cached) return normalizeMealBranding_(JSON.parse(cached));
+    }
+    const raw = PropertiesService.getScriptProperties().getProperty('MEAL_BRANDING');
+    const result = raw ? normalizeMealBranding_(JSON.parse(raw)) : defaults;
+    if (cache && typeof cache.put === 'function') try { cache.put('meal-branding-v1', JSON.stringify(result), 60); } catch (cacheError) { /* Cache is best effort. */ }
+    return result;
+  } catch (error) { return defaults; }
+}
+
+function setMealBranding_(request) {
+  const value = normalizeMealBranding_(request.branding);
+  if (!value.schoolName) throw new Error('Tên trường không được để trống.');
+  const lock = LockService.getScriptLock(); lock.waitLock(5000);
+  try {
+    const current = getMealBranding_(true);
+    if (Number(request.expectedUpdatedAt) !== current.updatedAt) throw new Error('Thương hiệu đã thay đổi; hãy tải lại trước khi lưu.');
+    value.updatedAt = Math.max(Date.now(), current.updatedAt + 1);
+    PropertiesService.getScriptProperties().setProperty('MEAL_BRANDING', JSON.stringify(value));
+    try { CacheService.getScriptCache().remove('meal-branding-v1'); } catch (error) { /* Cache is best effort. */ }
+    return value;
+  } finally { lock.releaseLock(); }
+}
+
+function getMealFormLockDeadline_(weekKey, item) {
+  if (item && item.customLockAt) return cleanMealText_(item.customLockAt);
+  const firstDate = parseDateKey_(String(weekKey).split('_')[0]);
+  return firstDate ? firstDate + 'T00:00:00+07:00' : '';
 }

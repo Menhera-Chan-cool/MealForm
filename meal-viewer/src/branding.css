@@ -1,0 +1,12 @@
+.school-brand{display:flex;align-items:center;gap:14px;max-width:1120px;margin:18px auto 0;padding:14px 22px;border:1px solid var(--brand-border,#cfe5d8);border-radius:14px;background:#fff;color:var(--brand-ink,#173b2d);font-weight:750}.school-brand img{width:52px;height:52px;object-fit:contain}.school-brand span{overflow-wrap:anywhere}.school-brand+main{margin-top:12px}
+:root[data-branding=true]{color:var(--brand-ink)}
+:root[data-branding=true] button:not(.secondary):not(.danger):not(.combo-toggle):not(.combo-option):not(.section-toggle):not(.action-toast button){background:var(--brand-primary);color:var(--brand-foreground);border:1px solid var(--brand-border)}
+:root[data-branding=true] th,:root[data-branding=true] .form-link:not(.meal-form-link){background:var(--brand-primary);color:var(--brand-foreground)}
+:root[data-branding=true] .action-link,:root[data-branding=true] button.secondary{background:var(--brand-surface);border-color:var(--brand-border);color:var(--brand-ink)}
+:root[data-branding=true] .action-link[aria-current=page],:root[data-branding=true] .dashboard-tabs button.active,:root[data-branding=true] .combo.active input{background:var(--brand-primary);border-color:var(--brand-primary);color:var(--brand-foreground)}
+:root[data-branding=true] .action-link:hover,:root[data-branding=true] button.secondary:hover,:root[data-branding=true] .combo-option:hover{background:var(--brand-surface);color:var(--brand-ink)}
+:root[data-branding=true] .filters,:root[data-branding=true] .dashboard-panel,:root[data-branding=true] .archive-panel,:root[data-branding=true] .setup-steps li{background:var(--brand-surface);border-color:var(--brand-border)}
+:root[data-branding=true] .section-heading-icon,:root[data-branding=true] .week-sprout{color:var(--brand-ink)}
+:root[data-branding=true] .viewer-title-group h1{color:var(--brand-ink)}
+:root[data-branding=true] .combo.active .combo-toggle{color:var(--brand-foreground)}
+@media(max-width:700px){.school-brand{margin:0;padding:12px;border-radius:0;gap:10px;font-size:18px}.school-brand img{width:44px;height:44px}.school-brand+main{margin-top:0}}

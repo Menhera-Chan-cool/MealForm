@@ -1,0 +1,17 @@
+export const DEFAULT_BRANDING = { schoolName: '', logoUrl: '', primaryColor: '#087f5b', updatedAt: 0 };
+
+export function normalizeBranding(value) {
+  const schoolName = typeof value?.schoolName === 'string' && value.schoolName.length <= 100 && !/[\x00-\x1f]/.test(value.schoolName) ? value.schoolName.trim() : '';
+  const logoUrl = typeof value?.logoUrl === 'string' && value.logoUrl.length <= 512 && /^https:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d{1,5})?(?:[/?#][^\s\x00-\x1f]*)?$/i.test(value.logoUrl) ? value.logoUrl : '';
+  const primaryColor = /^#[0-9a-f]{6}$/i.test(value?.primaryColor || '') ? value.primaryColor.toLowerCase() : DEFAULT_BRANDING.primaryColor;
+  return { schoolName, logoUrl, primaryColor, updatedAt: Number.isFinite(Number(value?.updatedAt)) ? Math.max(0, Number(value.updatedAt)) : 0 };
+}
+
+export function brandingTheme(color) {
+  const primary = normalizeBranding({ primaryColor: color }).primaryColor;
+  const rgb = [1, 3, 5].map(index => parseInt(primary.slice(index, index + 2), 16));
+  const channels = rgb.map(value => { const channel = value / 255; return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4; });
+  const luminance = channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+  const blend = (other, weight) => '#' + rgb.map(value => Math.round(value * (1 - weight) + other * weight).toString(16).padStart(2, '0')).join('');
+  return { primary, foreground: (luminance + .05) / .05 >= 1.05 / (luminance + .05) ? '#000000' : '#ffffff', surface: blend(255, .93), border: luminance > .4 ? blend(0, .55) : blend(255, .3), ink: blend(0, .7), hover: blend(0, .15) };
+}

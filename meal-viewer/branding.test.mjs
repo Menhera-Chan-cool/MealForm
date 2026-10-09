@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+const gas=vm.createContext({});
+vm.runInContext(readFileSync(new URL('../MealForm.gs',import.meta.url),'utf8'),gas);
+assert.throws(()=>gas.normalizeMealBranding_({schoolName:'School',logoUrl:'javascript:alert(1)',primaryColor:'#112233'}),/HTTPS/);
+const { brandingTheme, normalizeBranding }=await import('./src/branding.mjs');
+assert.equal(normalizeBranding({schoolName:'X',logoUrl:'javascript:alert(1)',primaryColor:'#112233'}).logoUrl,'');
+assert.equal(brandingTheme('#ffffff').foreground,'#000000');
+const border=brandingTheme('#ffffff').border;
+const borderChannels=[1,3,5].map(i=>parseInt(border.slice(i,i+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
+const borderLuma=borderChannels[0]*.2126+borderChannels[1]*.7152+borderChannels[2]*.0722;
+assert.ok(1.05/(borderLuma+.05)>=3,'white primary still needs visible control boundaries');
+assert.equal(brandingTheme('#000000').foreground,'#ffffff');
+assert.equal(brandingTheme('#087f5b').foreground,'#ffffff');
+assert.equal(brandingTheme('red;display:none').primary,'#087f5b');
+assert.equal(normalizeBranding({schoolName:'Trường A',logoUrl:'https://example.com/logo.png',primaryColor:'#aabbcc',secret:'never-public'}).secret,undefined);
+console.log('Branding filtering, safe logo URL and foreground contrast passed');

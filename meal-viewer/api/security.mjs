@@ -59,7 +59,7 @@ export function createGasEnvelope(payload, secret, now = Date.now(), nonce = ran
 
 async function requestAppsScript(url, secret, payload, fetchImpl = fetch, now = Date.now, retried = false) {
   if (!url || !secret) throw new Error('Apps Script API is not configured.');
-  const readOnly = payload.action?.startsWith('read-') || ['dashboard-authorize', 'dashboard-overview', 'dashboard-week', 'dashboard-health'].includes(payload.action);
+  const readOnly = payload.action?.startsWith('read-') || ['dashboard-authorize', 'dashboard-overview', 'dashboard-week', 'dashboard-health', 'dashboard-reconcile'].includes(payload.action);
   const signal = readOnly ? AbortSignal.timeout(20000) : undefined;
   const retryRead = () => requestAppsScript(url, secret, payload, fetchImpl, now, true);
   const envelope = createGasEnvelope(payload, secret, now());
@@ -164,12 +164,18 @@ export function createDashboardHandler({ secret, callGas, readViewerData, config
       let payload;
       if (req.method === 'GET') {
         const weekKey = String(req.query?.week || '');
-        payload = weekKey ? { action: 'dashboard-week', email: session.email, weekKey } : { action: 'dashboard-overview', email: session.email };
+        if (req.query?.reconcile === '1' && !weekKey) return res.status(400).json({ error: 'Chọn tuần trước khi đối soát.' });
+        payload = weekKey ? { action: req.query?.reconcile === '1' ? 'dashboard-reconcile' : 'dashboard-week', email: session.email, weekKey } : { action: 'dashboard-overview', email: session.email };
       } else {
         const body = requestBody(req.body);
         if (['ocr', 'create'].includes(body.action) && permissions.create !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền OCR hoặc tạo tuần.' });
         if ((req.method === 'DELETE' || body.action === 'restore') && permissions.manageResponses !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền xóa hoặc khôi phục.' });
-        if (body.action === 'authorize-script') {
+        if (req.method === 'POST' && ['form-control', 'set-branding'].includes(body.action)) {
+          if (role !== 'owner') return res.status(403).json({ error: 'Chỉ chủ sở hữu được thay đổi Form và thương hiệu.' });
+          payload = body.action === 'form-control'
+            ? { action: 'dashboard-form-control', email: session.email, weekKey: body.weekKey, mode: body.mode, deadline: body.deadline, expectedStatus: body.expectedStatus, expectedLockAt: body.expectedLockAt }
+            : { action: 'dashboard-set-branding', email: session.email, branding: body.branding, expectedUpdatedAt: body.expectedUpdatedAt };
+        } else if (body.action === 'authorize-script') {
           if (role !== 'owner') return res.status(403).json({ error: 'Chỉ chủ sở hữu được cấp quyền Apps Script.' });
           payload = { action: 'dashboard-script-auth', email: session.email };
         } else if (req.method === 'DELETE') payload = { weekKey: body.weekKey, responseId: body.responseId, deleteToken: body.deleteToken, action: 'dashboard-delete', email: session.email };

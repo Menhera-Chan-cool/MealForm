@@ -1,13 +1,16 @@
 # MealForm
 
-## Cập nhật ngày 08/10/2026
+## Cập nhật ngày 09/10/2026
 
-Mã backend giữ các xử lý đã đồng bộ khi triển khai Apps Script phiên bản 68. Bốn tính năng gồm nháp OCR theo tài khoản, kho tuần cũ, phân quyền riêng và checklist cài đặt đã được kiểm thử; bản triển khai tham chiếu đạt 14/14 kiểm tra hệ thống. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
+Mã backend đã đồng bộ đến Apps Script phiên bản 71, gồm điều khiển Form theo tuần, đối soát chỉ đọc và cấu hình thương hiệu. Các luồng phiên đăng nhập, OCR, lịch khóa, quyền và xóa/khôi phục vẫn được kiểm thử hồi quy. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
 
 Điều hướng dùng nút xanh đồng bộ trên điện thoại và máy tính. Kho tuần cũ ở `/history` yêu cầu đăng nhập; `/old` đã ngừng phục vụ thực đơn và chuyển hướng về kho tuần. Không xóa dữ liệu các tuần cũ.
 
 ## Tính năng mới trong bản này
 
+- Chủ sở hữu điều khiển mở/đóng Form và hạn từng tuần, có xác nhận, kiểm tra trạng thái mới nhất và lịch sử; hạn tùy chỉnh không bị lịch thứ Hai ghi đè. Mở lại tuần quá hạn phải chọn hạn tương lai theo giờ Việt Nam.
+- Đối soát Form–Sheet theo tuần: lượt chỉ ở một nơi hoặc ghép không duy nhất. Chỉ đọc, không tự sửa/xóa. Thao tác có toast nổi và trạng thái tại hàng đang xử lý.
+- Thương hiệu: chủ đổi tên trường, URL ảnh logo HTTPS và màu chủ đạo. Chỉ cấu hình hiển thị được đọc công khai; không lưu hoặc công khai khóa. Chưa hỗ trợ upload logo.
 - Ghi nhớ đăng nhập 30 ngày bằng cookie HttpOnly/Secure; tự gia hạn khi quay lại hoặc mở lại tab. Dashboard có nút Đăng xuất. Lỗi kết nối có nút Kiểm tra lại, không buộc đăng xuất; phiên hết hạn trở về đăng nhập. Không lưu mật khẩu Google. Máy dùng chung nên đăng xuất sau khi dùng; xóa cookie hoặc chế độ ẩn danh không giữ phiên lâu dài.
 - Nháp OCR tự lưu ảnh và món trong IndexedDB theo danh tính đã xác minh. Reload giữ nội dung; cần rà soát lại checkbox thiếu món. Có nút Xóa nháp; tạo thành công xóa nháp, lỗi tạo giữ lại. Chỉ lưu trên thiết bị/origin này, không mã hóa riêng hoặc đồng bộ giữa máy.
 - `/history`: đăng nhập Google, chọn tháng/tuần cũ trong registry và dùng lại viewer. Không hiện tuần tương lai hoặc dò Drive; khách không đọc lịch sử.

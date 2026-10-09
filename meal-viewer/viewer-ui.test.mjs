@@ -23,6 +23,13 @@ try {
   const { shouldShowViewerMessage } = await vite.ssrLoadModule('/src/viewer-model.mjs');
   const { MotionPreferenceToggle } = await vite.ssrLoadModule('/src/App.jsx');
   const { default: SetupChecklist } = await vite.ssrLoadModule('/src/SetupChecklist.jsx');
+  const { default: ActionToast } = await vite.ssrLoadModule('/src/ActionToast.jsx');
+  const errorToast = renderToStaticMarkup(createElement(ActionToast, { message: 'Không xóa được.', kind: 'error', onDismiss() {} }));
+  assert.match(errorToast, /role="alert"/);
+  assert.match(errorToast, /Không xóa được\./);
+  assert.match(errorToast, /aria-label="Đóng thông báo"/);
+  const successToast = renderToStaticMarkup(createElement(ActionToast, { message: 'Đã cập nhật.', kind: 'success', onDismiss() {} }));
+  assert.match(successToast, /role="status"/);
   const { dashboardRequest } = await vite.ssrLoadModule('/src/Dashboard.jsx');
   const originalFetch = globalThis.fetch;
   try {
