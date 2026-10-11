@@ -1,5 +1,40 @@
 const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
 
+export function describeHistoryNote(note) {
+  const text = String(note || '').trim();
+  if (!text) return [];
+  const marker = text.lastIndexOf(' | Chưa hoàn tất:');
+  let details;
+  try { details = JSON.parse(marker < 0 ? text : text.slice(0, marker)); }
+  catch { return [text.startsWith('{') ? 'Ghi chú kỹ thuật cũ không đúng định dạng; cần kiểm tra lịch sử trong Sheet.' : text]; }
+  const lines = [];
+  const status = value => ({ open: 'Đang mở', closed: 'Đã đóng' })[value] || 'Chưa xác định';
+  const time = value => {
+    const date = new Date(value || '');
+    return Number.isNaN(date.getTime()) ? 'Chưa có hạn' : date.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+  };
+  if (details?.before && details?.after) {
+    lines.push(`Trạng thái: ${status(details.before.formStatus)} → ${status(details.after.formStatus)}`);
+    lines.push(details.before.lockAt === details.after.lockAt
+      ? `Hạn đăng ký: ${time(details.after.lockAt)} — không đổi`
+      : `Hạn đăng ký: ${time(details.before.lockAt)} → ${time(details.after.lockAt)}`);
+  }
+  if (details?.reason) lines.push(`Lý do: ${details.reason}`);
+  if (details?.diagnostic) lines.push(String(details.diagnostic));
+  if (marker >= 0) lines.push(text.slice(marker + 3));
+  return lines.length ? lines : ['Ghi chú kỹ thuật cũ; xem lịch sử trong Sheet nếu cần đối chiếu.'];
+}
+
+export function countNewResponseIds(ids, baseline) {
+  const known = new Set(baseline || []);
+  return [...new Set(ids || [])].filter(id => typeof id === 'string' && id && !known.has(id)).length;
+}
+
+export function sheetRowUrl(spreadsheetId, sheetId, row) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(spreadsheetId || '') || !Number.isInteger(sheetId) || sheetId < 0 || !Number.isInteger(row) || row < 2) return '';
+  return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetId}&range=A${row}`;
+}
+
 function dateKey(value) {
   const text = clean(value);
   let match = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);

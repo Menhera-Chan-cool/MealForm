@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Dashboard QoL follow-up approved 2026-10-11
+
+Implement audit-readability -> sheet-locations -> dashboard-cache -> response-updates. Run failing helper/native-fixture tests before production edits, then full regression and desktop/mobile browser fixtures. Synchronize only scoped files into clean share template. Backend must precede frontend deployment; smoke tests are read-only. No actual weekly Form controls or real response deletion during verification.
+
 1. action-feedback: accessible toast, per-row pending state and guarded week loads; verify before dependent controls.
 2. form-control: owner-only bridge/GAS operation, audited live-state updates, shared effective-deadline helper, existing scheduler integration; isolate tests.
 3. reconciliation: cached matching report and view-only UI; prove zero writes and duplicate handling.

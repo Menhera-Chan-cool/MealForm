@@ -1,12 +1,19 @@
 # MealForm
 
-## Cập nhật ngày 09/10/2026
+## Cập nhật ngày 11/10/2026
 
-Mã backend đã đồng bộ đến Apps Script phiên bản 71, gồm điều khiển Form theo tuần, đối soát chỉ đọc và cấu hình thương hiệu. Các luồng phiên đăng nhập, OCR, lịch khóa, quyền và xóa/khôi phục vẫn được kiểm thử hồi quy. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
+Mã backend đã đồng bộ đến Apps Script phiên bản 72, bổ sung Dashboard tải nhanh, vị trí hàng Sheet được đối chiếu mới, lý do thao tác và lịch sử dễ đọc. Các luồng phiên đăng nhập, OCR, lịch khóa, quyền và xóa/khôi phục vẫn được kiểm thử hồi quy. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
 
 Điều hướng dùng nút xanh đồng bộ trên điện thoại và máy tính. Kho tuần cũ ở `/history` yêu cầu đăng nhập; `/old` đã ngừng phục vụ thực đơn và chuyển hướng về kho tuần. Không xóa dữ liệu các tuần cũ.
 
 ## Tính năng mới trong bản này
+
+- Dashboard lưu bản xem gần nhất theo tài khoản/tuần trên trình duyệt để hiển thị tối đa 24 giờ, sau khi xác minh đăng nhập và quyền hiện tại. Bước vào trang không đợi quét toàn bộ các Sheet; tổng quan tải nền. Bản lưu không chứa token xóa hoặc quyền khôi phục, bị xóa khi đăng xuất/mất quyền; lỗi mạng giữ bảng chỉ đọc. Không mã hóa riêng dữ liệu tên/món đã lưu trên thiết bị; máy dùng chung phải đăng xuất.
+- Trong “Lượt gửi & lịch sử”, kiểm tra danh tính lượt Form mới mỗi 60 giây khi tab đang hiển thị, không đọc câu trả lời/lịch sử đầy đủ cho lần kiểm tra. Hiện “Có … lượt gửi mới”, dùng “Tải lại dữ liệu”; không tự đổi bảng đang xem. Xóa một lượt đồng thời có lượt mới không làm sai số báo.
+- Nút “Mở hàng trong Sheet” cạnh lượt gửi/đối soát đọc lại vị trí hiện tại và đúng trang câu trả lời (gid). Nếu nhiều hàng cùng phù hợp, hiện từng ứng viên thay vì chọn bừa; không còn hàng thì báo rõ. Nút không cấp thêm quyền Drive hoặc công khai Sheet.
+- Khi mở/đóng Form, đổi hạn hoặc xóa lượt, có xác nhận kèm lý do tùy chọn tối đa 500 ký tự. Giữ cấu trúc 12 cột lịch sử cũ; hiển thị trạng thái/hạn trước–sau và lý do thay cho JSON. Mobile dùng thẻ lịch sử, PC dùng bảng. Lý do vẫn được giữ khi thao tác chưa hoàn tất.
+
+Khi cập nhật, deploy Apps Script trước rồi deploy toàn bộ frontend/API Vercel. Bản RAR cũ không tự cập nhật theo repository; hãy đóng gói lại nếu muốn gửi bản mới.
 
 - Chủ sở hữu điều khiển mở/đóng Form và hạn từng tuần, có xác nhận, kiểm tra trạng thái mới nhất và lịch sử; hạn tùy chỉnh không bị lịch thứ Hai ghi đè. Mở lại tuần quá hạn phải chọn hạn tương lai theo giờ Việt Nam.
 - Đối soát Form–Sheet theo tuần: lượt chỉ ở một nơi hoặc ghép không duy nhất. Chỉ đọc, không tự sửa/xóa. Thao tác có toast nổi và trạng thái tại hàng đang xử lý.

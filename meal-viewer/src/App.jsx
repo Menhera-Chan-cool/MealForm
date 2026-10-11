@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ALL, buildDetailModel, errorMessage, readViewerFilters, spreadsheetIdFromUrl, viewerApiUrl, weekNavigation, shouldDeferViewerUpdate, millisecondsUntilMealWeekRollover, todayDayLabel, mealRegistrationTarget } from './viewer-model.mjs';
 import Dashboard from './Dashboard.jsx';
+import { clearDashboardCache } from './dashboard-cache.mjs';
 import DetailTable from './DetailTable.jsx';
 import FilterControls, { ComboSelect } from './FilterControls.jsx';
 import MealFormLink from './MealFormLink.jsx';
@@ -165,6 +166,7 @@ function App() {
     const result = await readLoginState(isDashboard);
     if (request !== authRequest.current) return;
     setAuth(result.auth);
+    if (result.auth === 'anonymous' || result.auth === 'forbidden') clearDashboardCache();
     setMessage(result.message);
     setDashboardData(result.dashboardData || null);
     if (result.auth === 'authenticated' && !isDashboard && !isSetup && !isHistoryList) void loadData(false);
@@ -182,6 +184,7 @@ function App() {
       const request = authRequest.current;
       const result = await readLoginState();
       if (request === authRequest.current && result.auth === 'anonymous') {
+        clearDashboardCache();
         setAuth('anonymous'); setDashboardData(null); setData(null);
         setMessage('Phiên đã hết hạn hoặc đã đăng xuất. Hãy đăng nhập lại.');
       }
@@ -304,6 +307,7 @@ function App() {
     const response = await fetch('/api/session', { method: 'DELETE', credentials: 'same-origin' });
     if (!response.ok) throw new Error('Chưa đăng xuất được. Hãy thử lại.');
     authRequest.current++;
+    clearDashboardCache();
     window.google?.accounts?.id?.disableAutoSelect?.();
     setDashboardData(null);
     setData(null);
@@ -319,7 +323,7 @@ function App() {
     if (auth === 'loading') return <main><p className="message">Đang xác nhận đăng nhập và quyền dashboard…</p></main>;
     if (auth === 'anonymous') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p></section></main>;
     if (auth === 'forbidden') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đổi tài khoản Google</button></section></main>;
-    return <Dashboard initialData={dashboardData} onSignOut={signOutDashboard} onUnauthorized={(message, status) => { authRequest.current++; setDashboardData(null); setAuth(status === 401 ? 'anonymous' : 'forbidden'); setMessage(message); }} />;
+    return <Dashboard key={dashboardData?.accountId} initialData={dashboardData} onSignOut={signOutDashboard} onUnauthorized={(message, status) => { clearDashboardCache(); authRequest.current++; setDashboardData(null); setAuth(status === 401 ? 'anonymous' : 'forbidden'); setMessage(message); }} />;
   }
 
   return <main>

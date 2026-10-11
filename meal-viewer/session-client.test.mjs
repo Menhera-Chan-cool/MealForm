@@ -17,7 +17,11 @@ try {
   globalThis.fetch=async()=>reply(200,{authenticated:false});
   assert.equal((await readLoginState(true)).auth,'anonymous');
   const dashboard={role:'owner',weeks:[],permissions:{view:true,create:true,manageResponses:true}};
-  globalThis.fetch=async url=>url==='/api/session'?reply(200,{authenticated:true}):reply(200,dashboard);
+  globalThis.fetch=async url=>{
+    if(url==='/api/session')return reply(200,{authenticated:true});
+    assert.equal(url,'/api/dashboard?access=1','initial access check must not wait for a full overview of all Sheets');
+    return reply(200,dashboard);
+  };
   assert.deepEqual(await readLoginState(true),{auth:'authenticated',dashboardData:dashboard,message:''});
 } finally {globalThis.fetch=actualFetch;}
 console.log('Session recovery distinguishes expired login, forbidden access and transient failures');

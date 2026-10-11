@@ -1,11 +1,11 @@
 {
-  "name": "meal-menu-share",
+  "name": "menu-tay-thanh-viewer",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "test": "npm run build && node ../ShareSetup.test.cjs && node admin-upgrades.test.mjs && node branding.test.mjs && node session.test.mjs && node session-client.test.mjs && node navigation.test.mjs && node permissions.test.mjs && node history.test.mjs && node ocr-draft.test.mjs && node setup.test.mjs && node qol.test.mjs && node calendar-weeks.test.mjs && node advanced.test.mjs && node viewer-ui.test.mjs && node dashboard-model.test.mjs && node ../MealPermissions.test.js && node ../MealForm.test.js"
+    "test": "npm run build && node dashboard-qol.test.mjs && node admin-upgrades.test.mjs && node branding.test.mjs && node session.test.mjs && node session-client.test.mjs && node navigation.test.mjs && node permissions.test.mjs && node history.test.mjs && node ocr-draft.test.mjs && node setup.test.mjs && node qol.test.mjs && node calendar-weeks.test.mjs && node advanced.test.mjs && node viewer-ui.test.mjs && node dashboard-model.test.mjs && node ../MealPermissions.test.js && node ../MealForm.test.js"
   },
   "dependencies": {
     "google-auth-library": "11.0.2",

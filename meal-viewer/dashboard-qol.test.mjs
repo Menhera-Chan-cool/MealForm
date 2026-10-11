@@ -1,0 +1,52 @@
+import assert from 'node:assert/strict';
+import * as model from './src/dashboard-model.mjs';
+
+assert.equal(typeof model.describeHistoryNote, 'function', 'audit notes need a human-readable formatter');
+const before = { formStatus: 'open', lockAt: '2026-10-12T00:00:00+07:00' };
+const after = { ...before, formStatus: 'closed' };
+const lines = model.describeHistoryNote(JSON.stringify({ before, after, reason: 'Đã chốt số lượng' }));
+assert.ok(lines.some(line => /Đang mở.*Đã đóng/.test(line)));
+assert.ok(lines.some(line => /không đổi/.test(line) && /12.*10.*2026/.test(line)));
+assert.ok(lines.some(line => /Đã chốt số lượng/.test(line)));
+assert.equal(lines.some(line => line.includes('"formStatus"')), false);
+assert.ok(model.describeHistoryNote(JSON.stringify({ before, after }) + ' | Chưa hoàn tất: lỗi lịch').some(line => /Chưa hoàn tất/.test(line)));
+assert.deepEqual(model.describeHistoryNote('Ghi chú cũ'), ['Ghi chú cũ']);
+assert.ok(model.describeHistoryNote('{broken').length > 0);
+assert.equal(model.countNewResponseIds(['old', 'new', 'new'], ['old', 'removed']), 1, 'deletions must not cancel a new response');
+assert.equal(model.countNewResponseIds(['old'], ['old']), 0);
+assert.equal(model.sheetRowUrl('sheet-id', 71, 5), 'https://docs.google.com/spreadsheets/d/sheet-id/edit#gid=71&range=A5');
+assert.equal(model.sheetRowUrl('https://evil.test', 71, 5), '');
+assert.equal(model.sheetRowUrl('sheet-id', 71, 0), '');
+
+const cache = await import('./src/dashboard-cache.mjs');
+const values = new Map();
+const storage = { getItem: k => values.get(k) || null, setItem: (k,v) => values.set(k,v), removeItem: k => values.delete(k), key: i => [...values.keys()][i], get length() { return values.size; } };
+const data = { week: { weekKey: 'week', name: 'Tuần thử', formStatus: 'open' }, responseIds: ['one'], responses: [{ responseId: 'one', timestamp: 1, name: 'An', meals: ['Món'], deletable: true, deleteToken: 'SECRET' }], history: [{ id: 'event', restorable: true, restorePayloadJson: 'SECRET', action: 'deleted', name: 'An' }] };
+cache.writeDashboardCache('account-a', 'week', data, storage, 1000);
+assert.equal(JSON.stringify([...values.values()]).includes('SECRET'), false);
+const saved = cache.readDashboardCache('account-a', 'week', storage, 2000);
+assert.equal(saved.data.responses[0].name, 'An');
+assert.notEqual(saved.data.responses[0].deletable, true);
+assert.notEqual(saved.data.history[0].restorable, true);
+assert.equal(cache.readDashboardCache('account-b', 'week', storage, 2000), null);
+assert.equal(cache.readDashboardCache('account-a', 'other', storage, 2000), null);
+assert.equal(cache.readDashboardCache('account-a', 'week', storage, 1000 + 24*60*60*1000), null);
+cache.writeDashboardCache('account-a', 'week', data, storage, 1000);
+assert.equal(cache.readDashboardCache('account-a', 'week', storage, 500), null);
+storage.setItem('unrelated', 'keep');
+cache.clearDashboardCache(storage);
+assert.equal(storage.getItem('unrelated'), 'keep');
+assert.equal(cache.readDashboardCache('account-a', 'week', storage, 2000), null);
+const denied = { getItem() { throw Error('denied'); }, setItem() { throw Error('quota'); }, get length() { throw Error('denied'); } };
+assert.equal(cache.readDashboardCache('account-a', 'week', denied), null);
+assert.doesNotThrow(() => cache.writeDashboardCache('account-a', 'week', data, denied));
+assert.doesNotThrow(() => cache.clearDashboardCache(denied));
+const previousStorage=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+Object.defineProperty(globalThis,'localStorage',{configurable:true,get(){throw Error('storage blocked');}});
+try {
+  assert.doesNotThrow(()=>cache.readDashboardCache('account-a','week'));
+  assert.doesNotThrow(()=>cache.writeDashboardCache('account-a','week',data));
+  assert.doesNotThrow(()=>cache.clearDashboardCache());
+  assert.doesNotThrow(()=>cache.lastDashboardWeek('account-a',['week']));
+} finally { if(previousStorage)Object.defineProperty(globalThis,'localStorage',previousStorage);else delete globalThis.localStorage; }
+console.log('Dashboard display cache, readable audit, precise row links and new-response comparisons passed');
