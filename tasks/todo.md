@@ -8,7 +8,7 @@
 - [x] mobile-toolbar: single sticky week/search/reload controls.
 - [x] safe-error-report: allowlisted metadata and clipboard fallback.
 - [x] Full tests and browser verification; clean template sync.
-- [ ] Backend + web deployment, read-only smoke and GitHub README delivery.
+- [x] Backend + web deployment, read-only smoke and GitHub README delivery (Apps Script 73, feature commit 3fdfd8b).
 
 ## Dashboard QoL approved 2026-10-11
 

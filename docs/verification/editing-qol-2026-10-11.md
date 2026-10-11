@@ -17,5 +17,7 @@ Apps Script version 73 confirmed at 17:42 Vietnam time, same exec URL and owner/
 
 Vercel `dpl_GkppJxamX4tokCbKSq5q3ZTFiXHW` READY, aliased to https://menutaythanh.vercel.app. Production assets: index-D0rP9hZd.js, index-Bb5u1dAU.css.
 
+GitHub main accepted feature commit `3fdfd8b`, including the clean template README documenting version 73.
+
 ## Limits
 No live holiday week was created and no real weekly Form/Sheet content or response was changed for testing. Google-native service behavior is exercised through isolated service fixtures; layout/keyboard compaction uses Edge mobile viewport, not a physical phone keyboard. Undo stack is 50 in-memory changes and resets on reload/new OCR/image/account; only current draft persists. Diagnostic ids are client references, not server-log ids. Existing RAR files are not rebuilt.
