@@ -8,7 +8,7 @@
 - [x] PC density and manual-reload new-id highlight.
 - [x] Account/week view state, 24-hour expiry, scroll and logout guards.
 - [x] Full tests, browser regressions and clean template synchronization.
-- [ ] Backend/web deploy, readonly production proof and GitHub/README delivery.
+- [x] Backend/web deploy, readonly production proof and GitHub/README delivery (Apps Script 74, Vercel READY; feature commit fadcb38 verified on main).
 
 ## Editing/mobile QoL approved 2026-10-11
 

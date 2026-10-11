@@ -19,6 +19,7 @@ Eight approved features: mobile response cards, accent-insensitive UI search, at
 - Same Apps Script deployment updated successfully to version 74 at 21:03 Vietnam time, 11/10/2026. Backend adds actual serving-column day labels and registered closed-day display metadata only.
 - Vercel production `dpl_9BbcvJ4tx7yNj9WURmnLG61jccuc` reached READY, aliased to `https://menutaythanh.vercel.app`.
 - Authenticated read-only production browser smoke confirmed five real day labels match response cards, mobile grid layout with no page/meal overflow, readonly dialog and focus return. Active asset `/assets/index-BMRc6EY1.js`; zero Dashboard mutation requests. Original browser display cache/preferences restored after checking; existing owner tabs left open.
+- Feature and README delivery verified on GitHub main: `fadcb383c59ecdfa2b5768567abc73bccac0ff22`; local and remote heads matched. Clean sharing configuration preserved; user-owned release checkout kept without resetting its other changes.
 
 ## Limits
 
