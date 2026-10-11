@@ -13,6 +13,7 @@ Display cache after current authorization; fresh matching Sheet row resolver; op
 - Apps Script active deployment updated to version 72 at 16:27 Vietnam time, retaining the existing exec URL and execution/access settings.
 - Live source saved and reloaded exactly matched the normalized merge. Four active functions replaced and three helpers added; 110 other active functions unchanged.
 - Vercel deployment `dpl_Az7hffusrNkuc3dHmahRfxWmF6XR` confirmed READY and aliased to https://menutaythanh.vercel.app at 16:29 Vietnam time.
+- GitHub main accepted feature commit `61ffe10`; clean template README now documents version 72 and the cache/privacy/deployment requirements.
 
 ## Limits
 No live response deletion/restoration or manual live Form controls were used to verify this release. Mutations were tested using isolated native-service fixtures and intercepted browser responses. Snapshot names/meals are not separately encrypted in browser storage; logout on shared machines. Sheet rows can still move after a resolved link is opened; ambiguous candidates require human inspection. Existing RAR files were not rebuilt.

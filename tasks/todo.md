@@ -9,7 +9,7 @@
 - [x] Main full regression, desktop/mobile mock-browser checks, including delayed overview and denied storage.
 - [x] Clean template synchronization and regression.
 - [x] Backend/frontend deployment and read-only production verification (Apps Script 72, Vercel READY).
-- [ ] Verified GitHub delivery and README update.
+- [x] Verified GitHub delivery and README update (feature commit 61ffe10 pushed to main).
 
 - [x] action-feedback: toast and per-row delete/restore state; SSR and browser verification.
 - [x] form-control backend: registered targets, owner check, expected state, future deadline, audit and partial failures; `admin-upgrades.test.mjs`.
