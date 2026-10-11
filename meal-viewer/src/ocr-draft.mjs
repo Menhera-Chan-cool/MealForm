@@ -3,11 +3,11 @@ export function normalizeOcrDraft(value, accountId) {
   if (value.menu) {
     const days = value.menu.days;
     if (!Array.isArray(days) || days.length > 5 || String(value.menu.title || '').length > 500) return null;
-    if (days.some(day => !day || String(day.day || '').length > 40 || String(day.date || '').length > 40 || !Array.isArray(day.meals) || day.meals.length > 3 || day.meals.some(meal => String(meal || '').length > 500))) return null;
+    if (days.some(day => !day || (day.closed !== undefined && typeof day.closed !== 'boolean') || String(day.day || '').length > 40 || String(day.date || '').length > 40 || !Array.isArray(day.meals) || day.meals.length > 3 || day.meals.some(meal => String(meal || '').length > 500))) return null;
   }
   const menu = value.menu && Array.isArray(value.menu.days) && value.menu.days.length <= 5 ? {
     title: String(value.menu.title || '').slice(0, 500),
-    days: value.menu.days.map(day => ({ day: String(day?.day || '').slice(0, 40), date: String(day?.date || '').slice(0, 40), meals: (Array.isArray(day?.meals) ? day.meals : []).slice(0, 3).map(meal => String(meal || '').slice(0, 500)) }))
+    days: value.menu.days.map(day => ({ day: String(day?.day || '').slice(0, 40), date: String(day?.date || '').slice(0, 40), meals: (Array.isArray(day?.meals) ? day.meals : []).slice(0, 3).map(meal => String(meal || '').slice(0, 500)), ...(day.closed === true ? { closed: true } : {}) }))
   } : null;
   return { version: 1, accountId, image: value.image, filename: String(value.filename || '').slice(0, 500), menu, savedAt: Number(value.savedAt) || 0 };
 }

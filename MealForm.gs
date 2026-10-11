@@ -213,6 +213,7 @@ function readViewerData_(spreadsheetId) {
   const formInfo = getViewerFormInfo_(spreadsheetId, responseSheet, responseFormUrl);
   return {
     title: spreadsheet.getName(), headers: visibleHeaders, rows: visibleRows, days: days,
+    ...getMealClosedDaysForViewer_(spreadsheetId),
     formUrl: formInfo.formUrl, formStatus: formInfo.formStatus
   };
 }
@@ -995,8 +996,6 @@ function createMealForm(menu, dashboardEmail) {
   else assertMealFormOwner_();
   const normalized = normalizeMenu_(menu);
   validateMenuDates_(normalized);
-  DriveApp.getFolderById(getMealRootFolderId_()).getName();
-  getMealViewerOrigin_();
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
@@ -1030,7 +1029,7 @@ function createMealForm(menu, dashboardEmail) {
       const question = form.addMultipleChoiceItem().setTitle(item.title).setRequired(item.required);
       question.setChoices(item.choices.map(function(choice) { return question.createChoice(choice); }));
     });
-      const spreadsheet = SpreadsheetApp.create('Ăn bán trú - ' + spec.description);
+      const spreadsheet = SpreadsheetApp.create('Ăn bán trú - ' + (normalized.title || 'Chọn món ăn bán trú từ Thứ 2 đến Thứ 6.'));
     form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheet.getId());
     SpreadsheetApp.flush();
 
@@ -1066,7 +1065,8 @@ function createMealForm(menu, dashboardEmail) {
       lockAt: getMealFormLockAt_(normalized),
       editUrl: result.editUrl,
       responseUrl: result.responseUrl,
-      spreadsheetUrl: result.spreadsheetUrl
+      spreadsheetUrl: result.spreadsheetUrl,
+      ...(getMealClosedDayLabels_(normalized).length ? { closedDays: getMealClosedDayLabels_(normalized) } : {})
     });
     ensureMealFormLockTrigger_(weekKey);
     ensureFormSubmitTrigger_(spreadsheet.getId());
@@ -1161,20 +1161,22 @@ function normalizeMenu_(menu, reviewOnly = false) {
     const label = cleanMealText_(day && day.day);
     const plainLabel = label.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
     if (!plainLabel.includes(expected[index])) throw new Error('Các ngày phải theo thứ tự từ Thứ 2 đến Thứ 6.');
+    if (day.closed !== undefined && typeof day.closed !== 'boolean') throw new Error('Đánh dấu ngày nghỉ/không phục vụ không hợp lệ.');
     const mealSlots = day && Array.isArray(day.meals) ? day.meals.map(cleanMealText_) : [];
     if (mealSlots.length > 3) throw new Error(label + ' có tối đa 3 món.');
-    const meals = reviewOnly ? mealSlots : mealSlots.filter(Boolean);
-    if (!reviewOnly && meals.length < 2) throw new Error(label + ' cần ít nhất 2 món.');
-    return { day: label, date: cleanMealText_(day.date), meals: meals };
+    const meals = day.closed === true ? [] : reviewOnly ? mealSlots : mealSlots.filter(Boolean);
+    if (!reviewOnly && day.closed !== true && meals.length < 2) throw new Error(label + ' cần ít nhất 2 món.');
+    return { day: label, date: cleanMealText_(day.date), meals: meals, ...(day.closed === true ? { closed: true } : {}) };
   });
+  if (!reviewOnly && normalizedDays.every(function(day) { return day.closed === true; })) throw new Error('Cả tuần không phục vụ; không tạo Form đăng ký trống.');
   return { title: cleanMealText_(menu.title), days: normalizedDays };
 }
 
 function buildFormSpec_(menu) {
   return {
     title: 'Ăn bán trú',
-    description: menu.title || 'Chọn món ăn bán trú từ Thứ 2 đến Thứ 6.',
-    items: [{ type: 'text', title: 'Họ và tên', required: true }].concat(menu.days.map(function(day) {
+    description: (menu.title || 'Chọn món ăn bán trú từ Thứ 2 đến Thứ 6.') + (getMealClosedDayLabels_(menu).length ? '\nKhông phục vụ: ' + getMealClosedDayLabels_(menu).join('; ') : ''),
+    items: [{ type: 'text', title: 'Họ và tên', required: true }].concat(menu.days.filter(function(day) { return day.closed !== true; }).map(function(day) {
       return {
         type: 'multipleChoice',
         title: day.day + (day.date ? ' (' + day.date + ')' : ''),
@@ -1218,7 +1220,7 @@ function getResponseLayout_(headers, menu) {
   const available = safeHeaders.map(function(_, index) { return index; }).filter(function(index) {
     return known.indexOf(index) < 0;
   });
-  const days = menu && Array.isArray(menu.days) ? menu.days : [];
+  const days = menu && Array.isArray(menu.days) ? menu.days.filter(function(day) { return day.closed !== true; }) : [];
   const normalizedHeaders = safeHeaders.map(normalizeResponseHeader_);
   const dayIndexes = days.length ? days.map(function(day, dayIndex) {
     const label = cleanMealText_(day && day.day) + (day && day.date ? ' (' + cleanMealText_(day.date) + ')' : '');
@@ -1564,6 +1566,8 @@ function cleanupExpiredMealForms_() {
 // BẢNG TỔNG HỢP
 
 function createSummarySheet_(spreadsheet, responseSheet, menu, columnCount) {
+  const closedLabels = getMealClosedDayLabels_(menu);
+  menu = { ...menu, days: menu.days.filter(function(day) { return day.closed !== true; }) };
   const sheet = spreadsheet.insertSheet('Tổng hợp', 0);
   const responseReference = quoteSheetName_(responseSheet.getName());
   const detectedColumnCount = typeof responseSheet.getLastColumn === 'function' ? Number(responseSheet.getLastColumn()) : 0;
@@ -1591,6 +1595,7 @@ function createSummarySheet_(spreadsheet, responseSheet, menu, columnCount) {
   });
 
   sheet.getRange(1, 1).setValue('TỔNG HỢP LỰA CHỌN — ' + (menu.title || 'Ăn bán trú'));
+  if (closedLabels.length) sheet.getRange(1, 1).setValue('TỔNG HỢP LỰA CHỌN — ' + (menu.title || 'Ăn bán trú') + '\nKhông phục vụ: ' + closedLabels.join('; ')).setWrap(true);
   sheet.getRange(2, 1, 1, 3).setValues([['Ngày', 'Món', 'Số lượng']]);
   sheet.getRange(summaryStartRow, 1, summaryRows.length, 3).setValues(summaryRows);
   let summaryIndex = 0;
@@ -1733,7 +1738,7 @@ function buildDetailFilterFormula_(responseReference, menu, layout, columnCount)
   });
   const anyMeal = '((' + mealMatches.join(')+(') + '))>0';
 
-  const selectedDay = 'INDEX(CHOOSECOLS(' + responseRows + ';' + layout.dayIndexes.map(function(index) { return index + 1; }).join(';') + ');0;MATCH($F$2;$J$1:$J$5;0))';
+  const selectedDay = 'INDEX(CHOOSECOLS(' + responseRows + ';' + layout.dayIndexes.map(function(index) { return index + 1; }).join(';') + ');0;MATCH($F$2;$J$1:$J$' + layout.dayIndexes.length + ';0))';
   
   const dayCondition = 'IF($F$2="Tất cả";IF($F$3="Tất cả";' + allRows + ';' + anyMeal + ');' +
     'IF($F$3="Tất cả";' + selectedDay + '<>"";' + selectedDay + '=$F$3))';
@@ -1909,4 +1914,15 @@ function locateMealDashboardRows_(request) {
     if (match) issue.rows.forEach(function(row) { rows.push(row); });
   });
   return { spreadsheetId: data.spreadsheetId, sheetId: data.sheetId, rows: rows.filter(function(row, i) { return rows.indexOf(row) === i; }).sort(function(a, b) { return a - b; }) };
+}
+
+function getMealClosedDayLabels_(menu) {
+  return (menu && Array.isArray(menu.days) ? menu.days : []).filter(function(day) { return day.closed === true; }).map(function(day) { return cleanMealText_(day.day) + ' (' + cleanMealText_(day.date) + ')'; });
+}
+
+function getMealClosedDaysForViewer_(spreadsheetId) {
+  const key = getMealFormWeekKeyBySpreadsheetId_(spreadsheetId);
+  const item = getMealFormRegistry_()[key];
+  if (!item || !Array.isArray(item.closedDays) || !item.closedDays.length) return {};
+  return { closedDays: item.closedDays.slice(0, 5).map(cleanMealText_), calendarDays: key.split('_').map(function(date, i) { return 'Thứ ' + (i + 2) + ' (' + formatMealFolderDate_(date) + ')'; }) };
 }

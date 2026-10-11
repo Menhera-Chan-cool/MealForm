@@ -215,6 +215,10 @@ function publicViewerData(data) {
   const hidden = headers.map((value, index) => /email|e-mail|địa chỉ thư điện tử/i.test(value) ? index : -1).filter(index => index >= 0);
   return {
     title: String(data?.title || ''),
+    ...(Array.isArray(data?.closedDays) && data.closedDays.length ? {
+      closedDays: data.closedDays.filter(value => typeof value === 'string').slice(0, 5),
+      calendarDays: (Array.isArray(data.calendarDays) ? data.calendarDays : []).filter(value => typeof value === 'string').slice(0, 5)
+    } : {}),
     headers: headers.filter((_, index) => !hidden.includes(index)),
     rows: (Array.isArray(data?.rows) ? data.rows : []).map(row => Array.isArray(row)
       ? row.filter((_, index) => !hidden.includes(index)).map(value => String(value ?? '')) : []),

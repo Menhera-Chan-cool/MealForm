@@ -2,11 +2,17 @@
 
 ## Cập nhật ngày 11/10/2026
 
-Mã backend đã đồng bộ đến Apps Script phiên bản 72, bổ sung Dashboard tải nhanh, vị trí hàng Sheet được đối chiếu mới, lý do thao tác và lịch sử dễ đọc. Các luồng phiên đăng nhập, OCR, lịch khóa, quyền và xóa/khôi phục vẫn được kiểm thử hồi quy. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
+Mã backend đã đồng bộ đến Apps Script phiên bản 73, bổ sung ngày không phục vụ, hoàn tác/làm lại OCR, cảnh báo tuần đã tồn tại, thanh công cụ mobile và sao chép báo lỗi đã loại thông tin riêng tư. Các luồng phiên đăng nhập, OCR, lịch khóa, quyền và xóa/khôi phục vẫn được kiểm thử hồi quy. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
 
 Điều hướng dùng nút xanh đồng bộ trên điện thoại và máy tính. Kho tuần cũ ở `/history` yêu cầu đăng nhập; `/old` đã ngừng phục vụ thực đơn và chuyển hướng về kho tuần. Không xóa dữ liệu các tuần cũ.
 
 ## Tính năng mới trong bản này
+
+- Ngày nghỉ: đánh dấu “Không phục vụ ngày này” khi rà soát OCR. Giữ đủ năm ngày lịch để định danh tuần, nhưng Form không có câu hỏi chọn món ngày nghỉ; Sheet chỉ tính những ngày phục vụ và ghi rõ ngày nghỉ, web giữ khoảng thứ Hai–thứ Sáu và hiện thông báo. Không tạo Form trống nếu cả tuần nghỉ. Chỉ áp dụng cho tuần mới; không đổi Form/Sheet đã đăng ký.
+- Hoàn tác/làm lại nội dung sửa OCR bằng nút hoặc Ctrl/⌘ Z, Ctrl/⌘ Shift Z: tiêu đề, ngày, món và dấu nghỉ. Gộp thao tác gõ trong cùng ô, tối đa 50 thay đổi trong lần mở hiện tại; đổi ảnh/OCR/tài khoản hoặc reload sẽ bắt đầu lịch sử mới. Nháp hiện tại vẫn tự lưu, gồm dấu ngày nghỉ, nhưng không lưu toàn bộ lịch sử Undo.
+- Tuần đã có được cảnh báo ngay khi đủ năm ngày hợp lệ trùng sổ tuần đã xác minh, có liên kết Form/Sheet và nút tải lại sổ tuần; chặn tạo trùng ở giao diện. Backend vẫn kiểm tra trùng tuần để xử lý trường hợp vừa được tạo trên thiết bị khác; không ghi đè.
+- Thanh chọn tuần, tìm tên và tải lại bám khi cuộn ở mục “Lượt gửi & lịch sử” trên mobile. Chỉ có một bộ điều khiển và cùng trạng thái lọc; khi tìm tên được focus, thu gọn để dành chỗ cho bàn phím.
+- Báo lỗi chỉ sao chép mã tham chiếu trên thiết bị, mã HTTP/mạng/timeout/định dạng, giờ Việt Nam và loại thao tác cố định. Không lấy raw message, stack, URL/query/body, danh sách học sinh, ảnh, cookie, khóa hoặc tài khoản. Nếu clipboard bị chặn, hiện ô nội dung an toàn để sao chép thủ công. Mã tham chiếu không phải token hay mã tra log server.
 
 - Dashboard lưu bản xem gần nhất theo tài khoản/tuần trên trình duyệt để hiển thị tối đa 24 giờ, sau khi xác minh đăng nhập và quyền hiện tại. Bước vào trang không đợi quét toàn bộ các Sheet; tổng quan tải nền. Bản lưu không chứa token xóa hoặc quyền khôi phục, bị xóa khi đăng xuất/mất quyền; lỗi mạng giữ bảng chỉ đọc. Không mã hóa riêng dữ liệu tên/món đã lưu trên thiết bị; máy dùng chung phải đăng xuất.
 - Trong “Lượt gửi & lịch sử”, kiểm tra danh tính lượt Form mới mỗi 60 giây khi tab đang hiển thị, không đọc câu trả lời/lịch sử đầy đủ cho lần kiểm tra. Hiện “Có … lượt gửi mới”, dùng “Tải lại dữ liệu”; không tự đổi bảng đang xem. Xóa một lượt đồng thời có lượt mới không làm sai số báo.

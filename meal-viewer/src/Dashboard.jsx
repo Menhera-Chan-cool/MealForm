@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { errorMessage } from './viewer-model.mjs';
-import { inspectMenu, describeHistoryNote, countNewResponseIds } from './dashboard-model.mjs';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { errorMessage, mealRegistrationTarget } from './viewer-model.mjs';
+import { inspectMenu, describeHistoryNote, countNewResponseIds, menuCalendarKey } from './dashboard-model.mjs';
+import { menuHistoryReducer } from './menu-history.mjs';
+import { safeErrorReport, dashboardOperation } from './safe-error-report.mjs';
+import ErrorReportButton from './ErrorReportButton.jsx';
 import { readDashboardCache, writeDashboardCache, lastDashboardWeek, clearDashboardCache } from './dashboard-cache.mjs';
 import ActionConfirmation from './ActionConfirmation.jsx';
 import SheetRowButton from './SheetRowButton.jsx';
@@ -47,7 +50,10 @@ function historyActionLabel(action) {
 
 function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const branding = useBranding();
-  const request = (url, options) => dashboardRequest(url, options, (message, status) => { weekRequest.current++; clearDashboardCache(); onUnauthorized?.(message, status); });
+  const request = async (url, options) => {
+    try { return await dashboardRequest(url, options, (message, status) => { weekRequest.current++; clearDashboardCache(); onUnauthorized?.(message, status); }); }
+    catch (error) { setFailure(safeErrorReport(dashboardOperation(url, options), error)); throw error; }
+  };
   const [savedWeek] = useState(() => lastDashboardWeek(initialData?.accountId, (initialData?.weeks || []).map(week => week.weekKey)));
   const initialWeek = savedWeek || initialData?.weeks?.[0]?.weekKey || '';
   const [overview, setOverview] = useState(initialData || { role: '', weeks: [], allowedEmails: [] });
@@ -68,11 +74,14 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [email, setEmail] = useState('');
   const [file, setFile] = useState(null);
   const [image, setImage] = useState('');
-  const [menu, setMenu] = useState(null);
+  const [menuHistory, dispatchMenu] = useReducer(menuHistoryReducer, undefined, () => menuHistoryReducer(undefined, { type: 'reset', value: null }));
+  const menu = menuHistory.present;
+  const setMenu = value => dispatchMenu({ type: 'reset', value });
   const [allowMissing, setAllowMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [message, updateMessage] = useState('');
+  const [failure, setFailure] = useState(null);
   const [toast, setToast] = useState(null);
   const [pendingRow, setPendingRow] = useState(null);
   const weekRequest = useRef(0);
@@ -81,6 +90,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const dismissToast = useCallback(() => setToast(null), []);
   function setMessage(text, kind) {
     updateMessage(text);
+    if (!text || kind === 'success' || /^Đã |^Apps Script đã/.test(text)) setFailure(null);
     if (text) setToast({ message: text, kind: kind || (/^Đã |^Apps Script đã/.test(text) ? 'success' : /^Đang /.test(text) ? 'info' : 'error') });
   }
   const [authorizationUrl, setAuthorizationUrl] = useState('');
@@ -96,6 +106,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   });
 
   const validation = useMemo(() => inspectMenu(menu, allowMissing), [menu, allowMissing]);
+  const existingWeek = (overview.weeks || []).find(week => week.weekKey === menuCalendarKey(menu));
+  const existingFormUrl = mealRegistrationTarget(existingWeek).formUrl;
+  const existingSheetUrl = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[A-Za-z0-9_-]+(?:\/|$)/.test(existingWeek?.spreadsheetUrl || '') ? existingWeek.spreadsheetUrl : '';
   const displayedWeek = weekData?.week?.weekKey === weekKey ? weekData : null;
   const weekReady = weekVerified && Boolean(displayedWeek);
   const visibleResponses = (displayedWeek?.responses || []).filter(response =>
@@ -221,8 +234,10 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       if (response.status === 401 || response.status === 403) { onUnauthorized(errorMessage(report.error), response.status); return; }
       if (!Array.isArray(report.checks)) throw new Error('Không nhận được kết quả kiểm tra.');
       setHealth(report);
+      if (!response.ok || report.checks.some(check => check.status === 'error')) setFailure(safeErrorReport('health', { status: response.status }));
     } catch (error) {
       setHealth({ checks: [{ id: 'network', label: 'Kết nối máy chủ', status: 'error', message: 'Không kết nối được để kiểm tra. Hãy thử lại khi có mạng.' }] });
+      setFailure(safeErrorReport('health', error));
     } finally { setHealthBusy(false); }
   }
 
@@ -269,23 +284,27 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
 
   function editDay(dayIndex, field, value, mealIndex = -1) {
-    setMenu(current => ({
+    dispatchMenu({ type: 'edit', group: field === 'closed' ? '' : `${dayIndex}-${field}-${mealIndex}`, value: current => ({
       ...current,
       days: current.days.map((day, index) => index !== dayIndex ? day : field === 'meal'
         ? { ...day, meals: MEAL_SLOTS.map(slot => slot === mealIndex ? value : (day.meals[slot] || '')) }
         : { ...day, [field]: value })
-    }));
+    }) });
+    if (field === 'closed') setAllowMissing(false);
   }
+
+  function moveMenuHistory(type) { dispatchMenu({ type }); setAllowMissing(false); }
 
   async function createWeek(event) {
     event.preventDefault();
+    if (existingWeek) { setMessage('Tuần này đã có Form; dùng liên kết hiện có hoặc tải lại sổ tuần. Không ghi đè.', 'info'); return; }
     if (!validation.canCreate) {
-      setMessage(validation.dateError || (validation.invalidMealDays.length ? 'Mỗi ngày cần ít nhất 2 món và tối đa 3 món.' : 'Xác nhận tiếp tục với ngày thiếu món.'));
+      setMessage(validation.dateError || validation.servingError || (validation.invalidMealDays.length ? 'Mỗi ngày cần ít nhất 2 món và tối đa 3 món.' : 'Xác nhận tiếp tục với ngày thiếu món.'));
       return;
     }
     const payload = {
       ...menu,
-      days: menu.days.map(day => ({ ...day, meals: (day.meals || []).map(value => String(value || '').trim()).filter(Boolean) }))
+      days: menu.days.map(day => ({ ...day, meals: day.closed === true ? [] : (day.meals || []).map(value => String(value || '').trim()).filter(Boolean) }))
     };
     setBusy(true); setMessage('Đang tạo Form và Sheet cho tuần…');
     try {
@@ -428,6 +447,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     </nav>
     {message && <p className={`dashboard-message ${/không|lỗi|chưa/i.test(message) ? 'error' : ''}`} role="status" aria-live="polite">{message}{authorizationUrl && <> <a className="action-link" href={authorizationUrl} target="_blank" rel="noopener noreferrer">Mở trang cấp quyền Google</a></>}</p>}
 
+    <ErrorReportButton report={failure || draft.failure} />
     {tab === 'overview' && <section className="dashboard-panel">
       <div className="dashboard-section-title"><h2>Sổ tuần</h2><button className="secondary" disabled={busy} onClick={() => void refreshOverview()}>Tải lại</button></div>
       {(overview.weeks || []).length ? <div className="table-wrap"><table className="dashboard-table"><thead><tr><th>Tuần</th><th>Lượt gửi</th><th>Form</th><th>Liên kết</th></tr></thead><tbody>
@@ -459,8 +479,12 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <button disabled={busy || !image} onClick={() => void runOcr()}>{busy ? 'Đang xử lý…' : 'Đọc thực đơn'}</button>
       {image && <div className={`menu-review-layout${menu ? '' : ' image-only'}`}>
       <MenuImagePreview src={image} name={file?.name} />
-      {menu && <form className="menu-review" onSubmit={createWeek}>
-        <label>Tiêu đề tuần<input value={menu.title || ''} maxLength={500} disabled={busy} onChange={event => setMenu(current => ({ ...current, title: event.target.value }))} /></label>
+      {menu && <form className="menu-review" onSubmit={createWeek} onBlur={() => dispatchMenu({ type: 'commit' })} onKeyDown={event => {
+        if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'z' && !busy) { event.preventDefault(); moveMenuHistory(event.shiftKey ? 'redo' : 'undo'); }
+      }}>
+        <div className="menu-history-tools"><button type="button" className="secondary" disabled={busy || !menuHistory.past.length} onClick={() => moveMenuHistory('undo')}>Hoàn tác</button><button type="button" className="secondary" disabled={busy || !menuHistory.future.length} onClick={() => moveMenuHistory('redo')}>Làm lại</button><small>Ctrl/⌘ Z · Ctrl/⌘ Shift Z. Lịch sử sửa chỉ giữ trong lần mở này.</small></div>
+        <label>Tiêu đề tuần<input value={menu.title || ''} maxLength={500} disabled={busy} onChange={event => dispatchMenu({ type: 'edit', group: 'title', value: current => ({ ...current, title: event.target.value }) })} /></label>
+        {existingWeek && <div className="existing-week-warning" role="status"><strong>Tuần này đã có Form — không tạo hoặc ghi đè tuần mới.</strong><div className="dashboard-links">{existingFormUrl && <a href={existingFormUrl} target="_blank" rel="noreferrer">Mở Form</a>}{existingSheetUrl && <a href={existingSheetUrl} target="_blank" rel="noreferrer">Mở Sheet</a>}<button type="button" className="secondary" disabled={busy} onClick={() => void refreshOverview()}>Tải lại sổ tuần</button></div></div>}
         <h3>Rà soát 5 ngày</h3>
         {menu.days.map((day, dayIndex) => {
           const issue = validation.dayIssues[dayIndex];
@@ -471,32 +495,33 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
             <legend>{day.day || `Thứ ${dayIndex + 2}`} {status !== 'ok' && <span className="menu-review-badge">{status === 'error' ? 'Cần sửa' : `Thiếu ${issue.missingMealSlots.length} món`}</span>}</legend>
             <label>Ngày<input value={day.date || ''} maxLength={40} placeholder="dd/mm/yyyy" aria-invalid={Boolean(issue.dateError)} aria-describedby={issue.dateError ? dateNote : undefined} onChange={event => editDay(dayIndex, 'date', event.target.value)} /></label>
             {issue.dateError && <p id={dateNote} className="menu-inline-error">{issue.dateError}</p>}
-            <div className="dashboard-meals">{MEAL_SLOTS.map(slot => {
+            <label className="menu-closed-toggle"><input type="checkbox" checked={day.closed === true} onChange={event => editDay(dayIndex, 'closed', event.target.checked)} />Không phục vụ ngày này</label>
+            {day.closed === true ? <p className="menu-closed-note">Ngày nghỉ — không tạo câu hỏi chọn món. Món đã nhập vẫn giữ để bỏ đánh dấu hoặc hoàn tác.</p> : <div className="dashboard-meals">{MEAL_SLOTS.map(slot => {
               const missing = issue.missingMealSlots.includes(slot);
               return <label key={slot}>Món {slot + 1}<input value={day.meals?.[slot] || ''} maxLength={500} className={missing ? 'menu-meal-missing' : ''} placeholder={missing ? 'Đối chiếu món này với ảnh' : ''} aria-invalid={Boolean(missing && issue.mealError)} aria-describedby={missing ? mealNote : undefined} onChange={event => editDay(dayIndex, 'meal', event.target.value, slot)} /></label>;
-            })}</div>
+            })}</div>}
             {issue.missingMealSlots.length > 0 && <p id={mealNote} className={issue.mealError ? 'menu-inline-error' : 'menu-inline-warning'}>
               Chưa có {issue.missingMealSlots.map(slot => `Món ${slot + 1}`).join(', ')}. {issue.mealError || 'Nếu ảnh chỉ có 2 món, hãy xác nhận ở cuối bảng.'}
             </p>}
           </fieldset>;
         })}
         {validation.dateError && <p className="dashboard-warning" role="alert">{validation.dateError}</p>}
+        {validation.servingError && <p className="dashboard-warning" role="alert">{validation.servingError}</p>}
         {validation.invalidMealDays.length > 0 && <p className="dashboard-warning" role="alert">Mỗi ngày cần ít nhất 2 món và tối đa 3 món: {validation.invalidMealDays.join(', ')}.</p>}
         {validation.missingMealDays.length > 0 && <label className="dashboard-confirm-missing"><input type="checkbox" checked={allowMissing} disabled={busy} onChange={event => setAllowMissing(event.target.checked)} /> Tôi xác nhận các ngày sau có ít hơn 3 món: {validation.missingMealDays.join(', ')}</label>}
-        <button type="submit" disabled={busy || !validation.canCreate}>Tạo Form và Sheet</button>
+        <button type="submit" disabled={busy || !validation.canCreate || Boolean(existingWeek)}>Tạo Form và Sheet</button>
       </form>}
       </div>}
     </section>}
 
     {tab === 'delete' && <section className="dashboard-panel">
-      <div className="dashboard-section-title"><h2>Lượt gửi và lịch sử thao tác</h2>{weekPicker()}</div>
-      <div className="dashboard-refresh-bar"><button className="secondary" disabled={busy || weekLoading || !weekKey} onClick={() => void loadWeek(weekKey)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</button>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div>
+      <div className="dashboard-section-title"><h2>Lượt gửi và lịch sử thao tác</h2></div>
+      <div className="dashboard-sticky-tools">{weekPicker()}<div className="dashboard-refresh-bar"><button className="secondary" disabled={busy || weekLoading || !weekKey} onClick={() => void loadWeek(weekKey)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</button>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div><label className="dashboard-search">Tìm theo họ tên<input value={query} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label></div>
       {displayedWeek && !weekReady && <p className="dashboard-cache-status" role="status">{cacheTime ? `Bản lưu lúc ${formatTime(cacheTime)}. ` : 'Dữ liệu lần xem trước. '}{weekLoading ? 'Đang xác minh…' : 'Chưa xác minh được; chỉ xem, hãy tải lại trước khi thao tác.'}</p>}
       {displayedWeek && weekReady && <p className="dashboard-hint">Dữ liệu đã xác minh. Tự kiểm tra lượt mới mỗi phút khi tab đang mở; bảng chỉ đổi khi tải lại.</p>}
       {pollError && <p className="dashboard-hint" role="status">{pollError}</p>}
       <p className="dashboard-warning">Chỉ hiện lượt ghép duy nhất giữa Google Form và Sheet. Khôi phục sẽ tạo lượt Form mới; thời điểm gửi gốc được lưu trong lịch sử.</p>
       <div className="dashboard-response-tools">
-        <label className="dashboard-search">Tìm theo họ tên<input value={query} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label>
         <label className="dashboard-sort">Sắp xếp<select value={responseSort} onChange={event => setResponseSort(event.target.value)}>
           <option value="newest">Mới nhất</option>
           <option value="oldest">Cũ nhất</option>

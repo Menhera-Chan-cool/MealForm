@@ -72,22 +72,27 @@ export function inspectMenu(menu, allowMissingMeals = false) {
     const meals = Array.isArray(day?.meals) ? day.meals.map(clean) : [];
     const count = meals.filter(Boolean).length;
     return {
-      dateError, missingMealSlots: [0, 1, 2].filter(slot => !meals[slot]),
-      mealError: count < 2 || count > 3 ? 'Cần ít nhất 2 món và tối đa 3 món để tạo Form.' : ''
+      dateError, missingMealSlots: day?.closed === true ? [] : [0, 1, 2].filter(slot => !meals[slot]),
+      mealError: day?.closed !== true && (count < 2 || count > 3) ? 'Cần ít nhất 2 món và tối đa 3 món để tạo Form.' : ''
     };
   });
   const dateError = days.length !== 5 || dayIssues.some(issue => issue.dateError)
     ? 'Ngày phải đủ từ Thứ 2 đến Thứ 6 và liên tiếp trong cùng tuần.' : '';
-  const missingMealDays = days.filter(day => (day?.meals || []).map(clean).filter(Boolean).length < 3).map(day => clean(day.day));
+  const missingMealDays = days.filter(day => day.closed !== true && (day?.meals || []).map(clean).filter(Boolean).length < 3).map(day => clean(day.day));
   const invalidMealDays = days.filter(day => {
     const count = (day?.meals || []).map(clean).filter(Boolean).length;
-    return count < 2 || count > 3;
+    return day.closed !== true && (count < 2 || count > 3);
   }).map(day => clean(day.day));
   return {
     dateError,
     missingMealDays,
     invalidMealDays,
     dayIssues,
-    canCreate: !dateError && !invalidMealDays.length && (allowMissingMeals || !missingMealDays.length)
+    servingError: days.length && days.every(day => day.closed === true) ? 'Cả tuần không phục vụ; không cần tạo Form đăng ký.' : '',
+    canCreate: !dateError && days.some(day => day.closed !== true) && !invalidMealDays.length && (allowMissingMeals || !missingMealDays.length)
   };
+}
+
+export function menuCalendarKey(menu) {
+  return inspectMenu(menu).dateError ? '' : menu.days.map(day => dateKey(day.date)).join('_');
 }

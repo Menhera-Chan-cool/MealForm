@@ -1,5 +1,15 @@
 # Admin upgrades
 
+## Editing/mobile QoL approved 2026-10-11
+
+- [x] holiday-days: native Form/Sheet/layout/viewer and draft validation.
+- [x] ocr-undo: grouped edit history and account/image reset.
+- [x] existing-week-warning: live authorized overview, dates and safe links.
+- [x] mobile-toolbar: single sticky week/search/reload controls.
+- [x] safe-error-report: allowlisted metadata and clipboard fallback.
+- [x] Full tests and browser verification; clean template sync.
+- [ ] Backend + web deployment, read-only smoke and GitHub README delivery.
+
 ## Dashboard QoL approved 2026-10-11
 
 - [x] Readable legacy/new history notes and optional validated reasons; native-service success/partial tests.

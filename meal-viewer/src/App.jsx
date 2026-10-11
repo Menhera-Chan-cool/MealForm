@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ALL, buildDetailModel, errorMessage, readViewerFilters, spreadsheetIdFromUrl, viewerApiUrl, weekNavigation, shouldDeferViewerUpdate, millisecondsUntilMealWeekRollover, todayDayLabel, mealRegistrationTarget } from './viewer-model.mjs';
 import Dashboard from './Dashboard.jsx';
 import { clearDashboardCache } from './dashboard-cache.mjs';
+import { safeErrorReport } from './safe-error-report.mjs';
+import ErrorReportButton from './ErrorReportButton.jsx';
 import DetailTable from './DetailTable.jsx';
 import FilterControls, { ComboSelect } from './FilterControls.jsx';
 import MealFormLink from './MealFormLink.jsx';
@@ -78,6 +80,7 @@ function App() {
   const [checking, setChecking] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [failure, setFailure] = useState(null);
   const [message, setMessage] = useState('Đang kiểm tra đăng nhập…');
   const { open: summaryOpen, closing: summaryClosing, active: summaryActive, toggle: toggleSummary } = useDisclosureAnimation(SUMMARY_PANEL_STORAGE_KEY);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -133,7 +136,7 @@ function App() {
         setMessage('');
         return;
       }
-      if (!response.ok) throw new Error(errorMessage(result.error, 'Không thể tải dữ liệu.'));
+      if (!response.ok) throw Object.assign(new Error(errorMessage(result.error, 'Không thể tải dữ liệu.')), { status: response.status });
       setWeekUnavailable(false);
       if (background && shouldDeferViewerUpdate(dataRef.current, result)) {
         setPendingUpdate(true);
@@ -142,10 +145,12 @@ function App() {
         return;
       }
       setData(result);
+      setFailure(null);
       setPendingUpdate(false);
       setLoadError('');
       setMessage(background ? '' : 'Dữ liệu đã được cập nhật.');
     } catch (error) {
+      setFailure(safeErrorReport('viewer', error));
       const reason = error instanceof TypeError ? 'Không thể kết nối tới máy chủ.'
         : error instanceof SyntaxError ? 'Máy chủ trả về dữ liệu không hợp lệ.'
           : errorMessage(error, 'Không thể tải dữ liệu.');
@@ -166,6 +171,7 @@ function App() {
     const result = await readLoginState(isDashboard);
     if (request !== authRequest.current) return;
     setAuth(result.auth);
+    setFailure(result.failure || null);
     if (result.auth === 'anonymous' || result.auth === 'forbidden') clearDashboardCache();
     setMessage(result.message);
     setDashboardData(result.dashboardData || null);
@@ -237,9 +243,9 @@ function App() {
               body: JSON.stringify({ credential: response.credential })
             });
             const body = await result.json();
-            if (!result.ok) throw new Error(errorMessage(body.error, 'Không thể đăng nhập.'));
+            if (!result.ok) throw Object.assign(new Error(errorMessage(body.error, 'Không thể đăng nhập.')), { status: result.status });
             await checkSession();
-          } catch (error) { setMessage(errorMessage(error, 'Không thể đăng nhập Google.')); }
+          } catch (error) { setFailure(safeErrorReport('session', error)); setMessage(errorMessage(error, 'Không thể đăng nhập Google.')); }
         }
       });
       signInRoot.current.replaceChildren();
@@ -254,7 +260,7 @@ function App() {
   }, [auth, checkSession]);
 
   const days = Array.isArray(data?.days) ? data.days : [];
-  const weekDates = days.map(day => typeof day === 'string' ? day : String(day?.day || ''))
+  const weekDates = (data?.calendarDays || days).map(day => typeof day === 'string' ? day : String(day?.day || ''))
     .map(label => label.match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0]).filter(Boolean);
   const pageTitle = isNewestPage ? 'Thực đơn tuần này' : isNextPage ? 'Thực đơn tuần sau' : isHistory ? 'Kho thực đơn tuần cũ' : 'Thực đơn bán trú';
   const nameOptions = useMemo(() => [...new Set((data?.rows || []).map(row => String(row?.[1] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')), [data]);
@@ -316,14 +322,14 @@ function App() {
   }
 
   if (isSetup) return <SetupChecklist authenticated={auth === 'authenticated'} />;
-  if (auth === 'error') return <main><section className="login-panel"><h1>Chưa kết nối được</h1><p role="alert">{message}</p><p>Thông tin phiên chưa bị xóa. Bạn không cần đăng xuất để thử lại.</p><div className="actions"><button type="button" onClick={() => void checkSession()}>Kiểm tra lại</button><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đăng xuất</button>{isWeekPage && <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>}</div></section></main>;
+  if (auth === 'error') return <main><section className="login-panel"><h1>Chưa kết nối được</h1><p role="alert">{message}</p><p>Thông tin phiên chưa bị xóa. Bạn không cần đăng xuất để thử lại.</p><div className="actions"><button type="button" onClick={() => void checkSession()}>Kiểm tra lại</button><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đăng xuất</button>{isWeekPage && <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>}</div><ErrorReportButton report={failure} /></section></main>;
   if (isHistoryList && auth === 'loading') return <main><p>Đang xác nhận đăng nhập…</p></main>;
   if (isHistoryList && auth === 'authenticated') return <main><header><h1>Kho thực đơn tuần cũ</h1><nav className="viewer-navigation" aria-label="Các trang"><a className="action-link" href="/newest">← Tuần này</a></nav></header><HistoryArchive onUnauthorized={() => setAuth('anonymous')} /></main>;
   if (isDashboard) {
     if (auth === 'loading') return <main><p className="message">Đang xác nhận đăng nhập và quyền dashboard…</p></main>;
-    if (auth === 'anonymous') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p></section></main>;
-    if (auth === 'forbidden') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đổi tài khoản Google</button></section></main>;
-    return <Dashboard key={dashboardData?.accountId} initialData={dashboardData} onSignOut={signOutDashboard} onUnauthorized={(message, status) => { clearDashboardCache(); authRequest.current++; setDashboardData(null); setAuth(status === 401 ? 'anonymous' : 'forbidden'); setMessage(message); }} />;
+    if (auth === 'anonymous') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p><ErrorReportButton report={failure} /></section></main>;
+    if (auth === 'forbidden') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đổi tài khoản Google</button><ErrorReportButton report={failure} /></section></main>;
+    return <Dashboard key={dashboardData?.accountId} initialData={dashboardData} onSignOut={signOutDashboard} onUnauthorized={(message, status) => { setFailure(safeErrorReport('dashboard', { status })); clearDashboardCache(); authRequest.current++; setDashboardData(null); setAuth(status === 401 ? 'anonymous' : 'forbidden'); setMessage(message); }} />;
   }
 
   return <main>
@@ -396,6 +402,8 @@ function App() {
         </button>
       </div>}
 
+      <ErrorReportButton report={failure} />
+      {data?.closedDays?.length > 0 && <p className="closed-days-note">Ngày không phục vụ: {data.closedDays.join(' · ')}</p>}
       <section className="data-section">
         <div className="section-heading"><div className="section-heading-title"><SummaryIcon /><h2>Tổng hợp lựa chọn</h2></div><button
           className="section-toggle" type="button" aria-expanded={summaryOpen} data-active={summaryActive}

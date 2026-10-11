@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Editing/mobile QoL approved 2026-10-11
+
+holiday-days -> ocr-undo -> existing-week-warning -> mobile-toolbar -> safe-error-report. Keep full five-date calendar identity while Form/Sheet answers only contain serving days. Native-service fixtures must prove correct summary formulas and existing-registration no-op. User approved continuous implementation and verification of all five modules. Deploy backend before web; tests and production checks do not alter real weekly Forms or responses.
+
 ## Dashboard QoL follow-up approved 2026-10-11
 
 Implement audit-readability -> sheet-locations -> dashboard-cache -> response-updates. Run failing helper/native-fixture tests before production edits, then full regression and desktop/mobile browser fixtures. Synchronize only scoped files into clean share template. Backend must precede frontend deployment; smoke tests are read-only. No actual weekly Form controls or real response deletion during verification.

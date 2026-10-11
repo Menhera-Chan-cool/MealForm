@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { errorMessage } from './viewer-model.mjs';
+import { safeErrorReport } from './safe-error-report.mjs';
+import ErrorReportButton from './ErrorReportButton.jsx';
 import './dashboard.css';
 
 const STEPS = [
@@ -17,6 +19,7 @@ export default function SetupChecklist({ authenticated }) {
   const [report, setReport] = useState(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState(null);
   useEffect(() => {
     if (!authenticated) return;
     let active = true;
@@ -24,18 +27,19 @@ export default function SetupChecklist({ authenticated }) {
       const data = await response.json();
       if (!active) return;
       if (response.ok) setRole(data.role || '');
-      else setMessage('Chưa xác nhận được quyền chủ. Kiểm tra URL /exec, HMAC và cấu hình đăng nhập rồi tải lại trang.');
-    }).catch(() => { if (active) setMessage('Không kết nối được để xác nhận quyền chủ. Hãy kiểm tra mạng và cấu hình.'); });
+      else { setFailure(safeErrorReport('health', { status: response.status })); setMessage('Chưa xác nhận được quyền chủ. Kiểm tra URL /exec, HMAC và cấu hình đăng nhập rồi tải lại trang.'); }
+    }).catch(error => { if (active) { setFailure(safeErrorReport('health', error)); setMessage('Không kết nối được để xác nhận quyền chủ. Hãy kiểm tra mạng và cấu hình.'); } });
     return () => { active = false; };
   }, [authenticated]);
   async function check() {
-    setBusy(true); setMessage('');
+    setBusy(true); setMessage(''); setFailure(null);
     try {
       const response = await fetch('/api/dashboard?health=1', { credentials: 'same-origin', cache: 'no-store' });
       const data = await response.json();
-      if (!response.ok && !data.checks) throw new Error(errorMessage(data.error));
+      if (!response.ok && !data.checks) throw Object.assign(new Error(errorMessage(data.error)), { status: response.status });
+      if (!response.ok || data.checks?.some(check => check.status === 'error')) setFailure(safeErrorReport('health', { status: response.status }));
       setReport(data);
-    } catch (error) { setMessage(error.message); }
+    } catch (error) { setFailure(safeErrorReport('health', error)); setMessage(error.message); }
     finally { setBusy(false); }
   }
   return <main className="dashboard-shell">
@@ -45,6 +49,7 @@ export default function SetupChecklist({ authenticated }) {
       {role === 'owner' ? <button disabled={busy} onClick={() => void check()}>{busy ? 'Đang kiểm tra…' : 'Kiểm tra hệ thống'}</button> : <p>Đăng nhập bằng Gmail chủ trong Dashboard rồi quay lại trang này để kiểm tra cấu hình riêng.</p>}
       <p>Chưa đọc ảnh thử: có key/model không chứng minh OCR hoạt động. Authorized origins Google được xác nhận qua đăng nhập thực tế. Chưa có tuần là cảnh báo, không phải lỗi cài đặt.</p>
       {message && <p role="alert">{message}</p>}
+      <ErrorReportButton report={failure} />
       <ul className="dashboard-health-list">{(report?.checks || []).map(check => <li key={check.id} data-status={check.status}><div><strong>{check.label}</strong><span>{({ ok: 'Ổn', warning: 'Cần chú ý', error: 'Lỗi' })[check.status]}</span></div><p>{check.message}</p></li>)}</ul>
     </section>
   </main>;

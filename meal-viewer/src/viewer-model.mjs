@@ -16,7 +16,7 @@ export function mealRegistrationTarget(data, allowNext = false) {
   const safeUrl = value => /^https:\/\/(?:docs\.google\.com\/forms\/|forms\.gle\/)/i.test(value || '') ? value : '';
   const next = allowNext && data?.formStatus === 'closed' && data?.nextForm?.formStatus === 'open' && safeUrl(data.nextForm.formUrl);
   const target = next ? data.nextForm : data;
-  const dates = (target?.days || []).map(day => dayName(day).match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0]).filter(Boolean);
+  const dates = (target?.calendarDays || target?.days || []).map(day => dayName(day).match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0]).filter(Boolean);
   return {
     formUrl: safeUrl(target?.formUrl), status: target?.formStatus || 'unknown',
     label: next ? 'Đăng ký tuần sau' : 'Chọn món', dates: next && dates.length ? `${dates[0]} – ${dates.at(-1)}` : ''
