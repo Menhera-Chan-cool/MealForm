@@ -2,11 +2,19 @@
 
 ## Cập nhật ngày 11/10/2026
 
-Mã backend đã đồng bộ đến Apps Script phiên bản 73, bổ sung ngày không phục vụ, hoàn tác/làm lại OCR, cảnh báo tuần đã tồn tại, thanh công cụ mobile và sao chép báo lỗi đã loại thông tin riêng tư. Các luồng phiên đăng nhập, OCR, lịch khóa, quyền và xóa/khôi phục vẫn được kiểm thử hồi quy. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
+Mã backend đã đồng bộ đến Apps Script phiên bản 74, thêm nhãn ngày thực tế cho lượt gửi và tám cải tiến thao tác Dashboard bên dưới. Giữ các tính năng ngày nghỉ, hoàn tác/làm lại OCR, cảnh báo tuần đã tồn tại, thanh công cụ mobile và sao chép báo lỗi an toàn. Các luồng phiên đăng nhập, OCR, lịch khóa, quyền và xóa/khôi phục vẫn được kiểm thử hồi quy. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
 
 Điều hướng dùng nút xanh đồng bộ trên điện thoại và máy tính. Kho tuần cũ ở `/history` yêu cầu đăng nhập; `/old` đã ngừng phục vụ thực đơn và chuyển hướng về kho tuần. Không xóa dữ liệu các tuần cũ.
 
 ## Tính năng mới trong bản này
+
+- Lượt gửi Dashboard trên điện thoại là thẻ: đủ tên, thời điểm, từng ngày/món và nút thao tác; không kéo ngang. PC vẫn là bảng, có Gọn/Rộng; mobile không bị chế độ Gọn làm khó đọc.
+- Tìm tên không cần dấu trong Dashboard và bộ lọc trang xem: `truong` tìm được `Trường`, `dang` tìm được `Đặng`. Chỉ chuẩn hóa khi tìm kiếm; giữ nguyên tên, không gộp người hoặc đổi cách ghép/xóa Form–Sheet.
+- Chọn thứ Hai một lần để điền đủ năm ngày OCR, giữ món và dấu ngày nghỉ. Là một lượt Hoàn tác; ngày không phải thứ Hai bị từ chối.
+- Tìm nhanh tuần theo tháng/ngày trong danh sách xanh đồng bộ. Gõ chỉ lọc danh sách trên thiết bị; chọn một mục mới tải tuần, không gọi API theo từng ký tự.
+- Nhớ từ khóa, sắp xếp, Gọn/Rộng và vị trí cuộn theo tài khoản/tuần trên trình duyệt, tối đa năm tuần trong 24 giờ. Hàng đang xem mất thì dùng vị trí hàng gần nhất. Đăng xuất/mất quyền xóa bản lưu; thao tác thay dữ liệu chỉ xóa snapshot, giữ tùy chọn xem. Không đồng bộ liên thiết bị và không mã hóa riêng: máy dùng chung phải đăng xuất.
+- Sau bấm Tải lại dữ liệu trong cùng tuần, lượt có ID Form mới được tô xanh nhẹ và nhãn Mới trong tám giây. Không tô toàn bộ lần tải đầu, không nhấp nháy, không suy lượt mới bằng tên hoặc thời gian.
+- Xem nhanh mở hộp thoại chỉ đọc, tên/thời điểm/ngày/món thực tế và thông báo ngày nghỉ, dữ liệu lưu hoặc Form đã mất lượt. Escape/Đóng trả focus về nút mở; không có xóa/khôi phục trong hộp thoại. Bản lưu cũ thiếu nhãn ngày ghi rõ, không đoán thứ tự ngày.
 
 - Ngày nghỉ: đánh dấu “Không phục vụ ngày này” khi rà soát OCR. Giữ đủ năm ngày lịch để định danh tuần, nhưng Form không có câu hỏi chọn món ngày nghỉ; Sheet chỉ tính những ngày phục vụ và ghi rõ ngày nghỉ, web giữ khoảng thứ Hai–thứ Sáu và hiện thông báo. Không tạo Form trống nếu cả tuần nghỉ. Chỉ áp dụng cho tuần mới; không đổi Form/Sheet đã đăng ký.
 - Hoàn tác/làm lại nội dung sửa OCR bằng nút hoặc Ctrl/⌘ Z, Ctrl/⌘ Shift Z: tiêu đề, ngày, món và dấu nghỉ. Gộp thao tác gõ trong cùng ô, tối đa 50 thay đổi trong lần mở hiện tại; đổi ảnh/OCR/tài khoản hoặc reload sẽ bắt đầu lịch sử mới. Nháp hiện tại vẫn tự lưu, gồm dấu ngày nghỉ, nhưng không lưu toàn bộ lịch sử Undo.

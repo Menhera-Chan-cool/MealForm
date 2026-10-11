@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Dashboard interaction QoL approved 2026-10-11
+
+accent-search + real response day labels/cards -> monday-fill + explicit-selection week search -> density + id-based highlights + readonly quick view -> account/week view restoration. UI-only search folding never reaches matching/deletion functions. Restore scroll only for the correct generation and use the closest surviving row when an anchor disappears. User approved continuous execution, tests and deployment of all eight modules.
+
 ## Editing/mobile QoL approved 2026-10-11
 
 holiday-days -> ocr-undo -> existing-week-warning -> mobile-toolbar -> safe-error-report. Keep full five-date calendar identity while Form/Sheet answers only contain serving days. Native-service fixtures must prove correct summary formulas and existing-registration no-op. User approved continuous implementation and verification of all five modules. Deploy backend before web; tests and production checks do not alter real weekly Forms or responses.

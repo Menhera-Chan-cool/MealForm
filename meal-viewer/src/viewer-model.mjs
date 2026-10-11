@@ -4,6 +4,11 @@ const clean = value => String(value ?? '').trim();
 const dayName = day => typeof day === 'string' ? day : clean(day?.day);
 const dayMeals = day => Array.isArray(day?.meals) ? day.meals.map(clean).filter(Boolean) : [];
 
+// Search only: never use this fold for record identity or deletion matching.
+export function foldSearchText(value) {
+  return String(value ?? '').normalize('NFD').replace(/\p{M}/gu, '').replace(/[đĐ]/g, 'd').toLocaleLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 export function todayDayLabel(days, nowValue = Date.now()) {
   const today = new Date(new Date(nowValue).getTime() + 7 * 3600000).toISOString().slice(0, 10);
   return (days || []).map(dayName).find(label => {
@@ -54,8 +59,8 @@ function sortResponses(rows, sortMode) {
 }
 
 export function matchOptions(values, query) {
-  const needle = clean(query).toLocaleLowerCase();
-  return values.filter(value => !needle || value.toLocaleLowerCase().includes(needle));
+  const needle = foldSearchText(query);
+  return values.filter(value => !needle || foldSearchText(value).includes(needle));
 }
 
 export function errorMessage(value, fallback = 'Không thể thực hiện yêu cầu.') {
@@ -130,7 +135,7 @@ export function buildDetailModel(data, filters, sortMode = 'newest') {
   const selectedDay = clean(filters?.day) || ALL;
   const nameQuery = clean(filters?.name);
   const mealQuery = clean(filters?.meal);
-  const wantedName = nameQuery !== ALL ? nameQuery.toLocaleLowerCase() : '';
+  const wantedName = nameQuery !== ALL ? foldSearchText(nameQuery) : '';
   const wantedMeal = mealQuery !== ALL ? mealQuery.toLocaleLowerCase() : '';
   const dayIndex = selectedDay === ALL ? -1 : days.findIndex(day => dayName(day) === selectedDay);
   const sourceRows = [];
@@ -138,7 +143,7 @@ export function buildDetailModel(data, filters, sortMode = 'newest') {
 
   rows.forEach(row => {
     const name = clean(row?.[1]);
-    if (!name || (wantedName && !name.toLocaleLowerCase().includes(wantedName))) return;
+    if (!name || (wantedName && !foldSearchText(name).includes(wantedName))) return;
     if (selectedDay !== ALL && dayIndex < 0) return;
     if (dayIndex >= 0) {
       const choice = clean(row?.[2 + dayIndex]);

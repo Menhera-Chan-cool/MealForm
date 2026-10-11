@@ -3,12 +3,16 @@ import { ALL, matchOptions } from './viewer-model.mjs';
 import ChevronIcon from './ChevronIcon.jsx';
 import useDisclosureAnimation from './useDisclosureAnimation.js';
 
-export function ComboSelect({ id, label, value, values, onChange, searchable = true, includeAll = true, className = '' }) {
+export function ComboSelect({ id, label, value, values, onChange, onSelect, disabled = false, placeholder, searchable = true, includeAll = true, className = '' }) {
   const root = useRef(null);
   const { open, closing, active, show, hide, toggle } = useDisclosureAnimation();
   const inputValue = searchable ? value === ALL ? '' : value : value;
   const matches = useMemo(() => searchable ? matchOptions(values, inputValue) : values, [values, inputValue, searchable]);
   const visibleItems = Math.min(Math.max(matches.length + (includeAll ? 1 : 0), 2), 5);
+
+  useEffect(() => {
+    if (disabled) hide();
+  }, [disabled]);
 
   useEffect(() => {
     const close = event => { if (open && !root.current?.contains(event.target)) hide(); };
@@ -17,7 +21,7 @@ export function ComboSelect({ id, label, value, values, onChange, searchable = t
   }, [open]);
 
   function choose(next) {
-    onChange(next);
+    (onSelect || onChange)(next);
     hide();
   }
 
@@ -26,7 +30,7 @@ export function ComboSelect({ id, label, value, values, onChange, searchable = t
         id={id} type={searchable ? 'search' : 'text'} role="combobox" aria-label={label}
         aria-autocomplete={searchable ? 'list' : 'none'} readOnly={!searchable}
         aria-expanded={open} aria-controls={`${id}-options`}
-        value={inputValue} placeholder={searchable ? id === 'name' ? 'Tìm nhanh tên…' : ALL : undefined} autoComplete="off"
+        value={inputValue} disabled={disabled} placeholder={placeholder || (searchable ? id === 'name' ? 'Tìm nhanh tên…' : ALL : undefined)} autoComplete="off"
         onFocus={show} onClick={show}
         onChange={searchable ? event => { onChange(event.target.value.trim() || ALL); show(); } : undefined}
         onKeyDown={event => {
@@ -37,7 +41,7 @@ export function ComboSelect({ id, label, value, values, onChange, searchable = t
           }
         }}
       />
-      <button className="combo-toggle" type="button" aria-expanded={open} aria-controls={`${id}-options`} aria-label={`${open ? 'Đóng' : 'Mở'} danh sách ${label.toLocaleLowerCase()}`} onClick={() => {
+      <button className="combo-toggle" type="button" disabled={disabled} aria-expanded={open} aria-controls={`${id}-options`} aria-label={`${open ? 'Đóng' : 'Mở'} danh sách ${label.toLocaleLowerCase()}`} onClick={() => {
         const nextOpen = !open;
         toggle();
         if (nextOpen) root.current?.querySelector('input')?.focus();

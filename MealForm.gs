@@ -745,7 +745,8 @@ function getMealDashboardWeek_(weekKey, onlyReconciliation) {
   if (onlyReconciliation) return reconciliation;
   return { week: { weekKey: key, name: item.weekFolderName || spreadsheet.getName(), formUrl: cleanMealText_(item.responseUrl) || form.getPublishedUrl(),
       spreadsheetUrl: item.spreadsheetUrl || spreadsheet.getUrl(), folderUrl: item.weekFolderUrl || '',
-      formStatus: form.isAcceptingResponses() ? 'open' : 'closed', lockAt: getMealFormLockDeadline_(key, item) }, responseCount: rowCount, responseIds: formResponses.map(function(response) { return cleanMealText_(response.getId()); }).filter(Boolean), responses: responses, reconciliation: reconciliation, history: getMealDashboardHistoryForClient_(getMealDashboardHistorySheet_(spreadsheet, false)) };
+      formStatus: form.isAcceptingResponses() ? 'open' : 'closed', lockAt: getMealFormLockDeadline_(key, item),
+      dayLabels: layout.dayIndexes.map(function(index) { return cleanMealText_(headers[index]); }), closedDays: Array.isArray(item.closedDays) ? item.closedDays.slice(0, 5).map(cleanMealText_) : [] }, responseCount: rowCount, responseIds: formResponses.map(function(response) { return cleanMealText_(response.getId()); }).filter(Boolean), responses: responses, reconciliation: reconciliation, history: getMealDashboardHistoryForClient_(getMealDashboardHistorySheet_(spreadsheet, false)) };
 }
 
 function createMealDashboardDeleteToken_(weekKey, responseId, target) {

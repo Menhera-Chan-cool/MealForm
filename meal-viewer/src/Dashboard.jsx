@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { errorMessage, mealRegistrationTarget } from './viewer-model.mjs';
-import { inspectMenu, describeHistoryNote, countNewResponseIds, menuCalendarKey } from './dashboard-model.mjs';
+import { errorMessage, mealRegistrationTarget, foldSearchText } from './viewer-model.mjs';
+import { inspectMenu, describeHistoryNote, countNewResponseIds, menuCalendarKey, fillMenuMonday } from './dashboard-model.mjs';
+import DashboardWeekPicker from './DashboardWeekPicker.jsx';
+import ResponseMeals from './ResponseMeals.jsx';
+import ResponseQuickView from './ResponseQuickView.jsx';
+import useDashboardView from './useDashboardView.js';
 import { menuHistoryReducer } from './menu-history.mjs';
 import { safeErrorReport, dashboardOperation } from './safe-error-report.mjs';
 import ErrorReportButton from './ErrorReportButton.jsx';
@@ -57,7 +61,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [savedWeek] = useState(() => lastDashboardWeek(initialData?.accountId, (initialData?.weeks || []).map(week => week.weekKey)));
   const initialWeek = savedWeek || initialData?.weeks?.[0]?.weekKey || '';
   const [overview, setOverview] = useState(initialData || { role: '', weeks: [], allowedEmails: [] });
-  const [tab, setTab] = useState(() => {
+  const [tab, setTabState] = useState(() => {
     const initialTab = new URLSearchParams(window.location.search).get('tab');
     return ['create', 'health'].includes(initialTab) ? initialTab : savedWeek ? 'delete' : 'overview';
   });
@@ -69,8 +73,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [newResponses, setNewResponses] = useState(0);
   const [pollError, setPollError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
-  const [query, setQuery] = useState('');
-  const [responseSort, setResponseSort] = useState('newest');
+  const [quickResponse, setQuickResponse] = useState(null);
+  const [highlightIds, setHighlightIds] = useState([]);
+  const highlightTimer = useRef(null);
   const [email, setEmail] = useState('');
   const [file, setFile] = useState(null);
   const [image, setImage] = useState('');
@@ -105,14 +110,22 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     setImage(saved.image); setFile({ name: saved.filename }); setMenu(saved.menu); setAllowMissing(false);
   });
 
+  const viewState = useDashboardView(overview.accountId, weekKey, tab, weekData, weekVerified);
+  const query = viewState.view.query, responseSort = viewState.view.sort;
+  const setQuery = value => viewState.update({ query: value });
+  const setResponseSort = value => viewState.update({ sort: value });
+  function setTab(next) { viewState.save(); setTabState(next); }
+  function selectWeek(next) { if (next !== weekKey) { viewState.save(); setQuickResponse(null); setWeekKey(next); } }
+
   const validation = useMemo(() => inspectMenu(menu, allowMissing), [menu, allowMissing]);
   const existingWeek = (overview.weeks || []).find(week => week.weekKey === menuCalendarKey(menu));
   const existingFormUrl = mealRegistrationTarget(existingWeek).formUrl;
   const existingSheetUrl = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[A-Za-z0-9_-]+(?:\/|$)/.test(existingWeek?.spreadsheetUrl || '') ? existingWeek.spreadsheetUrl : '';
   const displayedWeek = weekData?.week?.weekKey === weekKey ? weekData : null;
   const weekReady = weekVerified && Boolean(displayedWeek);
+  const currentQuickResponse = quickResponse && displayedWeek?.responses.find(response => response.responseId === quickResponse.responseId);
   const visibleResponses = (displayedWeek?.responses || []).filter(response =>
-    String(response.name || '').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).slice().sort((left, right) => {
+    foldSearchText(response.name).includes(foldSearchText(query))).slice().sort((left, right) => {
       if (responseSort === 'name') return String(left.name || '').localeCompare(String(right.name || ''), 'vi', { sensitivity: 'base' });
       const difference = Number(left.timestamp || 0) - Number(right.timestamp || 0);
       return responseSort === 'oldest' ? difference : -difference;
@@ -131,7 +144,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     }
   }
 
-  async function loadWeek(key = weekKey) {
+  async function loadWeek(key = weekKey, manual = false) {
+    if (manual) viewState.save();
     const generation = ++weekRequest.current;
     setWeekVerified(false); setNewResponses(0); setPollError('');
     if (!key) { setWeekData(null); setWeekLoading(false); return false; }
@@ -145,6 +159,10 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       const result = await request(`/api/dashboard?week=${encodeURIComponent(key)}`);
       if (generation !== weekRequest.current) return false;
       setWeekData(result);
+      clearTimeout(highlightTimer.current);
+      const previousIds = new Set(keep ? previous.responseIds || [] : []);
+      setHighlightIds(manual && keep ? (result.responseIds || []).filter(id => !previousIds.has(id)) : []);
+      if (manual) highlightTimer.current = setTimeout(() => setHighlightIds([]), 8000);
       setWeekVerified(true); setCacheTime(0);
       writeDashboardCache(overview.accountId, key, result);
       setMessage('');
@@ -155,7 +173,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
   useEffect(() => { if (!initialData || initialData.overviewPending) void refreshOverview(); }, []);
   useEffect(() => { if (tab === 'delete') void loadWeek(weekKey); return () => { weekRequest.current++; }; }, [tab, weekKey]);
-  useEffect(() => () => { weekRequest.current++; }, []);
+  useEffect(() => () => { weekRequest.current++; clearTimeout(highlightTimer.current); }, []);
+  useEffect(() => { setHighlightIds([]); setQuickResponse(null); }, [weekKey]);
   useEffect(() => {
     if (!weekVerified || !weekData || busy || tab !== 'delete') return undefined;
     let stopped = false, checking = false;
@@ -191,7 +210,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     if (mode !== 'close' && (!deadline || !Number.isFinite(Date.parse(lockAt)) || Date.parse(lockAt) <= Date.now())) { setMessage('Chọn hạn đăng ký hợp lệ ở tương lai.'); return; }
     const verb = mode === 'open' ? 'Mở lại' : mode === 'close' ? 'Đóng' : 'Đổi hạn đăng ký cho';
     if (reason === undefined) { setConfirmation({ message: `${verb} Form ${selectedWeek.name}?${mode === 'close' ? ' Người dùng sẽ không gửi được lượt mới.' : ` Hạn mới: ${deadline.replace('T', ' ')} (giờ Việt Nam).`} Thao tác được ghi lịch sử.`, run: note => controlForm(mode, note) }); return; }
-    clearDashboardCache(); setWeekVerified(false);
+    clearDashboardCache(undefined, true); setWeekVerified(false);
     setBusy(true); setMessage('Đang cập nhật Form…');
     try {
       await request('/api/dashboard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'form-control', weekKey, mode, deadline: lockAt, expectedStatus: selectedWeek.formStatus, expectedLockAt: selectedWeek.lockAt, reason }) });
@@ -295,6 +314,11 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
   function moveMenuHistory(type) { dispatchMenu({ type }); setAllowMissing(false); }
 
+  function chooseMonday(value) {
+    try { const next = fillMenuMonday(menu, value); dispatchMenu({ type: 'edit', value: next }); setAllowMissing(false); setMessage(''); }
+    catch (error) { setMessage(error.message); }
+  }
+
   async function createWeek(event) {
     event.preventDefault();
     if (existingWeek) { setMessage('Tuần này đã có Form; dùng liên kết hiện có hoặc tải lại sổ tuần. Không ghi đè.', 'info'); return; }
@@ -330,7 +354,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       ? `Form đã xóa lượt của ${response.name} lúc ${time}, nhưng Sheet còn hàng dữ liệu. Xóa nốt hàng Sheet này?`
       : `Xóa lượt gửi của ${response.name} lúc ${time} khỏi Form và Sheet?`;
     if (reason === undefined) { setConfirmation({ message: prompt, run: note => deleteResponse(response, note) }); return; }
-    clearDashboardCache(); setWeekVerified(false);
+    clearDashboardCache(undefined, true); setWeekVerified(false);
     setPendingRow({ action: 'delete', id: response.responseId });
     setBusy(true); setMessage('Đang xóa lượt gửi…');
     try {
@@ -351,7 +375,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     if (!weekReady || !event.restorable || !event.entryId || restoreAttempts.has(event.entryId)) return;
     const originalTime = formatTime(event.originalTimestamp);
     if (!window.confirm(`Khôi phục lượt của ${event.name} (gửi gốc lúc ${originalTime})? Lượt sẽ được tạo mới trong Form, nên thời điểm gửi trong Form sẽ là thời điểm hiện tại.`)) return;
-    clearDashboardCache(); setWeekVerified(false);
+    clearDashboardCache(undefined, true); setWeekVerified(false);
     setPendingRow({ action: 'restore', id: event.entryId });
     setBusy(true); setMessage('Đang khôi phục lượt gửi…');
     try {
@@ -412,14 +436,10 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
 
   function weekPicker() {
-    return <label className="dashboard-week-picker">Tuần
-      <select value={weekKey} disabled={busy || healthBusy} onChange={event => setWeekKey(event.target.value)}>
-        {(overview.weeks || []).map(week => <option key={week.weekKey} value={week.weekKey}>{week.name}</option>)}
-      </select>
-    </label>;
+    return <DashboardWeekPicker weeks={overview.weeks || []} value={weekKey} disabled={busy || healthBusy} onChange={selectWeek} />;
   }
 
-  return <main className="dashboard-shell">
+  return <main className="dashboard-shell" data-density={viewState.view.density}>
     <header className="dashboard-header">
       <div><h1>Dashboard quản trị</h1><p className="sub">Quản lý tuần thực đơn, tạo Form từ ảnh và xử lý lượt gửi.</p></div>
       <div className="dashboard-header-actions">
@@ -484,6 +504,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       }}>
         <div className="menu-history-tools"><button type="button" className="secondary" disabled={busy || !menuHistory.past.length} onClick={() => moveMenuHistory('undo')}>Hoàn tác</button><button type="button" className="secondary" disabled={busy || !menuHistory.future.length} onClick={() => moveMenuHistory('redo')}>Làm lại</button><small>Ctrl/⌘ Z · Ctrl/⌘ Shift Z. Lịch sử sửa chỉ giữ trong lần mở này.</small></div>
         <label>Tiêu đề tuần<input value={menu.title || ''} maxLength={500} disabled={busy} onChange={event => dispatchMenu({ type: 'edit', group: 'title', value: current => ({ ...current, title: event.target.value }) })} /></label>
+        <label>Chọn thứ Hai<input aria-label="Chọn thứ Hai" type="date" value={/^\d{2}\/\d{2}\/\d{4}$/.test(menu.days?.[0]?.date || '') ? menu.days[0].date.split('/').reverse().join('-') : ''} disabled={busy} onChange={event => chooseMonday(event.target.value)} /><small>Tự điền 5 ngày, giữ món/ngày nghỉ. Hoàn tác khôi phục cả tuần.</small></label>
         {existingWeek && <div className="existing-week-warning" role="status"><strong>Tuần này đã có Form — không tạo hoặc ghi đè tuần mới.</strong><div className="dashboard-links">{existingFormUrl && <a href={existingFormUrl} target="_blank" rel="noreferrer">Mở Form</a>}{existingSheetUrl && <a href={existingSheetUrl} target="_blank" rel="noreferrer">Mở Sheet</a>}<button type="button" className="secondary" disabled={busy} onClick={() => void refreshOverview()}>Tải lại sổ tuần</button></div></div>}
         <h3>Rà soát 5 ngày</h3>
         {menu.days.map((day, dayIndex) => {
@@ -516,22 +537,23 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
     {tab === 'delete' && <section className="dashboard-panel">
       <div className="dashboard-section-title"><h2>Lượt gửi và lịch sử thao tác</h2></div>
-      <div className="dashboard-sticky-tools">{weekPicker()}<div className="dashboard-refresh-bar"><button className="secondary" disabled={busy || weekLoading || !weekKey} onClick={() => void loadWeek(weekKey)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</button>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div><label className="dashboard-search">Tìm theo họ tên<input value={query} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label></div>
+      <div className="dashboard-sticky-tools" ref={viewState.toolbarRef}>{weekPicker()}<div className="dashboard-refresh-bar"><button className="secondary" disabled={busy || weekLoading || !weekKey} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</button>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div><label className="dashboard-search">Tìm theo họ tên<input value={query} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label></div>
       {displayedWeek && !weekReady && <p className="dashboard-cache-status" role="status">{cacheTime ? `Bản lưu lúc ${formatTime(cacheTime)}. ` : 'Dữ liệu lần xem trước. '}{weekLoading ? 'Đang xác minh…' : 'Chưa xác minh được; chỉ xem, hãy tải lại trước khi thao tác.'}</p>}
       {displayedWeek && weekReady && <p className="dashboard-hint">Dữ liệu đã xác minh. Tự kiểm tra lượt mới mỗi phút khi tab đang mở; bảng chỉ đổi khi tải lại.</p>}
       {pollError && <p className="dashboard-hint" role="status">{pollError}</p>}
       <p className="dashboard-warning">Chỉ hiện lượt ghép duy nhất giữa Google Form và Sheet. Khôi phục sẽ tạo lượt Form mới; thời điểm gửi gốc được lưu trong lịch sử.</p>
       <div className="dashboard-response-tools">
-        <label className="dashboard-sort">Sắp xếp<select value={responseSort} onChange={event => setResponseSort(event.target.value)}>
+        <label className="dashboard-sort">Sắp xếp<select aria-label="Sắp xếp" value={responseSort} onChange={event => setResponseSort(event.target.value)}>
           <option value="newest">Mới nhất</option>
           <option value="oldest">Cũ nhất</option>
           <option value="name">Tên A–Z</option>
         </select></label>
+        <div className="dashboard-density" role="group" aria-label="Mật độ bảng PC"><span>Bảng PC</span><button type="button" className="secondary" aria-pressed={viewState.view.density === 'compact'} onClick={() => viewState.update({ density: 'compact' })}>Gọn</button><button type="button" className="secondary" aria-pressed={viewState.view.density === 'comfortable'} onClick={() => viewState.update({ density: 'comfortable' })}>Rộng</button></div>
       </div>
-      {weekLoading && !displayedWeek ? <p>Đang tải lượt gửi…</p> : <div className="table-wrap"><table className="dashboard-table"><thead><tr><th>Thời điểm</th><th>Họ tên</th><th>Món đã chọn</th><th>Thao tác</th></tr></thead><tbody>
-        {visibleResponses.length ? visibleResponses.map(response => <tr key={response.responseId || response.rowNumber || `${response.timestamp}-${response.name}`}>
-          <td>{formatTime(response.timestamp)}</td><td>{response.name}{response.partial && <strong className="dashboard-partial"> · Form đã xóa, Sheet còn hàng</strong>}</td><td>{response.meals.join(' · ')}</td>
-          <td><div className="dashboard-row-actions">{permissions.manageResponses && (response.deletable || !weekReady) ? <button className="danger" disabled={busy || !weekReady} aria-busy={pendingRow?.action === 'delete' && pendingRow.id === response.responseId} onClick={() => void deleteResponse(response)}>{pendingRow?.action === 'delete' && pendingRow.id === response.responseId ? 'Đang xóa…' : response.partial ? 'Xóa nốt hàng Sheet' : 'Xóa lượt này'}</button> : <span title={response.note}>{!permissions.manageResponses ? 'Chỉ xem' : response.partial ? 'Cần kiểm tra thủ công' : 'Không đối chiếu được'}</span>}<SheetRowButton key={`${weekKey}-${weekRequest.current}-${response.responseId}`} weekKey={weekKey} source={response.partial ? 'sheet' : 'form'} response={response} request={request} disabled={busy || !weekReady} /></div></td>
+      {weekLoading && !displayedWeek ? <p>Đang tải lượt gửi…</p> : <div className="table-wrap dashboard-response-list" ref={viewState.listRef} data-week-key={weekKey}><table className="dashboard-table dashboard-response-table" role="table"><thead><tr><th>Thời điểm</th><th>Họ tên</th><th>Món đã chọn</th><th>Thao tác</th></tr></thead><tbody>
+        {visibleResponses.length ? visibleResponses.map(response => <tr key={response.responseId || response.rowNumber || `${response.timestamp}-${response.name}`} data-response-id={response.responseId} className={highlightIds.includes(response.responseId) ? 'new-response' : ''}>
+          <td data-label="Thời điểm">{formatTime(response.timestamp)}</td><td data-label="Họ tên"><strong>{response.name}</strong>{highlightIds.includes(response.responseId) && <span className="new-response-label">Mới</span>}{response.partial && <strong className="dashboard-partial"> · Form đã xóa, Sheet còn hàng</strong>}</td><td data-label="Món đã chọn"><ResponseMeals response={response} week={displayedWeek?.week} /></td>
+          <td data-label="Thao tác"><div className="dashboard-row-actions"><button type="button" className="secondary" onClick={() => setQuickResponse(response)}>Xem nhanh</button>{permissions.manageResponses && (response.deletable || !weekReady) ? <button className="danger" disabled={busy || !weekReady} aria-busy={pendingRow?.action === 'delete' && pendingRow.id === response.responseId} onClick={() => void deleteResponse(response)}>{pendingRow?.action === 'delete' && pendingRow.id === response.responseId ? 'Đang xóa…' : response.partial ? 'Xóa nốt hàng Sheet' : 'Xóa lượt này'}</button> : <span title={response.note}>{!permissions.manageResponses ? 'Chỉ xem' : response.partial ? 'Cần kiểm tra thủ công' : 'Không đối chiếu được'}</span>}<SheetRowButton key={`${weekKey}-${weekRequest.current}-${response.responseId}`} weekKey={weekKey} source={response.partial ? 'sheet' : 'form'} response={response} request={request} disabled={busy || !weekReady} /></div></td>
         </tr>) : <tr><td className="empty" colSpan="4">Không có lượt gửi phù hợp.</td></tr>}
       </tbody></table></div>}
       <div className="dashboard-section-title dashboard-history-title"><h2>Lịch sử thao tác</h2><span>{displayedWeek?.history?.length || 0} sự kiện gần nhất</span></div>
@@ -578,6 +600,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       </li>)}</ul>
     </section>}
     <ActionToast message={toast?.message} kind={toast?.kind} onDismiss={dismissToast} />
+    {quickResponse && <ResponseQuickView response={currentQuickResponse || quickResponse} week={displayedWeek?.week} verified={weekReady && Boolean(currentQuickResponse)} onClose={() => setQuickResponse(null)} />}
     {confirmation && <ActionConfirmation message={confirmation.message} onCancel={() => setConfirmation(null)} onConfirm={reason => { const action = confirmation.run; setConfirmation(null); void action(reason); }} />}
   </main>;
 }

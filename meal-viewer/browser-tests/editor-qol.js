@@ -5,6 +5,7 @@ async page => {
   const menu={title:'Tuần thử',days:[12,13,14,15,16].map((date,i)=>({day:`Thứ ${i+2}`,date:`${date}/10/2026`,meals:['GÀ KHO','CÁ KHO','BÚN']}))};
   const week={weekKey:existing?key:'2026-10-05_2026-10-06_2026-10-07_2026-10-08_2026-10-09',name:'Tuần đã đăng ký',formStatus:'open',lockAt:'2030-10-12T00:00:00+07:00',formUrl:'https://docs.google.com/forms/d/e/test/viewform',spreadsheetUrl:'https://docs.google.com/spreadsheets/d/test/edit'};
   await p.addInitScript(()=>{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{if(window.failCopy)throw Error('clipboard denied');window.safeCopied=text;}}});});
+  await p.addInitScript(()=>{if(location.search.includes('resetEditorFixture=1'))Object.keys(localStorage).filter(key=>key.startsWith('meal-dashboard-cache-v1:editor-qol-fixture:')).forEach(key=>localStorage.removeItem(key));});
   await p.route('**/api/session',r=>r.fulfill({json:{authenticated:true}}));
   await p.route('**/api/branding',r=>r.fulfill({json:{schoolName:'',logoUrl:'',primaryColor:'#087f5b',updatedAt:0}}));
   await p.route('**/api/dashboard*',r=>{
@@ -16,7 +17,7 @@ async page => {
   const results=[];
   try {
     for(const width of [1280,390]){
-      existing=false;await p.setViewportSize({width,height:844});await p.goto('http://127.0.0.1:5176/dashboard?tab=create');
+      existing=false;await p.setViewportSize({width,height:844});await p.goto('http://127.0.0.1:5176/dashboard?tab=create&resetEditorFixture=1');await p.evaluate(()=>history.replaceState({},'', '/dashboard?tab=create'));
       await p.getByRole('heading',{name:'Tạo tuần từ ảnh thực đơn'}).waitFor();
       await p.evaluate(async menu=>{
         const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('meal-ocr-drafts',1);r.onupgradeneeded=()=>r.result.createObjectStore('drafts',{keyPath:'accountId'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
@@ -46,7 +47,7 @@ async page => {
       await p.locator('.menu-day').nth(0).getByLabel('Ngày',{exact:true}).fill('26/10/2026');
       if(await p.locator('.existing-week-warning').count())throw Error('Invalid partial dates must hide stale week warning');
       await p.getByRole('button',{name:'Hoàn tác',exact:true}).click();await p.locator('.existing-week-warning').waitFor();
-      await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.getByRole('cell',{name:'Người thử 0',exact:true}).waitFor();
+      await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.locator('[data-response-id="record-0"]').filter({hasText:'Người thử 0'}).waitFor();
       await p.evaluate(()=>window.scrollTo(0,document.querySelector('.dashboard-sticky-tools').getBoundingClientRect().top+scrollY+300));
       const bounds=await p.locator('.dashboard-sticky-tools').boundingBox();
       if(width===390&&(bounds.y < -1 || bounds.y>30 || bounds.height>220))throw Error('Sticky toolbar not compact or not pinned');

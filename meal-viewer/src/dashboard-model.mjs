@@ -96,3 +96,22 @@ export function inspectMenu(menu, allowMissingMeals = false) {
 export function menuCalendarKey(menu) {
   return inspectMenu(menu).dateError ? '' : menu.days.map(day => dateKey(day.date)).join('_');
 }
+
+export function fillMenuMonday(menu, value) {
+  const monday = dateKey(value);
+  if (!monday || new Date(`${monday}T00:00:00Z`).getUTCDay() !== 1) throw new Error('Chọn ngày thứ Hai hợp lệ.');
+  if (!Array.isArray(menu?.days) || menu.days.length !== 5) throw new Error('Cần có thực đơn đủ 5 ngày trước khi chọn thứ Hai.');
+  return { ...menu, days: menu.days.map((day, i) => ({ ...day, date: plusDays(monday, i).split('-').reverse().join('/') })) };
+}
+
+export function responseMealDetails(response, week) {
+  return (Array.isArray(response?.meals) ? response.meals : []).map((meal, i) => ({
+    day: typeof week?.dayLabels?.[i] === 'string' && week.dayLabels[i] ? week.dayLabels[i] : `Lựa chọn ${i + 1} — chưa có nhãn ngày`,
+    meal: String(meal || '') || 'Chưa chọn'
+  }));
+}
+
+export function nearestViewAnchor(ids, anchor, index) {
+  const found = ids.indexOf(anchor);
+  return found >= 0 ? found : Math.max(0, Math.min(ids.length - 1, Number(index) || 0));
+}

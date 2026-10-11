@@ -37,16 +37,21 @@ async page => {
     if (await p.evaluate(() => Object.entries(localStorage).some(([k,v]) => k.startsWith('meal-dashboard-cache') && v.includes('DO-NOT-PERSIST')))) throw Error('Delete token cached');
     hold = true;
     await p.reload();
-    await p.getByRole('cell', { name: 'Người kiểm thử', exact: true }).waitFor({ timeout: 3000 });
+    await p.locator('[data-response-id="one"]').filter({hasText:'Người kiểm thử'}).waitFor({ timeout: 3000 });
     if (!await p.getByRole('button', { name: 'Xóa lượt này', exact: true }).isDisabled()) throw Error('Cached deletion enabled');
     await p.getByText(/Bản lưu.*Đang xác minh/).waitFor();
+    await p.getByRole('button',{name:'Xem nhanh',exact:true}).click();
+    await p.getByRole('dialog').getByText(/Bản lưu chưa xác minh/).waitFor();
+    row.meals=['Cá mới'];
     if (!release) await p.waitForFunction(() => document.querySelector('.dashboard-cache-status'));
     hold = false; release(); overviewRelease?.();
     await p.waitForFunction(() => ![...document.querySelectorAll('button')].find(b => b.textContent === 'Xóa lượt này')?.disabled);
+    await p.getByRole('dialog').getByText('Cá mới',{exact:true}).waitFor({timeout:3000});
+    await p.keyboard.press('Escape');row.meals=['Cơm gà'];
     ids = ['two'];
     await p.clock.runFor(61000);
     await p.getByText('Có 1 lượt gửi mới', { exact: true }).waitFor();
-    await p.getByRole('cell', { name: 'Người kiểm thử', exact: true }).waitFor();
+    await p.locator('[data-response-id="one"]').filter({hasText:'Người kiểm thử'}).waitFor();
     await p.getByRole('button', { name: 'Tải lại dữ liệu', exact: true }).click();
     await p.waitForFunction(() => !document.querySelector('.dashboard-new-badge'));
     ids = ['one'];
@@ -75,7 +80,7 @@ async page => {
     await p.getByRole('button', { name: 'Tải lại dữ liệu', exact: true }).click();
     await p.getByRole('alert').filter({ hasText: 'Lỗi mạng thử nghiệm' }).waitFor();
     if (!await p.getByRole('button', { name: 'Xóa lượt này', exact: true }).isDisabled()) throw Error('Failed refresh left mutation enabled');
-    await p.getByRole('cell', { name: 'Người kiểm thử', exact: true }).waitFor();
+    await p.locator('[data-response-id="one"]').filter({hasText:'Người kiểm thử'}).waitFor();
     checks.push({ width, cacheVisibleBeforeResponse: true, tokenNotPersisted: true, accurateBadge: true, notes: true, freshSheetLocation: true, readableHistory: true, errorKeepsReadOnlyRows: true });
   }
   failed = false;

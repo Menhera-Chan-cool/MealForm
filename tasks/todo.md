@@ -1,5 +1,15 @@
 # Admin upgrades
 
+## Dashboard interaction QoL approved 2026-10-11
+
+- [x] Real day metadata, cards and read-only quick dialog.
+- [x] UI-only accent search and explicit-choice searchable week picker.
+- [x] Monday fill as one Undo transaction, preserving meals/holidays.
+- [x] PC density and manual-reload new-id highlight.
+- [x] Account/week view state, 24-hour expiry, scroll and logout guards.
+- [x] Full tests, browser regressions and clean template synchronization.
+- [ ] Backend/web deploy, readonly production proof and GitHub/README delivery.
+
 ## Editing/mobile QoL approved 2026-10-11
 
 - [x] holiday-days: native Form/Sheet/layout/viewer and draft validation.
