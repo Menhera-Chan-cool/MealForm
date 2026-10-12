@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Review and scale QoL approved 2026-10-12
+
+account-badge -> audit-filters + response-batches -> region-ocr -> version-notice -> full regression, browser QA, clean template sync and backend-before-web deployment. API paging is opt-in for compatibility. Exact indexed identity matching, token-free short-lived server snapshots, global search/sort and revision guards are required; mutations always read both stores again. Crop previews and one Undo reuse current menu history; explicit version refresh waits for current draft persistence. User authorized all five without separate step approvals.
+
 ## Dashboard interaction QoL approved 2026-10-11
 
 accent-search + real response day labels/cards -> monday-fill + explicit-selection week search -> density + id-based highlights + readonly quick view -> account/week view restoration. UI-only search folding never reaches matching/deletion functions. Restore scroll only for the correct generation and use the closest surviving row when an anchor disappears. User approved continuous execution, tests and deployment of all eight modules.

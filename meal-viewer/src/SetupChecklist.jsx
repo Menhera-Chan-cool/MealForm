@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { errorMessage } from './viewer-model.mjs';
 import { safeErrorReport } from './safe-error-report.mjs';
 import ErrorReportButton from './ErrorReportButton.jsx';
+import VersionNotice from './VersionNotice.jsx';
 import './dashboard.css';
 
 const STEPS = [
@@ -43,6 +44,7 @@ export default function SetupChecklist({ authenticated }) {
     finally { setBusy(false); }
   }
   return <main className="dashboard-shell">
+    <VersionNotice disabled={busy} />
     <header><h1>Cài đặt &amp; kiểm tra</h1><p>Hướng dẫn mở được ngay cả khi bản mới chưa cấu hình. Không nhập khóa bí mật vào trang này.</p><div className="dashboard-header-actions"><a className="form-link" href="/dashboard">Mở Dashboard / đăng nhập</a><a className="action-link" href="/newest">Trang xem</a></div></header>
     <ol className="setup-steps">{STEPS.map(([title, text, url]) => <li key={title}><h2>{title}</h2><p>{text}</p>{url && <a className="action-link" href={url} target="_blank" rel="noopener noreferrer">Mở hướng dẫn / dịch vụ →</a>}</li>)}</ol>
     <section className="dashboard-panel"><h2>Kiểm tra kết nối thực tế</h2>

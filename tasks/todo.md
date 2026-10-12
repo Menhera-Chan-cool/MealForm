@@ -1,5 +1,16 @@
 # Admin upgrades
 
+## Review and scale QoL approved 2026-10-12
+
+- [x] Verified private account badge and permissions, API/header tests.
+- [x] Full selected-week audit filtering and bounded rendering, helper/browser tests.
+- [x] Indexed exact matching, token-free snapshots and 50-row API, native/API tests.
+- [x] Dashboard batch loading, global query/sort, cache/scroll/revision guards, browser tests.
+- [x] Region crop, authorized OCR parsing, editable preview and atomic Undo, native/browser tests.
+- [x] Build version metadata/banner and explicit draft flush, failure/browser tests.
+- [x] Full regressions, clean sharing configuration/README and browser QA.
+- [ ] Backend/web deployment, readonly production checks and verified GitHub delivery.
+
 ## Dashboard interaction QoL approved 2026-10-11
 
 - [x] Real day metadata, cards and read-only quick dialog.

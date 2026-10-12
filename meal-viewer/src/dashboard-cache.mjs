@@ -8,6 +8,8 @@ function displayData(data) {
   return {
     week: fields(data?.week, ['weekKey', 'name', 'formStatus', 'lockAt', 'dayLabels', 'closedDays']),
     responseCount: Number(data?.responseCount) || 0,
+    ...(data?.page ? {page:fields(data.page,['offset','nextOffset','matchedCount','total','query','sort','revision','snapshotAt'])} : {}),
+    ...(data?.historyPage ? {historyPage:fields(data.historyPage,['offset','nextOffset','matchedCount','total','filters','actions'])} : {}),
     responseIds: Array.isArray(data?.responseIds) ? data.responseIds.filter(id => typeof id === 'string') : [],
     responses: (Array.isArray(data?.responses) ? data.responses : []).map(row => fields(row, ['responseId', 'timestamp', 'name', 'meals', 'rowNumber', 'partial', 'note'])),
     history: (Array.isArray(data?.history) ? data.history : []).map(event => fields(event, ['id', 'entryId', 'action', 'at', 'actor', 'originalTimestamp', 'name', 'meals', 'note']))

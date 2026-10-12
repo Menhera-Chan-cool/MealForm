@@ -1,4 +1,16 @@
+import { foldSearchText } from './viewer-model.mjs';
 const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
+
+export function filterAuditHistory(events, filters = {}) {
+  const start = filters.from ? Date.parse(`${filters.from}T00:00:00+07:00`) : -Infinity;
+  const end = filters.to ? Date.parse(`${filters.to}T00:00:00+07:00`) + 86400000 : Infinity;
+  if ((filters.from && dateKey(filters.from) !== filters.from) || (filters.to && dateKey(filters.to) !== filters.to) || start >= end) return [];
+  return (events || []).filter(event => Number(event.at) >= start && Number(event.at) < end
+    && (!filters.actor || foldSearchText(event.actor).includes(foldSearchText(filters.actor)))
+    && (!filters.action || event.action === filters.action)
+    && (!filters.errorsOnly || /(?:-pending|-review|-failed)$|^partial$/.test(event.action))
+    && (!filters.note || foldSearchText([event.note, ...describeHistoryNote(event.note)].join(' ')).includes(foldSearchText(filters.note))));
+}
 
 export function describeHistoryNote(note) {
   const text = String(note || '').trim();
@@ -114,4 +126,35 @@ export function responseMealDetails(response, week) {
 export function nearestViewAnchor(ids, anchor, index) {
   const found = ids.indexOf(anchor);
   return found >= 0 ? found : Math.max(0, Math.min(ids.length - 1, Number(index) || 0));
+}
+
+export function applyRegionResult(menu, target, result) {
+  if (!menu?.days?.[target?.dayIndex] || !Number.isInteger(target.dayIndex) || !['day','meal'].includes(target.mode)) throw new Error('Chọn ngày/ô món hợp lệ.');
+  const bounded = value => { if (typeof value !== 'string' || value.length > 500) throw new Error('Kết quả món không hợp lệ hoặc quá dài.'); return value.trim(); };
+  const previous = menu.days[target.dayIndex];
+  let next;
+  if (target.mode === 'meal') {
+    if (!Number.isInteger(target.mealIndex) || target.mealIndex < 0 || target.mealIndex > 2) throw new Error('Chọn ô món hợp lệ.');
+    const meals = [...previous.meals]; meals[target.mealIndex] = bounded(result?.text);
+    next = { ...previous, meals };
+  } else {
+    if (typeof result?.date !== 'string' || result.date.length > 40 || !Array.isArray(result.meals) || result.meals.length !== 3) throw new Error('Kết quả ngày không hợp lệ.');
+    next = { ...previous, date: result.date.trim(), meals: result.meals.map(bounded) };
+  }
+  return { ...menu, days: menu.days.map((day, index) => index === target.dayIndex ? next : day) };
+}
+
+export function cropPixelRect(rect, width, height) {
+  if (![width,height].every(value => Number.isFinite(value) && value > 0) || !['x','y','width','height'].every(key => Number.isFinite(rect?.[key])) || rect.x < 0 || rect.y < 0 || rect.width <= 0 || rect.height <= 0 || rect.x + rect.width > 100 || rect.y + rect.height > 100) throw new Error('Vùng chọn phải nằm trong ảnh.');
+  const pixels = { x: Math.floor(rect.x * width / 100), y: Math.floor(rect.y * height / 100), width: Math.floor(rect.width * width / 100), height: Math.floor(rect.height * height / 100) };
+  if (pixels.width < 8 || pixels.height < 8) throw new Error('Vùng chọn quá nhỏ; hãy khoanh lại.');
+  return pixels;
+}
+
+export function accountRoleLabel(account) {
+  return account?.role === 'owner' ? 'Chủ sở hữu' : account?.role === 'manager' && (account.permissions?.create || account.permissions?.manageResponses) ? 'Quản trị' : 'Chỉ xem';
+}
+
+export function isNewBuild(latest, current) {
+  return typeof latest?.id === 'string' && /^[\w-]{1,100}$/.test(latest.id) && latest.id !== current;
 }

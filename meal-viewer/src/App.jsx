@@ -12,6 +12,7 @@ import ChevronIcon from './ChevronIcon.jsx';
 import useDisclosureAnimation from './useDisclosureAnimation.js';
 import HistoryArchive from './HistoryArchive.jsx';
 import SetupChecklist from './SetupChecklist.jsx';
+import VersionNotice from './VersionNotice.jsx';
 import { readLoginState } from './session-client.mjs';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '';
@@ -333,6 +334,7 @@ function App() {
   }
 
   return <main>
+    <VersionNotice disabled={busy} />
     <header className="viewer-header">
       <div className="viewer-title-group">
         <h1>{pageTitle}</h1>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ComboSelect } from './FilterControls.jsx';
 import { ALL, errorMessage } from './viewer-model.mjs';
+import VersionNotice from './VersionNotice.jsx';
 
 export default function HistoryArchive({ onUnauthorized }) {
   const [weeks, setWeeks] = useState([]);
@@ -23,6 +24,7 @@ export default function HistoryArchive({ onUnauthorized }) {
   const months = [...new Set(weeks.map(monthLabel))];
   const visible = weeks.filter(week => month === ALL || monthLabel(week) === month);
   return <section className="archive-panel">
+    <VersionNotice disabled={busy} />
     <div className="section-heading"><h2>Kho tuần cũ</h2><button className="secondary" disabled={busy} onClick={() => void load()}>Tải lại</button></div>
     <p>Chỉ hiện tuần đã đăng ký trước tuần này. Cần đăng nhập Google để xem.</p>
     <label htmlFor="archive-month">Tháng bắt đầu tuần</label>

@@ -1,12 +1,18 @@
 # MealForm
 
-## Cập nhật ngày 11/10/2026
+## Cập nhật ngày 12/10/2026
 
-Mã backend đã đồng bộ đến Apps Script phiên bản 74, thêm nhãn ngày thực tế cho lượt gửi và tám cải tiến thao tác Dashboard bên dưới. Giữ các tính năng ngày nghỉ, hoàn tác/làm lại OCR, cảnh báo tuần đã tồn tại, thanh công cụ mobile và sao chép báo lỗi an toàn. Các luồng phiên đăng nhập, OCR, lịch khóa, quyền và xóa/khôi phục vẫn được kiểm thử hồi quy. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
+Mã backend đã đồng bộ đến Apps Script phiên bản 76: bộ lọc lịch sử toàn tuần, OCR từng vùng ảnh, tải thêm từng đợt, hiển thị tài khoản/quyền và thông báo phiên bản web mới. Giữ tám cải tiến Dashboard trước đó cùng ngày nghỉ, Undo OCR và các kiểm tra an toàn. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
 
 Điều hướng dùng nút xanh đồng bộ trên điện thoại và máy tính. Kho tuần cũ ở `/history` yêu cầu đăng nhập; `/old` đã ngừng phục vụ thực đơn và chuyển hướng về kho tuần. Không xóa dữ liệu các tuần cũ.
 
 ## Tính năng mới trong bản này
+
+- Đầu Dashboard hiện Gmail từ phiên đăng nhập đã xác minh, vai trò Chủ sở hữu/Quản trị/Chỉ xem và quyền thực tế. Không nhận Gmail từ nội dung do trình duyệt gửi, không thêm danh tính này vào API trang xem công khai hoặc cache trình duyệt.
+- Lượt gửi tải 50 bản ghi mỗi đợt, có nút Tải thêm. Tìm tên không dấu/sắp xếp xử lý trên toàn bộ tuần ở backend; không chỉ lọc phần đã tải. Ghép Form–Sheet dùng chỉ mục cùng giây/tên/món chính xác như trước, vẫn từ chối ghép không duy nhất. Cache riêng của tài khoản thực thi giữ bản đối chiếu tối đa 30 giây, tách khỏi cache chống lặp yêu cầu, không chứa token xóa; chỉ cấp token cho trang trả về. Cache mất thì đọc lại; dữ liệu đổi giữa hai trang yêu cầu tải lại. Xóa/khôi phục vẫn đối chiếu dữ liệu thật ngay trước thao tác, không tin cache.
+- Lịch sử trong tuần đang chọn lọc theo Gmail quản trị, loại thao tác, khoảng ngày Việt Nam và ghi chú, hỗ trợ tìm chữ không dấu trong phần ghi chú đã giải mã. Chỉ lỗi/chưa hoàn tất gồm thất bại, cần kiểm tra, xử lý dở và đang chờ. Backend lọc toàn bộ log rồi trả 50 sự kiện, Tải thêm lịch sử lấy phần tiếp theo; danh sách loại thao tác lấy từ toàn tuần. Không tự sửa/xóa log hoặc bỏ qua kiểm tra khôi phục.
+- Đọc lại vùng ảnh trong màn hình OCR: chọn ngày hoặc ô món, kéo vùng trên PC/mobile hoặc sửa tọa độ phần trăm bằng bàn phím. Cắt ảnh trên thiết bị, chỉ gửi vùng chọn; giữ ảnh gốc. Kết quả trước–sau sửa được và phải bấm Áp dụng, mỗi lần thay là một Undo. Giữ ngày khác, tiêu đề và dấu ngày nghỉ; không sửa Form/Sheet đã có. Cần quyền OCR/tạo và mỗi lần đọc dùng thêm quota/phí của nhà cung cấp. Preview chưa áp dụng không được lưu thành nháp.
+- Có bản cập nhật: kiểm tra version.json khi mở/quay lại trang và mỗi 5 phút lúc trang hiển thị. Không tự reload. Trong Dashboard, nút cập nhật chờ lưu nháp OCR hiện tại thành công và ghi vị trí xem; lỗi lưu giữ nguyên trang. Tạm chặn cập nhật khi đang xử lý hoặc mở hộp xác nhận/OCR vùng. version.json chỉ chứa ID build, không có secrets; cần deploy toàn bộ frontend/API mới để dùng.
 
 - Lượt gửi Dashboard trên điện thoại là thẻ: đủ tên, thời điểm, từng ngày/món và nút thao tác; không kéo ngang. PC vẫn là bảng, có Gọn/Rộng; mobile không bị chế độ Gọn làm khó đọc.
 - Tìm tên không cần dấu trong Dashboard và bộ lọc trang xem: `truong` tìm được `Trường`, `dang` tìm được `Đặng`. Chỉ chuẩn hóa khi tìm kiếm; giữ nguyên tên, không gộp người hoặc đổi cách ghép/xóa Form–Sheet.

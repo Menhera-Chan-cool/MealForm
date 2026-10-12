@@ -59,7 +59,7 @@ export function createGasEnvelope(payload, secret, now = Date.now(), nonce = ran
 
 async function requestAppsScript(url, secret, payload, fetchImpl = fetch, now = Date.now, retried = false) {
   if (!url || !secret) throw new Error('Apps Script API is not configured.');
-  const readOnly = payload.action?.startsWith('read-') || ['dashboard-authorize', 'dashboard-overview', 'dashboard-week', 'dashboard-health', 'dashboard-reconcile', 'dashboard-response-ids', 'dashboard-locate'].includes(payload.action);
+  const readOnly = payload.action?.startsWith('read-') || ['dashboard-authorize', 'dashboard-overview', 'dashboard-week', 'dashboard-batch', 'dashboard-health', 'dashboard-reconcile', 'dashboard-response-ids', 'dashboard-locate'].includes(payload.action);
   const signal = readOnly ? AbortSignal.timeout(20000) : undefined;
   const retryRead = () => requestAppsScript(url, secret, payload, fetchImpl, now, true);
   const envelope = createGasEnvelope(payload, secret, now());
@@ -143,7 +143,7 @@ export function createDashboardHandler({ secret, callGas, readViewerData, config
       if (role !== 'owner' && role !== 'manager') return res.status(403).json({ error: 'Tài khoản này chưa được cấp quyền dashboard.' });
       const permissions = authorization.permissions || { view: true, create: true, manageResponses: true };
       if (permissions.view !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền xem dashboard.' });
-      if (req.method === 'GET' && req.query?.access === '1') return res.status(200).json({ role, permissions, weeks: authorization.weeks || [], accountId: createHash('sha256').update(session.sub).digest('hex'), overviewPending: true });
+      if (req.method === 'GET' && req.query?.access === '1') return res.status(200).json({ role, permissions, email: session.email, weeks: authorization.weeks || [], accountId: createHash('sha256').update(session.sub).digest('hex'), overviewPending: true });
       if (req.method === 'GET' && req.query?.health === '1') {
         if (role !== 'owner') return res.status(403).json({ error: 'Chỉ chủ sở hữu được kiểm tra cấu hình hệ thống.' });
         const health = await callGas({ action: 'dashboard-health', email: session.email, weekKey: String(req.query?.week || '') });
@@ -167,13 +167,21 @@ export function createDashboardHandler({ secret, callGas, readViewerData, config
         const weekKey = String(req.query?.week || '');
         if ((req.query?.reconcile === '1' || req.query?.updates === '1' || req.query?.locate === '1') && !weekKey) return res.status(400).json({ error: 'Chọn tuần trước khi kiểm tra.' });
         payload = weekKey ? { action: req.query?.reconcile === '1' ? 'dashboard-reconcile' : req.query?.updates === '1' ? 'dashboard-response-ids' : req.query?.locate === '1' ? 'dashboard-locate' : 'dashboard-week', email: session.email, weekKey } : { action: 'dashboard-overview', email: session.email };
+        if (req.query?.batch === '1') {
+          const offset = Number(req.query.offset || 0), query = String(req.query.query || ''), sort = String(req.query.sort || 'newest'), revision = String(req.query.revision || '');
+          if (!weekKey || !Number.isSafeInteger(offset) || offset < 0 || offset > 100000 || query.length > 200 || !['newest','oldest','name'].includes(sort) || (revision && !/^[a-f0-9]{64}$/.test(revision))) return res.status(400).json({ error: 'Tham số tải lượt gửi không hợp lệ.' });
+          let audit;try{if(String(req.query.audit||'').length>2000)throw Error();audit=JSON.parse(req.query.audit||'{}');}catch{return res.status(400).json({error:'Bộ lọc lịch sử không hợp lệ.'});}
+          const historyOffset=Number(req.query.historyOffset||0);
+          if(!audit||Array.isArray(audit)||typeof audit!=='object'||!Number.isSafeInteger(historyOffset)||historyOffset<0||historyOffset>100000)return res.status(400).json({error:'Bộ lọc lịch sử không hợp lệ.'});
+          payload = { action:'dashboard-batch', email:session.email, weekKey, offset, query, sort, revision, audit, historyOffset, forceRefresh:req.query.refresh === '1' };
+        }
         if (req.query?.locate === '1') {
           if (String(req.query?.target || '').length > 4000) return res.status(400).json({ error: 'Lượt Sheet không hợp lệ.' });
           Object.assign(payload, { source: req.query?.source, responseId: req.query?.responseId, target: req.query?.target ? JSON.parse(req.query.target) : undefined });
         }
       } else {
         const body = requestBody(req.body);
-        if (['ocr', 'create'].includes(body.action) && permissions.create !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền OCR hoặc tạo tuần.' });
+        if (['ocr', 'ocr-region', 'create'].includes(body.action) && permissions.create !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền OCR hoặc tạo tuần.' });
         if ((req.method === 'DELETE' || body.action === 'restore') && permissions.manageResponses !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền xóa hoặc khôi phục.' });
         if (req.method === 'POST' && ['form-control', 'set-branding'].includes(body.action)) {
           if (role !== 'owner') return res.status(403).json({ error: 'Chỉ chủ sở hữu được thay đổi Form và thương hiệu.' });
@@ -185,6 +193,7 @@ export function createDashboardHandler({ secret, callGas, readViewerData, config
           payload = { action: 'dashboard-script-auth', email: session.email };
         } else if (req.method === 'DELETE') payload = { weekKey: body.weekKey, responseId: body.responseId, deleteToken: body.deleteToken, action: 'dashboard-delete', email: session.email, reason: body.reason };
         else if (body.action === 'ocr') payload = { action: 'dashboard-ocr', email: session.email, image: body.image };
+        else if (body.action === 'ocr-region') payload = { action: 'dashboard-ocr-region', email: session.email, image: body.image, target: body.target };
         else if (body.action === 'create') payload = { action: 'dashboard-create', email: session.email, menu: body.menu };
         else if (['add-email', 'remove-email', 'set-permissions'].includes(body.action)) {
           if (role !== 'owner') return res.status(403).json({ error: 'Chỉ chủ sở hữu được quản lý Gmail.' });
@@ -194,7 +203,7 @@ export function createDashboardHandler({ secret, callGas, readViewerData, config
       }
       if (Buffer.byteLength(JSON.stringify(payload)) > 4_200_000) return res.status(413).json({ error: 'Ảnh quá lớn; hãy chọn ảnh nhỏ hơn 3 MB.' });
       const data = await callGas(payload);
-      return res.status(200).json(req.method === 'GET' && !req.query?.week ? { ...data, permissions, accountId: createHash('sha256').update(session.sub).digest('hex') } : data);
+      return res.status(200).json(req.method === 'GET' && !req.query?.week ? { ...data, permissions, email: session.email, accountId: createHash('sha256').update(session.sub).digest('hex') } : data);
     } catch (error) {
       if (req.method === 'GET' && req.query?.health === '1') return res.status(502).json({ checkedAt: now(), checks: [{ id: 'bridge', label: 'Kết nối Apps Script', status: 'error', message: 'Không hoàn tất được kiểm tra. Kiểm tra deployment, chữ ký API và cấp lại quyền Apps Script bằng tài khoản chủ.' }] });
       return res.status(502).json({ error: String(error?.message || 'Không thể hoàn tất thao tác dashboard.').slice(0, 300) });

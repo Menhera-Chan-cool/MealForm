@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { errorMessage, mealRegistrationTarget, foldSearchText } from './viewer-model.mjs';
-import { inspectMenu, describeHistoryNote, countNewResponseIds, menuCalendarKey, fillMenuMonday } from './dashboard-model.mjs';
+import { inspectMenu, describeHistoryNote, countNewResponseIds, menuCalendarKey, fillMenuMonday, accountRoleLabel, filterAuditHistory, applyRegionResult } from './dashboard-model.mjs';
 import DashboardWeekPicker from './DashboardWeekPicker.jsx';
 import ResponseMeals from './ResponseMeals.jsx';
 import ResponseQuickView from './ResponseQuickView.jsx';
@@ -12,11 +12,14 @@ import { readDashboardCache, writeDashboardCache, lastDashboardWeek, clearDashbo
 import ActionConfirmation from './ActionConfirmation.jsx';
 import SheetRowButton from './SheetRowButton.jsx';
 import MenuImagePreview from './MenuImagePreview.jsx';
+import RegionOcr from './RegionOcr.jsx';
+import VersionNotice from './VersionNotice.jsx';
 import useOcrDraft from './useOcrDraft.js';
 import ActionToast from './ActionToast.jsx';
 import { useBranding } from './BrandingProvider.jsx';
 import { brandingTheme, normalizeBranding } from './branding.mjs';
 import './dashboard.css';
+import './review-scale.css';
 
 const IMAGE_LIMIT = 2_800_000;
 const MEAL_SLOTS = [0, 1, 2];
@@ -69,12 +72,17 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [weekData, setWeekData] = useState(() => readDashboardCache(initialData?.accountId, initialWeek)?.data || null);
   const [weekVerified, setWeekVerified] = useState(false);
   const [weekLoading, setWeekLoading] = useState(false);
+  const [moreLoading, setMoreLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [cacheTime, setCacheTime] = useState(() => readDashboardCache(initialData?.accountId, initialWeek)?.savedAt || 0);
   const [newResponses, setNewResponses] = useState(0);
   const [pollError, setPollError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
   const [quickResponse, setQuickResponse] = useState(null);
+  const [regionBase, setRegionBase] = useState(null);
   const [highlightIds, setHighlightIds] = useState([]);
+  const [auditFilters, setAuditFilters] = useState({});
+  const [auditLimit, setAuditLimit] = useState(50);
   const highlightTimer = useRef(null);
   const [email, setEmail] = useState('');
   const [file, setFile] = useState(null);
@@ -122,7 +130,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const existingFormUrl = mealRegistrationTarget(existingWeek).formUrl;
   const existingSheetUrl = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[A-Za-z0-9_-]+(?:\/|$)/.test(existingWeek?.spreadsheetUrl || '') ? existingWeek.spreadsheetUrl : '';
   const displayedWeek = weekData?.week?.weekKey === weekKey ? weekData : null;
-  const weekReady = weekVerified && Boolean(displayedWeek);
+  const weekReady = weekVerified && Boolean(displayedWeek) && (!displayedWeek.page || (displayedWeek.page.query === query && displayedWeek.page.sort === responseSort));
   const currentQuickResponse = quickResponse && displayedWeek?.responses.find(response => response.responseId === quickResponse.responseId);
   const visibleResponses = (displayedWeek?.responses || []).filter(response =>
     foldSearchText(response.name).includes(foldSearchText(query))).slice().sort((left, right) => {
@@ -131,6 +139,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       return responseSort === 'oldest' ? difference : -difference;
     });
   const restoreAttempts = new Set((displayedWeek?.history || []).filter(event => /^restore-/.test(event.action) || event.action === 'restored').map(event => event.entryId));
+  const filteredHistory = filterAuditHistory(displayedWeek?.history || [], auditFilters);
+  function filterHistory(key, value) { setAuditFilters(current => ({ ...current, [key]:value })); setAuditLimit(50); }
 
   async function refreshOverview() {
     try {
@@ -147,7 +157,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   async function loadWeek(key = weekKey, manual = false) {
     if (manual) viewState.save();
     const generation = ++weekRequest.current;
-    setWeekVerified(false); setNewResponses(0); setPollError('');
+    setWeekVerified(false); setNewResponses(0); setPollError(''); setMoreLoading(false);
     if (!key) { setWeekData(null); setWeekLoading(false); return false; }
     const saved = readDashboardCache(overview.accountId, key);
     const previous = currentWeekData.current;
@@ -156,8 +166,20 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     setCacheTime(keep ? cacheTime : saved?.savedAt || 0);
     setWeekLoading(true);
     try {
-      const result = await request(`/api/dashboard?week=${encodeURIComponent(key)}`);
+      const params = new URLSearchParams({week:key,batch:'1',query,sort:responseSort,audit:JSON.stringify(auditFilters)});
+      if (manual || busy) params.set('refresh','1');
+      let result = await request(`/api/dashboard?${params}`);
       if (generation !== weekRequest.current) return false;
+      if (result.resetRequired) throw new Error('Bản đối chiếu đã đổi; hãy tải lại dữ liệu.');
+      const old = keep ? previous : saved?.data;
+      const wantedRows = old && (!old.page || (old.page.query === query && old.page.sort === responseSort)) ? old.responses.length : 50;
+      while (result.page?.nextOffset != null && result.responses.length < wantedRows) {
+        setWeekData(result);
+        const next = await request(`/api/dashboard?${params}&offset=${result.page.nextOffset}&revision=${result.page.revision}`);
+        if (generation !== weekRequest.current) return false;
+        if (next.resetRequired) throw new Error('Bản đối chiếu đã đổi hoặc hết hạn; hãy tải lại dữ liệu.');
+        result = { ...result, page:next.page, responses:[...result.responses,...next.responses] };
+      }
       setWeekData(result);
       clearTimeout(highlightTimer.current);
       const previousIds = new Set(keep ? previous.responseIds || [] : []);
@@ -171,10 +193,46 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     finally { if (generation === weekRequest.current) setWeekLoading(false); }
   }
 
+  async function loadMoreResponses() {
+    const previous = currentWeekData.current;
+    if (!weekReady || moreLoading || busy || previous?.page?.nextOffset == null) return;
+    const generation = weekRequest.current; setMoreLoading(true);
+    try {
+      const params = new URLSearchParams({week:weekKey,batch:'1',query,sort:responseSort,offset:String(previous.page.nextOffset),revision:previous.page.revision});
+      const next = await request(`/api/dashboard?${params}`);
+      if (generation !== weekRequest.current) return;
+      if (next.resetRequired) { await loadWeek(weekKey,true); return; }
+      const known = new Set(previous.responses.map(row => row.responseId));
+      const merged = {...previous,page:next.page,responses:[...previous.responses,...next.responses.filter(row=>!known.has(row.responseId))]};
+      setWeekData(merged); writeDashboardCache(overview.accountId,weekKey,merged);
+    } catch (error) { if (generation === weekRequest.current) setMessage(error.message); }
+    finally { if (generation === weekRequest.current) setMoreLoading(false); }
+  }
+
+  async function loadMoreHistory() {
+    const previous=currentWeekData.current;
+    if(!weekReady||historyLoading||busy||previous?.historyPage?.nextOffset==null)return;
+    const generation=weekRequest.current;setHistoryLoading(true);
+    try{
+      const params=new URLSearchParams({week:weekKey,batch:'1',query,sort:responseSort,audit:JSON.stringify(auditFilters),historyOffset:String(previous.historyPage.nextOffset),revision:previous.page.revision});
+      const next=await request(`/api/dashboard?${params}`);
+      if(generation!==weekRequest.current)return;
+      if(next.resetRequired){await loadWeek(weekKey,true);return;}
+      const known=new Set(previous.history.map(event=>event.id));
+      const merged={...previous,historyPage:next.historyPage,history:[...previous.history,...next.history.filter(event=>!known.has(event.id))]};
+      setWeekData(merged);setAuditLimit(merged.history.length);writeDashboardCache(overview.accountId,weekKey,merged);
+    }catch(error){if(generation===weekRequest.current)setMessage(error.message);}
+    finally{setHistoryLoading(false);}
+  }
+
   useEffect(() => { if (!initialData || initialData.overviewPending) void refreshOverview(); }, []);
-  useEffect(() => { if (tab === 'delete') void loadWeek(weekKey); return () => { weekRequest.current++; }; }, [tab, weekKey]);
+  useEffect(() => {
+    const timer = tab === 'delete' ? setTimeout(() => void loadWeek(weekKey), 300) : null;
+    return () => { clearTimeout(timer); weekRequest.current++; };
+  }, [tab, weekKey, query, responseSort, auditFilters]);
   useEffect(() => () => { weekRequest.current++; clearTimeout(highlightTimer.current); }, []);
   useEffect(() => { setHighlightIds([]); setQuickResponse(null); }, [weekKey]);
+  useEffect(() => { setAuditFilters({}); setAuditLimit(50); }, [weekKey]);
   useEffect(() => {
     if (!weekVerified || !weekData || busy || tab !== 'delete') return undefined;
     let stopped = false, checking = false;
@@ -455,6 +513,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         }}>{signingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</button>
       </div>
     </header>
+    <div className="dashboard-account" aria-label="Tài khoản đang đăng nhập"><strong>{overview.email || 'Đang xác minh Gmail…'}</strong><span>{accountRoleLabel({ ...overview, permissions })}</span><small>{permissions.create ? 'OCR/tạo tuần' : 'Không tạo tuần'} · {permissions.manageResponses ? 'Xóa/khôi phục' : 'Không xóa lượt gửi'}</small></div>
+    <VersionNotice disabled={busy || signingOut || Boolean(regionBase) || Boolean(confirmation)} beforeReload={async()=>{viewState.save();await draft.flush();}} />
     <nav className="dashboard-tabs" aria-label="Chức năng quản trị">
       <button className={tab === 'overview' ? 'active' : 'secondary'} onClick={() => setTab('overview')}>Tổng quan</button>
       {permissions.create && <button className={tab === 'create' ? 'active' : 'secondary'} onClick={() => setTab('create')}>Tạo tuần bằng OCR</button>}
@@ -498,7 +558,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       {image && file?.name && !file.type && <p className="menu-image-hint">Ảnh đã khôi phục: {file.name}. Không cần chọn lại để tiếp tục OCR hoặc sửa món.</p>}
       <button disabled={busy || !image} onClick={() => void runOcr()}>{busy ? 'Đang xử lý…' : 'Đọc thực đơn'}</button>
       {image && <div className={`menu-review-layout${menu ? '' : ' image-only'}`}>
-      <MenuImagePreview src={image} name={file?.name} />
+      <MenuImagePreview src={image} name={file?.name} regionDisabled={busy || !menu} onRegion={menu ? () => setRegionBase({image,menu}) : undefined} />
       {menu && <form className="menu-review" onSubmit={createWeek} onBlur={() => dispatchMenu({ type: 'commit' })} onKeyDown={event => {
         if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'z' && !busy) { event.preventDefault(); moveMenuHistory(event.shiftKey ? 'redo' : 'undo'); }
       }}>
@@ -537,7 +597,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
     {tab === 'delete' && <section className="dashboard-panel">
       <div className="dashboard-section-title"><h2>Lượt gửi và lịch sử thao tác</h2></div>
-      <div className="dashboard-sticky-tools" ref={viewState.toolbarRef}>{weekPicker()}<div className="dashboard-refresh-bar"><button className="secondary" disabled={busy || weekLoading || !weekKey} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</button>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div><label className="dashboard-search">Tìm theo họ tên<input value={query} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label></div>
+      <div className="dashboard-sticky-tools" ref={viewState.toolbarRef}>{weekPicker()}<div className="dashboard-refresh-bar"><button className="secondary" disabled={busy || weekLoading || !weekKey} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</button>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div><label className="dashboard-search">Tìm theo họ tên<input maxLength={200} value={query} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label></div>
       {displayedWeek && !weekReady && <p className="dashboard-cache-status" role="status">{cacheTime ? `Bản lưu lúc ${formatTime(cacheTime)}. ` : 'Dữ liệu lần xem trước. '}{weekLoading ? 'Đang xác minh…' : 'Chưa xác minh được; chỉ xem, hãy tải lại trước khi thao tác.'}</p>}
       {displayedWeek && weekReady && <p className="dashboard-hint">Dữ liệu đã xác minh. Tự kiểm tra lượt mới mỗi phút khi tab đang mở; bảng chỉ đổi khi tải lại.</p>}
       {pollError && <p className="dashboard-hint" role="status">{pollError}</p>}
@@ -556,10 +616,13 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
           <td data-label="Thao tác"><div className="dashboard-row-actions"><button type="button" className="secondary" onClick={() => setQuickResponse(response)}>Xem nhanh</button>{permissions.manageResponses && (response.deletable || !weekReady) ? <button className="danger" disabled={busy || !weekReady} aria-busy={pendingRow?.action === 'delete' && pendingRow.id === response.responseId} onClick={() => void deleteResponse(response)}>{pendingRow?.action === 'delete' && pendingRow.id === response.responseId ? 'Đang xóa…' : response.partial ? 'Xóa nốt hàng Sheet' : 'Xóa lượt này'}</button> : <span title={response.note}>{!permissions.manageResponses ? 'Chỉ xem' : response.partial ? 'Cần kiểm tra thủ công' : 'Không đối chiếu được'}</span>}<SheetRowButton key={`${weekKey}-${weekRequest.current}-${response.responseId}`} weekKey={weekKey} source={response.partial ? 'sheet' : 'form'} response={response} request={request} disabled={busy || !weekReady} /></div></td>
         </tr>) : <tr><td className="empty" colSpan="4">Không có lượt gửi phù hợp.</td></tr>}
       </tbody></table></div>}
-      <div className="dashboard-section-title dashboard-history-title"><h2>Lịch sử thao tác</h2><span>{displayedWeek?.history?.length || 0} sự kiện gần nhất</span></div>
+      {displayedWeek?.page && <div className="dashboard-batch-tools"><p role="status">Đã tải {displayedWeek.responses.length} / {displayedWeek.page.matchedCount} lượt phù hợp · tổng {displayedWeek.page.total} lượt. Bản đối chiếu lúc {formatTime(displayedWeek.page.snapshotAt)}.</p>{displayedWeek.page.nextOffset != null && <button type="button" className="secondary" disabled={!weekReady || busy || weekLoading || moreLoading} onClick={() => void loadMoreResponses()}>{moreLoading ? 'Đang tải thêm…' : 'Tải thêm lượt gửi'}</button>}</div>}
+      <div className="dashboard-section-title dashboard-history-title"><h2>Lịch sử thao tác</h2><span>{displayedWeek?.historyPage ? `${filteredHistory.length} / ${displayedWeek.historyPage.matchedCount} phù hợp · tổng ${displayedWeek.historyPage.total}` : `${filteredHistory.length} / ${displayedWeek?.history?.length || 0}`} sự kiện</span></div>
       <p>Lịch sử lưu tên, món đã chọn, thời điểm và Gmail quản trị; không lưu email người trả lời.</p>
-      {(displayedWeek?.history || []).length ? <div className="table-wrap"><table className="dashboard-table dashboard-history-table"><thead><tr><th>Thao tác</th><th>Thời gian</th><th>Người thực hiện</th><th>Đối tượng</th><th></th></tr></thead><tbody>
-        {displayedWeek.history.map(event => {
+      <div className="audit-filters" aria-label="Bộ lọc lịch sử"><label>Người quản trị<input maxLength={254} value={auditFilters.actor || ''} onChange={event => filterHistory('actor',event.target.value)} placeholder="Tìm Gmail quản trị" /></label><label>Loại thao tác<select aria-label="Loại thao tác" value={auditFilters.action || ''} onChange={event => filterHistory('action',event.target.value)}><option value="">Tất cả thao tác</option>{(displayedWeek?.historyPage?.actions || [...new Set((displayedWeek?.history || []).map(event => event.action))]).map(action => <option key={action} value={action}>{historyActionLabel(action)}</option>)}</select></label><label>Từ ngày<input type="date" value={auditFilters.from || ''} onChange={event => filterHistory('from',event.target.value)} /></label><label>Đến ngày<input type="date" value={auditFilters.to || ''} onChange={event => filterHistory('to',event.target.value)} /></label><label>Tìm ghi chú<input maxLength={200} value={auditFilters.note || ''} onChange={event => filterHistory('note',event.target.value)} /></label><label className="audit-error-toggle"><input type="checkbox" checked={auditFilters.errorsOnly || false} onChange={event => filterHistory('errorsOnly',event.target.checked)} />Chỉ lỗi/chưa hoàn tất</label><button type="button" className="secondary" onClick={() => { setAuditFilters({}); setAuditLimit(50); }}>Xóa bộ lọc lịch sử</button></div>
+      {auditFilters.from && auditFilters.to && auditFilters.from > auditFilters.to && <p className="dashboard-warning" role="alert">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>}
+      {filteredHistory.length ? <div className="table-wrap"><table className="dashboard-table dashboard-history-table"><thead><tr><th>Thao tác</th><th>Thời gian</th><th>Người thực hiện</th><th>Đối tượng</th><th></th></tr></thead><tbody>
+        {filteredHistory.slice(0,auditLimit).map(event => {
           const alreadyRestored = restoreAttempts.has(event.entryId);
           const restoreEligible = event.action === 'deleted' && event.restorable && !alreadyRestored;
           const canRestore = weekReady && permissions.manageResponses && restoreEligible && displayedWeek?.week?.formStatus === 'open';
@@ -571,7 +634,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
             <td>{canRestore ? <button className="secondary" disabled={busy} aria-busy={pendingRow?.action === 'restore' && pendingRow.id === event.entryId} onClick={() => void restoreResponse(event)}>{pendingRow?.action === 'restore' && pendingRow.id === event.entryId ? 'Đang khôi phục…' : 'Khôi phục'}</button> : restoreEligible && weekData?.week?.formStatus === 'closed' ? <span title="Không tự mở Form vì thao tác đó sẽ công khai Form">Form đã đóng</span> : restoreEligible ? <span>Chưa xác định Form</span> : alreadyRestored && event.action === 'deleted' ? <span>Đã xử lý</span> : null}</td>
           </tr>;
         })}
-      </tbody></table></div> : <p>Chưa có thao tác nào trong tuần này.</p>}
+      </tbody></table></div> : <p>{(displayedWeek?.historyPage?.total || displayedWeek?.history?.length) ? 'Không có thao tác phù hợp.' : 'Chưa có thao tác nào trong tuần này.'}</p>}
+      {displayedWeek?.historyPage?.nextOffset!=null ? <button type="button" className="secondary" disabled={!weekReady||weekLoading||busy||historyLoading} onClick={()=>void loadMoreHistory()}>{historyLoading?'Đang tải lịch sử…':'Tải thêm lịch sử'}</button> : filteredHistory.length > auditLimit && <button type="button" className="secondary" onClick={() => setAuditLimit(value => value + 50)}>Tải thêm lịch sử</button>}
     </section>}
 
     {tab === 'form' && overview.role === 'owner' && <section className="dashboard-panel">
@@ -600,6 +664,10 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       </li>)}</ul>
     </section>}
     <ActionToast message={toast?.message} kind={toast?.kind} onDismiss={dismissToast} />
+    {regionBase && <RegionOcr image={regionBase.image} menu={regionBase.menu} request={request} onBusy={setBusy} onClose={() => setRegionBase(null)} onApply={(target,result) => {
+      if (menu !== regionBase.menu || image !== regionBase.image) throw new Error('Nháp đã thay đổi; đóng cửa sổ và chọn vùng lại.');
+      dispatchMenu({type:'edit',value:applyRegionResult(menu,target,result)});setAllowMissing(false);setRegionBase(null);
+    }} />}
     {quickResponse && <ResponseQuickView response={currentQuickResponse || quickResponse} week={displayedWeek?.week} verified={weekReady && Boolean(currentQuickResponse)} onClose={() => setQuickResponse(null)} />}
     {confirmation && <ActionConfirmation message={confirmation.message} onCancel={() => setConfirmation(null)} onConfirm={reason => { const action = confirmation.run; setConfirmation(null); void action(reason); }} />}
   </main>;

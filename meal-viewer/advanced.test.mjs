@@ -40,19 +40,19 @@ async function rejectsQuietly(operation, pattern) {
   finally { console.error = reportError; }
 }
 
-for (const action of ['dashboard-week', 'dashboard-delete']) {
+for (const action of ['dashboard-week', 'dashboard-batch', 'dashboard-delete']) {
   const signedRequests = [];
   let results = 0;
   const client = createDashboardGasClient({ url: 'https://script.google.com/macros/s/test/exec', secret: 'test-secret', fetchImpl: async (url, options) => {
     if (options.method === 'POST') {
-      assert.equal(Boolean(options.signal), action === 'dashboard-week', 'only read calls receive an abort deadline');
+      assert.equal(Boolean(options.signal), action !== 'dashboard-delete', 'only read calls receive an abort deadline');
       signedRequests.push(JSON.parse(options.body));
       return { status: 302, ok: false, headers: { get: () => 'https://script.googleusercontent.com/macros/echo?read=test' } };
     }
     results++;
     return { status: 200, ok: true, text: async () => results === 1 ? '<html><title>Temporary Google error</title></html>' : JSON.stringify({ data: { responseCount: 23 } }) };
   } });
-  if (action === 'dashboard-week') {
+  if (action !== 'dashboard-delete') {
     assert.equal((await client({ action })).responseCount, 23);
     assert.equal(signedRequests.length, 2);
     assert.notEqual(signedRequests[0].nonce, signedRequests[1].nonce, 'read retry must not replay the signed envelope');

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 
-export default function MenuImagePreview({ src, name }) {
+export default function MenuImagePreview({ src, name, onRegion, regionDisabled }) {
   const [zoom, setZoom] = useState(100);
   const id = useId();
   const dialog = useRef(null);
@@ -21,6 +21,7 @@ export default function MenuImagePreview({ src, name }) {
       <button type="button" className="secondary" aria-label="Phóng to ảnh" disabled={zoom >= 400} onClick={() => setZoom(value => Math.min(400, value + 25))}>+</button>
       <button type="button" className="secondary" onClick={fitImage}>Vừa khung</button>
       {!fullscreen && <button type="button" className="secondary" onClick={() => { if (!dialog.current.open) dialog.current.showModal(); }}>Mở ảnh lớn</button>}
+      {!fullscreen && onRegion && <button type="button" className="secondary" disabled={regionDisabled} onClick={onRegion}>Đọc lại vùng ảnh</button>}
       <div className="menu-image-zoom">
         <label htmlFor={rangeId}>Độ phóng ảnh</label>
         <input id={rangeId} type="range" min="100" max="400" step="25" value={zoom} onChange={event => setZoom(Number(event.target.value))} />

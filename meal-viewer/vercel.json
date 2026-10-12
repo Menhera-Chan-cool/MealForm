@@ -1,4 +1,5 @@
 {
+  "headers": [{"source":"/version.json","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]}],
   "redirects": [
     { "source": "/old", "destination": "/history", "permanent": true },
     { "source": "/old/", "destination": "/history", "permanent": true }

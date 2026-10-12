@@ -43,5 +43,13 @@ export default function useOcrDraft(accountId, enabled, value, onRestore) {
     catch (error) { if (current === generation.current) setFailure(safeErrorReport('draft', error)); throw error; }
     if (current === generation.current && latest === revision.current) setStatus('Đã xóa nháp trên thiết bị.');
   }
-  return { status, failure, clear, ready: Boolean(enabled && accountId && loadedAccount === accountId) };
+  async function flush() {
+    if (!value.image) { await queue.current; return; }
+    if (!enabled || !accountId || loadedAccount !== accountId) throw new Error('Nháp chưa sẵn sàng để lưu.');
+    const current=generation.current;
+    queue.current=queue.current.catch(()=>{}).then(()=>writeOcrDraft(accountId,value));
+    await queue.current;
+    if(current!==generation.current)throw new Error('Tài khoản đã thay đổi khi lưu nháp.');
+  }
+  return { status, failure, clear, flush, ready: Boolean(enabled && accountId && loadedAccount === accountId) };
 }
