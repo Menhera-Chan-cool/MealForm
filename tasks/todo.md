@@ -8,7 +8,7 @@
 - [x] Shared Light/Dark/System and readable branding/focus/errors across all pages/dialogs.
 - [x] Shared Full/Light/Off, legacy/reduced preference and immediate correct disclosure/status behavior.
 - [x] Full regressions and PC/mobile browser QA; clean template/README synchronization.
-- [ ] Backend/web deployment, readonly production and verified GitHub delivery.
+- [x] Backend/web deployment, readonly production and verified GitHub delivery (Apps Script 78, Vercel READY, feature commit ba24add on main).
 
 ## Navigation and comfort QoL approved 2026-10-12
 

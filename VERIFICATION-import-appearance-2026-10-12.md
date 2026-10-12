@@ -14,7 +14,7 @@
 - Apps Script 78: saved/reloaded source matched the prepared merge, three active functions changed and one added, 127 unrelated active functions preserved. Existing deployment URL, execute-as-owner/access configuration and manifest unchanged.
 - Vercel `dpl_BJ2EbPTsQLUkdj7aYYDLofinehpa`, READY, alias <https://menutaythanh.vercel.app>, asset `/assets/index-BZI2Z6Cs.js`, version `0c5d19d7-cc2c-44db-a37a-9e0b9f412b0f`.
 - Readonly production owner check: 24 displayed rows, 23 Form ids/valid version tuples, valid binding, manual comparison `0 new / 0 missing / 0 changed`; source-ingest controls present and layouts checked at three widths. Public viewer HTTP 200 with email headers/private version fields absent. Restored browser view/cache/font/appearance preferences; no real record mutations, Form creation, notices or OCR calls.
-- Release source and README synchronized with the clean GitHub checkout; Script Properties configuration getters preserved. RAR files not rebuilt.
+- Release source and README synchronized with the clean GitHub checkout; feature commit `ba24add792c0057c45418bae4cc2e3430a7d931a` verified on remote main. Script Properties configuration getters preserved. RAR files not rebuilt.
 
 ## Limits
 
