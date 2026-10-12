@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
-export function shouldAnimateDisclosureClose(reducedMotion, motionOverride) {
+export function shouldAnimateDisclosureClose(reducedMotion, motionOverride,motionLevel) {
+  if(motionLevel==='off')return false;
+  if(motionLevel==='light'||motionLevel==='full')return true;
   return !reducedMotion || motionOverride === 'full';
 }
 
@@ -14,6 +16,7 @@ export default function useDisclosureAnimation(storageKey = '') {
   const timer = useRef(null);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
+  useEffect(()=>{const changed=()=>{window.clearTimeout(timer.current);setClosing(false);};window.addEventListener('meal-appearance-changed',changed);return()=>window.removeEventListener('meal-appearance-changed',changed);},[]);
   useEffect(() => {
     if (!storageKey) return;
     try { window.localStorage.setItem(storageKey, String(open)); }
@@ -32,10 +35,10 @@ export default function useDisclosureAnimation(storageKey = '') {
     setOpen(false);
     if (!shouldAnimateDisclosureClose(
       window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-      document.documentElement.dataset.motionOverride
+      document.documentElement.dataset.motionOverride,document.documentElement.dataset.motionLevel
     )) return;
     setClosing(true);
-    timer.current = window.setTimeout(() => setClosing(false), 1250);
+    timer.current = window.setTimeout(() => setClosing(false), document.documentElement.dataset.motionLevel==='light'?160:1250);
   }
 
   return { open, closing, active: open || closing, show, hide, toggle: open ? hide : show };

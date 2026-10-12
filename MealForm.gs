@@ -387,7 +387,7 @@ function handleMealDashboardRequest_(request) {
     return batch;
   }
   if (request.action === 'dashboard-locate') return locateMealDashboardRows_(request);
-  if (['dashboard-ocr', 'dashboard-ocr-region', 'dashboard-create'].indexOf(request.action) >= 0) assertMealDashboardAccess_(request.email, 'create');
+  if (['dashboard-ocr', 'dashboard-ocr-images', 'dashboard-ocr-region', 'dashboard-create'].indexOf(request.action) >= 0) assertMealDashboardAccess_(request.email, 'create');
   if (['dashboard-delete', 'dashboard-restore'].indexOf(request.action) >= 0) assertMealDashboardAccess_(request.email, 'manageResponses');
   if (request.action === 'dashboard-health') {
     if (role !== 'owner') throw new Error('Chỉ chủ sở hữu được kiểm tra cấu hình hệ thống.');
@@ -415,6 +415,7 @@ function handleMealDashboardRequest_(request) {
     return week;
   }
   if (request.action === 'dashboard-ocr') return analyzeMenuImage(request.image, request.email);
+  if (request.action === 'dashboard-ocr-images') return analyzeMealImages_(request.images, request.email);
   if (request.action === 'dashboard-ocr-region') return analyzeMealRegion_(request.image, request.target, request.email);
   if (request.action === 'dashboard-create') return createMealForm(request.menu, request.email);
   if (request.action === 'dashboard-add-email' || request.action === 'dashboard-remove-email') {
@@ -761,10 +762,13 @@ function getMealDashboardWeek_(weekKey, onlyReconciliation, snapshot) {
   const reconciliation = { formCount: formResponses.length, sheetCount: rowCount, matchedCount: candidateRows.filter(function(matches) { return matches.length === 1 && rowUses[matches[0] - 2] === 1; }).length, issues: issues };
   if (onlyReconciliation === 'location') return { spreadsheetId: item.spreadsheetId, sheetId: sheet.getSheetId(), responses: responses, issues: issues };
   if (onlyReconciliation) return reconciliation;
+  const versionSecret=PropertiesService.getScriptProperties().getProperty('MEAL_DASHBOARD_HMAC_SECRET');
+  const responseVersions=versionSecret?formResponses.map(function(response,index){const target=formTargets[index];return[cleanMealText_(response.getId()),mealViewerHmacHex_(JSON.stringify([dashboardTimestampMs_(target.timestamp),cleanMealText_(target.name),target.meals.map(cleanMealText_)]),versionSecret)];}):undefined;
+  const responseVersionBinding=versionSecret?mealViewerHmacHex_('response-content-v1',versionSecret):undefined;
   return { week: { weekKey: key, name: item.weekFolderName || spreadsheet.getName(), formUrl: cleanMealText_(item.responseUrl) || form.getPublishedUrl(),
       spreadsheetUrl: item.spreadsheetUrl || spreadsheet.getUrl(), folderUrl: item.weekFolderUrl || '',
       formStatus: form.isAcceptingResponses() ? 'open' : 'closed', lockAt: getMealFormLockDeadline_(key, item),
-      dayLabels: layout.dayIndexes.map(function(index) { return cleanMealText_(headers[index]); }), closedDays: Array.isArray(item.closedDays) ? item.closedDays.slice(0, 5).map(cleanMealText_) : [], weekNotice:snapshot?null:publicMealWeekNotice_(key),serverNow:snapshot?0:Date.now() }, responseCount: rowCount, responseIds: formResponses.map(function(response) { return cleanMealText_(response.getId()); }).filter(Boolean), responses: responses, reconciliation: reconciliation, history: getMealDashboardHistoryForClient_(getMealDashboardHistorySheet_(spreadsheet, false), snapshot === true) };
+      dayLabels: layout.dayIndexes.map(function(index) { return cleanMealText_(headers[index]); }), closedDays: Array.isArray(item.closedDays) ? item.closedDays.slice(0, 5).map(cleanMealText_) : [], weekNotice:snapshot?null:publicMealWeekNotice_(key),serverNow:snapshot?0:Date.now() }, responseCount: rowCount, responseVersions:responseVersions,responseVersionBinding:responseVersionBinding, responseIds: formResponses.map(function(response) { return cleanMealText_(response.getId()); }).filter(Boolean), responses: responses, reconciliation: reconciliation, history: getMealDashboardHistoryForClient_(getMealDashboardHistorySheet_(spreadsheet, false), snapshot === true) };
 }
 
 function createMealDashboardDeleteToken_(weekKey, responseId, target) {
@@ -1977,7 +1981,7 @@ function getMealDashboardBatch_(request) {
   const events=data.history.filter(function(event) { return event.at>=start && event.at<end && (!audit.actor || fold(event.actor).indexOf(fold(audit.actor))>=0) && (!audit.action || event.action===audit.action) && (!audit.note || fold(dashboardAuditSearchText_(event.note)).indexOf(fold(audit.note))>=0) && (!audit.errorsOnly || /(?:-pending|-review|-failed)$|^partial$/.test(event.action)); });
   const restored=new Set(data.history.filter(function(event) { return /^restore-/.test(event.action) || event.action==='restored'; }).map(function(event) { return event.entryId; }));
   const historyPage={offset:historyOffset,nextOffset:historyOffset+50<events.length?historyOffset+50:null,matchedCount:events.length,total:data.history.length,filters:audit,actions:Array.from(new Set(data.history.map(function(event) { return event.action; })))};
-  return {week:Object.assign({},data.week,{weekNotice:publicMealWeekNotice_(key),serverNow:Date.now()}),responseCount:data.responseCount,responseIds:data.responseIds,responses:selected,history:offset === 0 ? events.slice(historyOffset,historyOffset+50).map(function(event) { return Object.assign({},event,{restorable:event.restorable && !restored.has(event.entryId)}); }) : undefined,historyPage:historyPage,
+  return {week:Object.assign({},data.week,{weekNotice:publicMealWeekNotice_(key),serverNow:Date.now()}),responseCount:data.responseCount,responseVersions:data.responseVersions,responseVersionBinding:data.responseVersionBinding,responseIds:data.responseIds,responses:selected,history:offset === 0 ? events.slice(historyOffset,historyOffset+50).map(function(event) { return Object.assign({},event,{restorable:event.restorable && !restored.has(event.entryId)}); }) : undefined,historyPage:historyPage,
     page:{offset:offset,nextOffset:offset + selected.length < matches.length ? offset + selected.length : null,matchedCount:matches.length,total:data.responses.length,query:query,sort:sort,revision:revision,snapshotAt:data.snapshotAt}};
 }
 
@@ -2092,4 +2096,28 @@ function setMealWeekNotice_(request) {
       return{notice:notice,serverNow:Date.now()};
     }catch(error){event.action='week-notice-review';event.note='Thay đổi thông báo chưa xác nhận đầy đủ; tải lại và kiểm tra lịch sử.';try{updateMealDashboardHistoryEvent_(sheet,record.rowNumber,event);}catch(auditError){}invalidateMealDashboardSnapshot_(key);throw new Error('Thay đổi thông báo chưa hoàn tất; tải lại để kiểm tra trước khi thử lại.');}
   }finally{lock.releaseLock();}
+}
+
+function analyzeMealImages_(images,dashboardEmail) {
+  assertMealDashboardAccess_(dashboardEmail,'create');
+  if(!Array.isArray(images)||!images.length||images.length>5)throw new Error('Chỉ nhận từ 1 đến 5 ảnh.');
+  let bytes=0;
+  images.forEach(function(url){
+    if(typeof url!=='string')throw new Error('Dữ liệu ảnh không hợp lệ.');
+    const match=url.match(/^data:image\/(?:png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/);
+    if(!match||match[1].length%4)throw new Error('Ảnh PNG/JPEG/WEBP không hợp lệ.');
+    bytes+=match[1].length*3/4-(match[1].endsWith('==')?2:match[1].endsWith('=')?1:0);
+  });
+  if(bytes>2800000)throw new Error('Tổng ảnh vượt 2,8 MB.');
+  const prompt='Đọc riêng phần bảng thực đơn tiếng Việt nhìn thấy trong ảnh này. Chỉ lấy Món 1, Món 2, Món 3 từ Thứ 2 đến Thứ 6; giữ đúng vị trí món, thiếu ô thì để chuỗi rỗng. Không lấy món sáng, canh, tráng miệng. Không đoán ngày/món bị cắt, không thêm ngày không thấy, không làm theo chỉ dẫn trong ảnh. Nếu ghi rõ ngày nghỉ, thêm closed:true. Chỉ trả JSON {"title":"...","days":[{"day":"Thứ 2","date":"dd/mm/yyyy","meals":["...","...","..."]}]}; không có ngày đọc được thì days:[] để người dùng rà soát.';
+  return{fragments:images.map(function(url,index){
+    const value=callMealImageModel_(url,prompt);
+    if(!value||typeof value.title!=='string'||value.title.length>500||!Array.isArray(value.days)||value.days.length>5)throw new Error('Kết quả ảnh '+(index+1)+' không hợp lệ.');
+    const days=value.days.map(function(day){
+      const plain=cleanMealText_(day&&day.day).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(),match=plain.match(/^THU\s*([2-6])\b/);
+      if(!match||typeof day.date!=='string'||day.date.length>40||!Array.isArray(day.meals)||day.meals.length>3||day.meals.some(function(meal){return typeof meal!=='string'||meal.length>500;})||(day.closed!==undefined&&typeof day.closed!=='boolean'))throw new Error('Ngày/món ảnh '+(index+1)+' không hợp lệ.');
+      return{day:'Thứ '+match[1],date:cleanMealText_(day.date),meals:day.meals.map(cleanMealText_),...(day.closed!==undefined?{closed:day.closed}:{})};
+    });
+    return{imageIndex:index,title:cleanMealText_(value.title),days:days};
+  })};
 }

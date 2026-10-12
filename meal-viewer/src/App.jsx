@@ -30,7 +30,6 @@ const initialFilters = () => {
   try { return readViewerFilters(window.localStorage.getItem(FILTERS_STORAGE_KEY)); }
   catch { return readViewerFilters(null); }
 };
-const MOTION_OVERRIDE_KEY = 'meal-viewer-motion-override';
 
 function SummaryIcon() {
   return <svg className="section-heading-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -69,13 +68,8 @@ function App() {
   const isNewestPage = viewerPath === '/newest' || viewerPath === '/newest/';
   const isNextPage = viewerPath === '/next' || viewerPath === '/next/';
   const isWeekPage = isNewestPage || isNextPage;
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const weekLink = weekNavigation(viewerPath);
   const [auth, setAuth] = useState('loading');
-  const [fullMotion, setFullMotion] = useState(() => {
-    try { return window.localStorage.getItem(MOTION_OVERRIDE_KEY) === 'full'; }
-    catch { return false; }
-  });
   const [data, setData] = useState(null);
   const [filters, setFilters] = useState(initialFilters);
   const [responseSort, setResponseSort] = useState('newest');
@@ -105,14 +99,6 @@ function App() {
     stoppedRef.current=true;setStoppedReading(true);reads.cancel();loading.current=false;setBusy(false);setChecking(false);setFailure(null);setLoadError('');setMessage(STOP_WAIT_MESSAGE);
   }
 
-  useEffect(() => {
-    if (fullMotion) document.documentElement.dataset.motionOverride = 'full';
-    else delete document.documentElement.dataset.motionOverride;
-    try {
-      if (fullMotion) window.localStorage.setItem(MOTION_OVERRIDE_KEY, 'full');
-      else window.localStorage.removeItem(MOTION_OVERRIDE_KEY);
-    } catch { /* The animation preference still works for this page if storage is unavailable. */ }
-  }, [fullMotion]);
 
   useEffect(() => {
     try { window.localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters)); }
@@ -358,7 +344,6 @@ function App() {
         <h1>{pageTitle}</h1>
         {weekDates.length > 0 && <p className="week-date-range">{weekDates[0]} – {weekDates[weekDates.length - 1]} <SproutIcon /></p>}
       </div>
-      <MotionPreferenceToggle reducedMotion={reducedMotion} fullMotion={fullMotion} onToggle={() => setFullMotion(value => !value)} />
     </header>
     <nav className="viewer-navigation" aria-label="Các trang"><a className="action-link" href="/newest" aria-current={isNewestPage ? 'page' : undefined}>Tuần này</a><a className="action-link" href="/history">{isHistory ? '← Chọn tuần khác' : 'Kho tuần cũ'}</a></nav>
     <WeekNotice notice={data?.weekNotice} serverNow={data?.serverNow}/>

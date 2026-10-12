@@ -186,7 +186,7 @@ export function createDashboardHandler({ secret, callGas, readViewerData, config
         }
       } else {
         const body = requestBody(req.body);
-        if (['ocr', 'ocr-region', 'create'].includes(body.action) && permissions.create !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền OCR hoặc tạo tuần.' });
+        if (['ocr', 'ocr-images', 'ocr-region', 'create'].includes(body.action) && permissions.create !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền OCR hoặc tạo tuần.' });
         if ((req.method === 'DELETE' || body.action === 'restore') && permissions.manageResponses !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền xóa hoặc khôi phục.' });
         if (req.method === 'POST' && ['form-control', 'set-branding', 'set-week-notice'].includes(body.action)) {
           if (role !== 'owner') return res.status(403).json({ error: 'Chỉ chủ sở hữu được thay đổi Form và thương hiệu.' });
@@ -200,6 +200,7 @@ export function createDashboardHandler({ secret, callGas, readViewerData, config
           payload = { action: 'dashboard-script-auth', email: session.email };
         } else if (req.method === 'DELETE') payload = { weekKey: body.weekKey, responseId: body.responseId, deleteToken: body.deleteToken, action: 'dashboard-delete', email: session.email, reason: body.reason };
         else if (body.action === 'ocr') payload = { action: 'dashboard-ocr', email: session.email, image: body.image };
+        else if (body.action === 'ocr-images') payload = { action: 'dashboard-ocr-images', email: session.email, images: body.images };
         else if (body.action === 'ocr-region') payload = { action: 'dashboard-ocr-region', email: session.email, image: body.image, target: body.target };
         else if (body.action === 'create') payload = { action: 'dashboard-create', email: session.email, menu: body.menu };
         else if (['add-email', 'remove-email', 'set-permissions'].includes(body.action)) {

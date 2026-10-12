@@ -2,6 +2,7 @@ import {createContext,useContext,useEffect,useMemo,useRef,useState,useCallback} 
 import {readTextSize,writeTextSize} from './dashboard-model.mjs';
 import {foldSearchText} from './viewer-model.mjs';
 import './comfort.css';
+import {useAppearance} from './AppearanceProvider.jsx';
 
 const Comfort=createContext(()=>()=>{});
 const pages=[['/newest','Tuần này'],['/next','Tuần sau'],['/history','Kho tuần cũ'],['/dashboard','Dashboard'],['/setup','Cài đặt']].map(([href,label])=>({id:href,kind:'page',href,label}));
@@ -13,6 +14,7 @@ export function useQuickCommands(commands,blocked,run,beforeNavigate) {
 }
 
 export default function ComfortProvider({children}) {
+  const appearance=useAppearance();
   const [size,setSize]=useState(readTextSize),[registered,setRegistered]=useState(null),[open,setOpen]=useState(false),[query,setQuery]=useState(''),[index,setIndex]=useState(0),[error,setError]=useState(''),[navigating,setNavigating]=useState(false);
   const dialog=useRef(null),input=useRef(null),trigger=useRef(null),returnFocus=useRef(null);
   const register=useCallback(value=>{setRegistered(value);return()=>setRegistered(null);},[]);
@@ -44,6 +46,7 @@ export default function ComfortProvider({children}) {
     <div className="comfort-toolbar" aria-label="Điều hướng và cỡ chữ">
       <button ref={trigger} type="button" className="secondary" disabled={blocked} onClick={show}>Lệnh nhanh<span aria-hidden="true"> Ctrl/⌘ K</span></button>
       <div role="group" aria-label="Cỡ chữ"><button className="secondary" type="button" aria-pressed={size==='normal'} onClick={()=>setSize('normal')}>Bình thường</button><button className="secondary" type="button" aria-pressed={size==='large'} onClick={()=>setSize('large')}>Lớn</button></div>
+      <div className="appearance-controls"><label>Giao diện<select aria-label="Giao diện" value={appearance.theme} onChange={event=>appearance.setPreference({theme:event.target.value})}><option value="light">Sáng</option><option value="dark">Tối</option><option value="system">Theo hệ thống</option></select></label><label>Hiệu ứng<select aria-label="Hiệu ứng" value={appearance.motion} onChange={event=>appearance.setPreference({motion:event.target.value})}><option value="full">Đầy đủ</option><option value="light">Nhẹ</option><option value="off">Tắt</option></select></label></div>
     </div>
     {children}
     {open&&<dialog ref={dialog} className="quick-dialog" aria-labelledby="quick-title" onCancel={event=>{event.preventDefault();if(!navigating)setOpen(false);}}>

@@ -33,7 +33,7 @@ export default function useOcrDraft(accountId, enabled, value, onRestore) {
     queue.current = queue.current.catch(() => {}).then(() => writeOcrDraft(accountId, value));
     queue.current.then(() => { if (current === generation.current && latest === revision.current) { setFailure(null); setStatus('Đã lưu nháp trên thiết bị.'); } })
       .catch(error => { if (current === generation.current && latest === revision.current) { setFailure(safeErrorReport('draft', error)); setStatus(error.message); } });
-  }, [accountId, enabled, loadedAccount, value.image, value.filename, value.menu]);
+  }, [accountId, enabled, loadedAccount, value.image, value.filename, value.images, value.menu]);
 
   async function clear() {
     const current = generation.current;

@@ -1,5 +1,11 @@
+import {imageDataBytes} from './image-import.mjs';
 export function normalizeOcrDraft(value, accountId) {
   if (!accountId || value?.version !== 1 || value.accountId !== accountId || typeof value.image !== 'string' || value.image.length > 4_000_000 || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value.image)) return null;
+  let images;
+  if(value.images!==undefined){
+    if(!Array.isArray(value.images)||!value.images.length||value.images.length>5)return null;
+    try{images=value.images.map(entry=>{if(typeof entry.name!=='string'||entry.name.length>500)throw Error();imageDataBytes(entry.dataUrl);return{dataUrl:entry.dataUrl,name:entry.name};});if(images.reduce((sum,image)=>sum+imageDataBytes(image.dataUrl),0)>2800000||!images.some(entry=>entry.dataUrl===value.image))return null;}catch{return null;}
+  }
   if (value.menu) {
     const days = value.menu.days;
     if (!Array.isArray(days) || days.length > 5 || String(value.menu.title || '').length > 500) return null;
@@ -9,7 +15,7 @@ export function normalizeOcrDraft(value, accountId) {
     title: String(value.menu.title || '').slice(0, 500),
     days: value.menu.days.map(day => ({ day: String(day?.day || '').slice(0, 40), date: String(day?.date || '').slice(0, 40), meals: (Array.isArray(day?.meals) ? day.meals : []).slice(0, 3).map(meal => String(meal || '').slice(0, 500)), ...(day.closed === true ? { closed: true } : {}) }))
   } : null;
-  return { version: 1, accountId, image: value.image, filename: String(value.filename || '').slice(0, 500), menu, savedAt: Number(value.savedAt) || 0 };
+  return { version: 1, accountId, image: value.image, filename: String(value.filename || '').slice(0, 500), ...(images?{images}:{}), menu, savedAt: Number(value.savedAt) || 0 };
 }
 
 function transactDraft(mode, operation) {

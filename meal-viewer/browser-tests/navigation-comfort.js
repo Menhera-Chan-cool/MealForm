@@ -67,7 +67,8 @@ async page => {
    results.push({width,font:large,cancelledReadonly:true,noticeConfirmed:true});
   }
   stage='write guard';await p.getByLabel('Nội dung thông báo',{exact:true}).fill('Mock guarded write');await p.getByLabel('Hiển thị hết ngày',{exact:true}).fill('2030-10-14');await p.evaluate(()=>{window.qaWriteHold=true;});p.once('dialog',d=>d.accept());await p.getByRole('button',{name:'Lưu thông báo',exact:true}).click();await p.waitForFunction(()=>typeof window.qaWriteRelease==='function');
-  if(!await p.getByRole('button',{name:'Lệnh nhanh',exact:true}).isDisabled()||await p.evaluate(()=>window.qaWriteSignal))throw Error('Mutation got navigation or read-cancel signal');
+  await p.waitForFunction(()=>[...document.querySelectorAll('button')].find(button=>button.textContent.startsWith('Lệnh nhanh'))?.disabled);
+  if(await p.evaluate(()=>window.qaWriteSignal))throw Error('Mutation got read-cancel signal');
   if(await p.getByRole('button',{name:'Dừng chờ dữ liệu',exact:true}).count()&&!await p.getByRole('button',{name:'Dừng chờ dữ liệu',exact:true}).isDisabled())throw Error('Stop allowed during mutation');
   await p.evaluate(()=>{window.qaWriteRelease();window.qaWriteHold=false;});await p.getByRole('button',{name:'Lưu thông báo',exact:true}).waitFor();await p.waitForFunction(()=>!document.querySelector('.week-notice-editor button[type=submit]')?.disabled);
   stage='scheduled tab read after stop';role='owner';await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.getByText(/^Dữ liệu đã xác minh\./).waitFor();await p.getByRole('button',{name:'Thông báo tuần',exact:true}).click();await p.getByLabel('Nội dung thông báo',{exact:true}).waitFor();

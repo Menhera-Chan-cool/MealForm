@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Import and appearance QoL approved 2026-10-12
+
+reload-changes -> common validated image-ingest -> multi-image OCR reviewed merge -> shared color-scheme and motion-level -> integration, native/API/browser regression -> backend before web deploy -> clean release/README/GitHub sync. Preserve whole-week verified change baselines independent of filters/pages; invalid uploads and failed OCR retain drafts. Merge conflict choices and apply are explicit and one Undo. Reuse comfort/branding/native dialogs, no new dependencies/services/scopes. Test fake OCR/record changes only; production smoke is readonly.
+
 ## Navigation and comfort QoL approved 2026-10-12
 
 text-size -> safe command palette -> owner week notices -> read wait cancellation -> integrate/full regression/template sync/backend-before-web deploy and readonly production/GitHub delivery. Native dialogs/context reuse, no extra dependencies. Separate per-week notice properties, optimistic audit, expiry-safe public getters. Abort and stale-generation checks are read-only; cancelled snapshots never regain mutation eligibility. Draft flush failures block hard navigation.

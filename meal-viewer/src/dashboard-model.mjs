@@ -42,6 +42,22 @@ export function countNewResponseIds(ids, baseline) {
   return [...new Set(ids || [])].filter(id => typeof id === 'string' && id && !known.has(id)).length;
 }
 
+export function compareResponseVersions(before,after) {
+  if(!before?.week?.weekKey||before.week.weekKey!==after?.week?.weekKey||before.responseVersionBinding!==after.responseVersionBinding)return null;
+  const read=values=>{
+    if(!Array.isArray(values))return null;
+    const map=new Map();
+    for(const value of values){if(!Array.isArray(value)||value.length!==2||typeof value[0]!=='string'||!value[0]||map.has(value[0])||!(/^[a-f0-9]{64}$/).test(value[1]))return null;map.set(value[0],value[1]);}
+    return map;
+  };
+  const previous=read(before.responseVersions),current=read(after.responseVersions);
+  if(!previous||!current)return null;
+  let added=0,missing=0,changed=0;
+  for(const[id,version]of current){if(!previous.has(id))added++;else if(previous.get(id)!==version)changed++;}
+  for(const id of previous.keys())if(!current.has(id))missing++;
+  return{added,missing,changed};
+}
+
 export function sheetRowUrl(spreadsheetId, sheetId, row) {
   if (!/^[a-zA-Z0-9_-]+$/.test(spreadsheetId || '') || !Number.isInteger(sheetId) || sheetId < 0 || !Number.isInteger(row) || row < 2) return '';
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetId}&range=A${row}`;

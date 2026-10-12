@@ -1,5 +1,15 @@
 # Admin upgrades
 
+## Import and appearance QoL approved 2026-10-12
+
+- [x] Whole-week Form fingerprints and manual reload comparisons, native/helper/API/cache tests.
+- [x] Shared image validation/ingestion, paste/drop and compatible multi-image local drafts.
+- [x] Authorized multi-image fragments, explicit merge provenance/conflicts, editable preview and Undo.
+- [x] Shared Light/Dark/System and readable branding/focus/errors across all pages/dialogs.
+- [x] Shared Full/Light/Off, legacy/reduced preference and immediate correct disclosure/status behavior.
+- [x] Full regressions and PC/mobile browser QA; clean template/README synchronization.
+- [ ] Backend/web deployment, readonly production and verified GitHub delivery.
+
 ## Navigation and comfort QoL approved 2026-10-12
 
 - [x] Pure preference/command/read-gate helpers with RED/GREEN tests.

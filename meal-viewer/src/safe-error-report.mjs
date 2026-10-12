@@ -28,7 +28,7 @@ export function formatErrorReport(report) {
 export function dashboardOperation(url, options = {}) {
   if (options.method === 'DELETE') return 'delete';
   if (options.body) {
-    try { const action = JSON.parse(options.body).action; return Object.hasOwn(operations, action) ? action : 'dashboard'; }
+    try { const action = JSON.parse(options.body).action; return ['ocr-images','ocr-region'].includes(action)?'ocr':Object.hasOwn(operations, action) ? action : 'dashboard'; }
     catch { return 'dashboard'; }
   }
   try {

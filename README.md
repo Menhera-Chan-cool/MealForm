@@ -2,11 +2,17 @@
 
 ## Cập nhật ngày 12/10/2026
 
-Mã backend đã đồng bộ đến Apps Script phiên bản 77: thêm thanh lệnh nhanh, cỡ chữ, thông báo tuần và dừng chờ dữ liệu. Giữ các cải tiến Dashboard, bộ lọc lịch sử toàn tuần, OCR từng vùng ảnh, tải từng đợt, ngày nghỉ và Undo. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
+Mã backend đã đồng bộ đến Apps Script phiên bản 78: thêm đối chiếu thay đổi toàn tuần, dán/kéo thả ảnh, ghép OCR nhiều ảnh, giao diện Sáng/Tối/Theo hệ thống và mức hiệu ứng Đầy đủ/Nhẹ/Tắt. Giữ các cải tiến Dashboard, bộ lọc lịch sử, OCR từng vùng, tải từng đợt, ngày nghỉ và Undo. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
 
 Điều hướng dùng nút xanh đồng bộ trên điện thoại và máy tính. Kho tuần cũ ở `/history` yêu cầu đăng nhập; `/old` đã ngừng phục vụ thực đơn và chuyển hướng về kho tuần. Không xóa dữ liệu các tuần cũ.
 
 ## Tính năng mới trong bản này
+
+- Sau tải lại thủ công thành công trong cùng tuần, Dashboard báo lượt Form mới/đã mất/thay đổi so với lần xác minh trước. Đối chiếu ID và dấu nội dung của toàn tuần, không bị giới hạn bởi 50 hàng đã tải hoặc tìm kiếm; không dùng tên để gộp người và không tự sửa/xóa. Chỉ báo lượt Form, không suy mất lượt từ hàng Sheet bị di chuyển. Lần đầu, bản lưu cũ, tuần khác, lỗi/hủy tải hoặc đổi khóa ký không tạo kết luận thay đổi; đổi khóa tạo mốc đối chiếu mới. Không lưu token xóa trong cache.
+- Tab OCR nhận ảnh qua chọn file, Ctrl/⌘ V ngoài ô nhập hoặc kéo thả vào khung. Chọn file thay bộ ảnh; Thêm ảnh/dán/thả giữ ảnh hiện có. Tối đa 5 ảnh PNG/JPEG/WEBP, tổng 2,8 MB; ảnh lỗi/quá lớn hoặc hủy chọn không xóa nháp. Dán chữ trong ô nhập vẫn bình thường. Có chọn/bỏ ảnh nguồn, nháp nhiều ảnh lưu trên thiết bị theo tài khoản; nháp ảnh đơn cũ vẫn đọc được.
+- Đọc từ hai ảnh trở lên mở bản xem trước ghép OCR, có nguồn cho từng giá trị, ô trùng, ngày thiếu và xung đột ngày/món/ngày nghỉ. Chọn nguồn hoặc sửa tay để giải quyết xung đột trước khi áp dụng; không tự đoán phần không đọc được hoặc ghi đè nháp. Áp dụng là một lượt Undo/Redo, kể cả nháp ban đầu trống. Tạo Form vẫn qua rà soát và kiểm tra tuần/ngày/món hiện có. Mỗi ảnh dùng một lượt đọc của nhà cung cấp, có thể tăng thời gian/quota; lỗi một ảnh giữ nháp cũ. Chỉ tài khoản có quyền OCR/tạo được gọi, API và Apps Script đều kiểm tra. Không thêm OAuth scope; bản xem trước chưa áp dụng không tự lưu.
+- Giao diện Sáng/Tối/Theo hệ thống nhớ riêng trên trình duyệt, mặc định Theo hệ thống. Giữ màu chủ đạo của trường, đổi nền/chữ/viền và trạng thái cảnh báo/lỗi cho cả trang xem, kho tuần, Dashboard, cài đặt và hộp thoại; không chỉnh màu ảnh gốc hay cấu hình thương hiệu trên server.
+- Hiệu ứng Đầy đủ/Nhẹ/Tắt dùng chung toàn web. Nếu chưa chọn, theo cài đặt giảm chuyển động của hệ thống; lựa chọn Đầy đủ cũ được giữ. Nhẹ bỏ chuỗi trang trí, phản hồi ngắn 0,16 giây; Tắt đổi trạng thái ngay, vẫn hiện chữ Form và đóng menu đúng, không để timer đóng treo. Lựa chọn thủ công không phụ thuộc cài đặt hệ điều hành và không thay dữ liệu.
 
 - Lệnh nhanh: Ctrl/⌘ K hoặc nút trên điện thoại; tìm tuần đã đăng ký, tab Dashboard theo quyền và trang xem/cài đặt. Chỉ điều hướng, không xóa, tạo hay đọc OCR bằng phím tắt. Escape đóng và trả focus, phím mũi tên/Enter chọn lệnh. Chặn khi đang xử lý hoặc có hộp thoại khác; chờ lưu nháp OCR trước khi chuyển trang, lỗi lưu giữ nguyên trang.
 - Cỡ chữ Bình thường/Lớn dùng chung cho PC/mobile và hộp thoại, nhớ trên trình duyệt. Nếu trình duyệt chặn lưu thì vẫn đổi cỡ chữ trong lần mở hiện tại. Không thay dữ liệu hoặc đồng bộ tùy chọn giữa thiết bị.

@@ -7,8 +7,9 @@ import App from './App.jsx';
 import BrandingProvider from './BrandingProvider.jsx';
 import './branding.css';
 import ComfortProvider from './ComfortProvider.jsx';
+import AppearanceProvider from './AppearanceProvider.jsx';
 
 const redirect = rootRedirectTarget(window.location.pathname, window.location.search);
 if (window.location.pathname === '/newform') window.location.replace('/dashboard?tab=create');
 else if (redirect) window.location.replace(redirect);
-else createRoot(document.getElementById('root')).render(<React.StrictMode><BrandingProvider><ComfortProvider><App /></ComfortProvider></BrandingProvider></React.StrictMode>);
+else createRoot(document.getElementById('root')).render(<React.StrictMode><AppearanceProvider><BrandingProvider><ComfortProvider><App /></ComfortProvider></BrandingProvider></AppearanceProvider></React.StrictMode>);

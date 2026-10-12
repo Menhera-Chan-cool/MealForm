@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { errorMessage, mealRegistrationTarget, foldSearchText } from './viewer-model.mjs';
-import { inspectMenu, describeHistoryNote, countNewResponseIds, menuCalendarKey, fillMenuMonday, accountRoleLabel, filterAuditHistory, applyRegionResult, dashboardCommands } from './dashboard-model.mjs';
+import { inspectMenu, describeHistoryNote, countNewResponseIds, menuCalendarKey, fillMenuMonday, accountRoleLabel, filterAuditHistory, applyRegionResult, dashboardCommands,compareResponseVersions } from './dashboard-model.mjs';
+import ImageInput from './ImageInput.jsx';
+import MultiImageReview from './MultiImageReview.jsx';
+import {buildImageMerge} from './image-import.mjs';
+import './import-appearance.css';
 import {useQuickCommands} from './ComfortProvider.jsx';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
 import WeekNoticeEditor from './WeekNoticeEditor.jsx';
@@ -25,7 +29,6 @@ import { brandingTheme, normalizeBranding } from './branding.mjs';
 import './dashboard.css';
 import './review-scale.css';
 
-const IMAGE_LIMIT = 2_800_000;
 const MEAL_SLOTS = [0, 1, 2];
 
 export async function dashboardRequest(url = '/api/dashboard', options = {}, onUnauthorized) {
@@ -88,6 +91,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [cacheTime, setCacheTime] = useState(() => readDashboardCache(initialData?.accountId, initialWeek)?.savedAt || 0);
   const [newResponses, setNewResponses] = useState(0);
+  const [reloadChanges,setReloadChanges]=useState(null);
+  const verifiedBaseline=useRef(null);
   const [pollError, setPollError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
   const [quickResponse, setQuickResponse] = useState(null);
@@ -99,6 +104,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [email, setEmail] = useState('');
   const [file, setFile] = useState(null);
   const [image, setImage] = useState('');
+  const [images,setImages]=useState([]);
+  const [mergeBase,setMergeBase]=useState(null);
   const [menuHistory, dispatchMenu] = useReducer(menuHistoryReducer, undefined, () => menuHistoryReducer(undefined, { type: 'reset', value: null }));
   const menu = menuHistory.present;
   const setMenu = value => dispatchMenu({ type: 'reset', value });
@@ -128,8 +135,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [brandDraft, setBrandDraft] = useState(branding);
   const selectedWeek = (overview.weeks || []).find(week => week.weekKey === weekKey);
   const permissions = overview.permissions || { view: true, create: true, manageResponses: true };
-  const draft = useOcrDraft(overview.accountId, permissions.create === true, { image, filename: file?.name || '', menu }, saved => {
+  const draft = useOcrDraft(overview.accountId, permissions.create === true, { image, filename: file?.name || '', images:images.length?images:undefined, menu }, saved => {
     setImage(saved.image); setFile({ name: saved.filename }); setMenu(saved.menu); setAllowMissing(false);
+    setImages(saved.images||(saved.image?[{dataUrl:saved.image,name:saved.filename||'Ảnh nháp'}]:[]));
   });
 
   const viewState = useDashboardView(overview.accountId, weekKey, tab, weekData, weekVerified);
@@ -139,7 +147,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   function setTab(next) { viewState.save(); setTabState(next); }
   function selectWeek(next) { if (next !== weekKey) { viewState.save(); setQuickResponse(null); setWeekKey(next); } }
   const quickCommands=useMemo(()=>dashboardCommands(overview),[overview]);
-  useQuickCommands(quickCommands,busy||signingOut||Boolean(regionBase)||Boolean(confirmation),async command=>{
+  useQuickCommands(quickCommands,busy||signingOut||Boolean(regionBase)||Boolean(mergeBase)||Boolean(confirmation),async command=>{
     viewState.save();await draft.flush();
     if(command.kind==='tab')setTab(command.tab);
     if(command.kind==='week'){selectWeek(command.weekKey);setTab('delete');}
@@ -183,6 +191,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   async function loadWeek(key = weekKey, manual = false) {
     if (manual) { clearTimeout(weekLoadTimer.current);viewState.save(); }
     const generation = ++weekRequest.current;
+    setReloadChanges(null);
     setWeekVerified(false); setNewResponses(0); setPollError(''); setMoreLoading(false);
     if (!key) { setWeekData(null); setWeekLoading(false); return false; }
     const saved = readDashboardCache(overview.accountId, key);
@@ -207,6 +216,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         result = { ...result, page:next.page, responses:[...result.responses,...next.responses] };
       }
       setWeekData(result);
+      setReloadChanges(manual?compareResponseVersions(verifiedBaseline.current,result):null);
+      verifiedBaseline.current={week:result.week,responseVersions:result.responseVersions,responseVersionBinding:result.responseVersionBinding};
       clearTimeout(highlightTimer.current);
       const previousIds = new Set(keep ? previous.responseIds || [] : []);
       setHighlightIds(manual && keep ? (result.responseIds || []).filter(id => !previousIds.has(id)) : []);
@@ -258,6 +269,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }, [tab, weekKey, query, responseSort, auditFilters]);
   useEffect(() => () => { weekRequest.current++; clearTimeout(highlightTimer.current); }, []);
   useEffect(() => { setHighlightIds([]); setQuickResponse(null); }, [weekKey]);
+  useEffect(()=>{verifiedBaseline.current=null;setReloadChanges(null);},[weekKey]);
   useEffect(() => { setAuditFilters({}); setAuditLimit(50); }, [weekKey]);
   useEffect(() => {
     if (!weekVerified || !weekData || busy || tab !== 'delete') return undefined;
@@ -348,36 +360,27 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     } finally { if(reads.current(ticket))setHealthBusy(false);reads.finish(ticket); }
   }
 
-  async function selectImage(event) {
-    const next = event.target.files?.[0] || null;
-    setFile(next);
-    setMenu(null);
-    setAllowMissing(false);
-    setImage('');
-    setMessage('');
-    if (!next) return;
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(next.type)) {
-      setFile(null); setMessage('Chỉ nhận ảnh PNG, JPEG hoặc WEBP.'); return;
-    }
-    if (next.size > IMAGE_LIMIT) {
-      setFile(null); setMessage('Ảnh quá lớn. Hãy nén hoặc cắt ảnh xuống dưới 2,8 MB rồi chọn lại.'); return;
-    }
-    setBusy(true);
-    try {
-      setImage(await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(new Error('Không đọc được ảnh.'));
-        reader.readAsDataURL(next);
-      }));
-    } catch (error) { setMessage(errorMessage(error)); }
-    finally { setBusy(false); }
+  function chooseImage(entry){setImage(entry.dataUrl);setFile({name:entry.name,type:entry.dataUrl.split(';')[0].slice(5)});}
+  async function clearDraft(){
+    if(!window.confirm('Xóa nháp ảnh và món đang sửa trên thiết bị này?'))return;
+    try{await draft.clear();setImages([]);setImage('');setMenu(null);setFile(null);setAllowMissing(false);}catch(error){setMessage(error.message);}
+  }
+  async function removeImage(index){
+    if(images.length===1){await clearDraft();return;}
+    const next=images.filter((_image,i)=>i!==index);setImages(next);
+    if(!next.some(entry=>entry.dataUrl===image))chooseImage(next[0]);
   }
 
   async function runOcr() {
     if (!image) { setMessage('Hãy chọn ảnh thực đơn trước.'); return; }
     setBusy(true); setMessage('Đang đọc ảnh thực đơn…');
     try {
+      if(images.length>1){
+        const result=await request('/api/dashboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ocr-images',images:images.map(entry=>entry.dataUrl)})});
+        if(!Array.isArray(result.fragments)||result.fragments.length!==images.length||result.fragments.some((fragment,i)=>fragment.imageIndex!==i))throw new Error('Kết quả OCR không khớp các ảnh nguồn; nháp cũ được giữ.');
+        buildImageMerge(result.fragments,menu);
+        setMergeBase({images,menu,fragments:result.fragments});setMessage('OCR xong. Rà soát các nguồn và xung đột trước khi áp dụng.','info');return;
+      }
       const result = await request('/api/dashboard', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'ocr', image })
@@ -427,7 +430,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       if (result.alreadyExists) setMessage('Tuần này đã có Form. Mình đã lấy lại các liên kết hiện có.');
       else setMessage('Đã tạo Form, Spreadsheet và thư mục tuần.');
       try { await draft.clear(); } catch { setMessage('Tuần đã tạo nhưng chưa xóa được nháp trên thiết bị. Hãy xóa nháp thủ công.'); }
-      setMenu(null); setImage(''); setFile(null); setAllowMissing(false);
+      setMenu(null); setImages([]); setImage(''); setFile(null); setAllowMissing(false);
       const next = await refreshOverview();
       if (next?.weeks?.[0]) setWeekKey(next.weeks[0].weekKey);
       setWeekData(null);
@@ -544,7 +547,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       </div>
     </header>
     <div className="dashboard-account" aria-label="Tài khoản đang đăng nhập"><strong>{overview.email || 'Đang xác minh Gmail…'}</strong><span>{accountRoleLabel({ ...overview, permissions })}</span><small>{permissions.create ? 'OCR/tạo tuần' : 'Không tạo tuần'} · {permissions.manageResponses ? 'Xóa/khôi phục' : 'Không xóa lượt gửi'}</small></div>
-    <VersionNotice disabled={busy || signingOut || Boolean(regionBase) || Boolean(confirmation)} beforeReload={async()=>{viewState.save();await draft.flush();}} />
+    <VersionNotice disabled={busy || signingOut || Boolean(regionBase) || Boolean(mergeBase) || Boolean(confirmation)} beforeReload={async()=>{viewState.save();await draft.flush();}} />
     <nav className="dashboard-tabs" aria-label="Chức năng quản trị">
       <button className={tab === 'overview' ? 'active' : 'secondary'} onClick={() => setTab('overview')}>Tổng quan</button>
       {permissions.create && <button className={tab === 'create' ? 'active' : 'secondary'} onClick={() => setTab('create')}>Tạo tuần bằng OCR</button>}
@@ -581,21 +584,16 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
     {tab === 'create' && permissions.create && <section className="dashboard-panel">
       <h2>Tạo tuần từ ảnh thực đơn</h2>
-      <div className="draft-toolbar"><p role="status">{draft.status || 'Nháp lưu riêng trên thiết bị này, không đồng bộ giữa các máy.'}</p><button type="button" className="secondary" disabled={busy || !draft.ready} onClick={async () => {
-        if (!window.confirm('Xóa nháp ảnh và món đang sửa trên thiết bị này?')) return;
-        try { await draft.clear(); setImage(''); setMenu(null); setFile(null); setAllowMissing(false); } catch (error) { setMessage(error.message); }
-      }}>Xóa nháp</button></div>
-      <label className="dashboard-file">Ảnh thực đơn (PNG, JPEG, WEBP; tối đa 2,8 MB)
-        <input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy || !draft.ready} onChange={event => void selectImage(event)} />
-      </label>
+      <div className="draft-toolbar"><p role="status">{draft.status || 'Nháp lưu riêng trên thiết bị này, không đồng bộ giữa các máy.'}</p><button type="button" className="secondary" disabled={busy || !draft.ready} onClick={()=>void clearDraft()}>Xóa nháp</button></div>
+      <ImageInput images={images} activeImage={image} disabled={busy||!draft.ready} onBusy={setBusy} onMessage={setMessage} onChoose={chooseImage} onRemove={removeImage} onImages={(next,append)=>{setImages(next);chooseImage(next[0]);if(!append){setMenu(null);setAllowMissing(false);}setMergeBase(null);}}/>
       {image && file?.name && !file.type && <p className="menu-image-hint">Ảnh đã khôi phục: {file.name}. Không cần chọn lại để tiếp tục OCR hoặc sửa món.</p>}
       <button disabled={busy || !image} onClick={() => void runOcr()}>{busy ? 'Đang xử lý…' : 'Đọc thực đơn'}</button>
+      {image&&(menu||menuHistory.past.length>0||menuHistory.future.length>0)&&<div className="menu-history-tools"><button type="button" className="secondary" disabled={busy || !menuHistory.past.length} onClick={() => moveMenuHistory('undo')}>Hoàn tác</button><button type="button" className="secondary" disabled={busy || !menuHistory.future.length} onClick={() => moveMenuHistory('redo')}>Làm lại</button><small>Ctrl/⌘ Z · Ctrl/⌘ Shift Z. Lịch sử sửa chỉ giữ trong lần mở này.</small></div>}
       {image && <div className={`menu-review-layout${menu ? '' : ' image-only'}`}>
       <MenuImagePreview src={image} name={file?.name} regionDisabled={busy || !menu} onRegion={menu ? () => setRegionBase({image,menu}) : undefined} />
       {menu && <form className="menu-review" onSubmit={createWeek} onBlur={() => dispatchMenu({ type: 'commit' })} onKeyDown={event => {
         if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'z' && !busy) { event.preventDefault(); moveMenuHistory(event.shiftKey ? 'redo' : 'undo'); }
       }}>
-        <div className="menu-history-tools"><button type="button" className="secondary" disabled={busy || !menuHistory.past.length} onClick={() => moveMenuHistory('undo')}>Hoàn tác</button><button type="button" className="secondary" disabled={busy || !menuHistory.future.length} onClick={() => moveMenuHistory('redo')}>Làm lại</button><small>Ctrl/⌘ Z · Ctrl/⌘ Shift Z. Lịch sử sửa chỉ giữ trong lần mở này.</small></div>
         <label>Tiêu đề tuần<input value={menu.title || ''} maxLength={500} disabled={busy} onChange={event => dispatchMenu({ type: 'edit', group: 'title', value: current => ({ ...current, title: event.target.value }) })} /></label>
         <label>Chọn thứ Hai<input aria-label="Chọn thứ Hai" type="date" value={/^\d{2}\/\d{2}\/\d{4}$/.test(menu.days?.[0]?.date || '') ? menu.days[0].date.split('/').reverse().join('-') : ''} disabled={busy} onChange={event => chooseMonday(event.target.value)} /><small>Tự điền 5 ngày, giữ món/ngày nghỉ. Hoàn tác khôi phục cả tuần.</small></label>
         {existingWeek && <div className="existing-week-warning" role="status"><strong>Tuần này đã có Form — không tạo hoặc ghi đè tuần mới.</strong><div className="dashboard-links">{existingFormUrl && <a href={existingFormUrl} target="_blank" rel="noreferrer">Mở Form</a>}{existingSheetUrl && <a href={existingSheetUrl} target="_blank" rel="noreferrer">Mở Sheet</a>}<button type="button" className="secondary" disabled={busy} onClick={() => void refreshOverview()}>Tải lại sổ tuần</button></div></div>}
@@ -634,6 +632,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <div className="dashboard-sticky-tools" ref={viewState.toolbarRef}>{weekPicker()}<div className="dashboard-refresh-bar"><button className="secondary" disabled={busy || weekLoading || !weekKey} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</button>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div><label className="dashboard-search">Tìm theo họ tên<input maxLength={200} value={query} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label></div>
       {displayedWeek && !weekReady && <p className="dashboard-cache-status" role="status">{cacheTime ? `Bản lưu lúc ${formatTime(cacheTime)}. ` : 'Dữ liệu lần xem trước. '}{weekLoading ? 'Đang xác minh…' : 'Chưa xác minh được; chỉ xem, hãy tải lại trước khi thao tác.'}</p>}
       {displayedWeek && weekReady && <p className="dashboard-hint">Dữ liệu đã xác minh. Tự kiểm tra lượt mới mỗi phút khi tab đang mở; bảng chỉ đổi khi tải lại.</p>}
+      {reloadChanges&&weekReady&&<p className="reload-changes" role="status">Thay đổi lượt Form toàn tuần so với lần xác minh trước: <strong>{reloadChanges.added} mới · {reloadChanges.missing} đã mất · {reloadChanges.changed} thay đổi</strong>. Chỉ thông báo, không tự sửa/xóa.</p>}
       {pollError && <p className="dashboard-hint" role="status">{pollError}</p>}
       <p className="dashboard-warning">Chỉ hiện lượt ghép duy nhất giữa Google Form và Sheet. Khôi phục sẽ tạo lượt Form mới; thời điểm gửi gốc được lưu trong lịch sử.</p>
       <div className="dashboard-response-tools">
@@ -698,6 +697,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       </li>)}</ul>
     </section>}
     <ActionToast message={toast?.message} kind={toast?.kind} onDismiss={dismissToast} />
+    {mergeBase&&<MultiImageReview fragments={mergeBase.fragments} images={mergeBase.images} base={mergeBase.menu} onClose={()=>setMergeBase(null)} onApply={next=>{if(images!==mergeBase.images||menu!==mergeBase.menu)throw new Error('Nháp/ảnh đã thay đổi; hãy đóng và đọc lại.');dispatchMenu({type:'apply',value:next});setAllowMissing(false);setMergeBase(null);setMessage('Đã áp dụng bản ghép. Hãy rà soát ngày/món trước khi tạo tuần.','info');}}/>}
     {regionBase && <RegionOcr image={regionBase.image} menu={regionBase.menu} request={request} onBusy={setBusy} onClose={() => setRegionBase(null)} onApply={(target,result) => {
       if (menu !== regionBase.menu || image !== regionBase.image) throw new Error('Nháp đã thay đổi; đóng cửa sổ và chọn vùng lại.');
       dispatchMenu({type:'edit',value:applyRegionResult(menu,target,result)});setAllowMissing(false);setRegionBase(null);

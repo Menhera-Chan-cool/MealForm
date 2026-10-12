@@ -49,8 +49,9 @@ async page => {
       await p.getByRole('button',{name:'Hoàn tác',exact:true}).click();await p.locator('.existing-week-warning').waitFor();
       await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.locator('[data-response-id="record-0"]').filter({hasText:'Người thử 0'}).waitFor();
       await p.evaluate(()=>window.scrollTo(0,document.querySelector('.dashboard-sticky-tools').getBoundingClientRect().top+scrollY+300));
+      if(width===390)await p.waitForFunction(()=>{const bounds=document.querySelector('.dashboard-sticky-tools').getBoundingClientRect();return bounds.y>=-1&&bounds.y<=30&&bounds.height<=220;});
       const bounds=await p.locator('.dashboard-sticky-tools').boundingBox();
-      if(width===390&&(bounds.y < -1 || bounds.y>30 || bounds.height>220))throw Error('Sticky toolbar not compact or not pinned');
+      if(width===390&&(bounds.y < -1 || bounds.y>30 || bounds.height>220))throw Error('Sticky toolbar not compact or not pinned '+JSON.stringify({bounds,state:await p.evaluate(()=>({font:document.documentElement.dataset.textSize,position:getComputedStyle(document.querySelector('.dashboard-sticky-tools')).position,y:scrollY}))}));
       await p.getByPlaceholder('Nhập tên cần tìm').fill('Người thử 2');
       if(width===390){const focused=await p.locator('.dashboard-sticky-tools').boundingBox();if(focused.height>120)throw Error('Focused search did not compact for keyboard');}
       await p.getByPlaceholder('Nhập tên cần tìm').blur();

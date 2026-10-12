@@ -7,11 +7,11 @@ export function normalizeBranding(value) {
   return { schoolName, logoUrl, primaryColor, updatedAt: Number.isFinite(Number(value?.updatedAt)) ? Math.max(0, Number(value.updatedAt)) : 0 };
 }
 
-export function brandingTheme(color) {
+export function brandingTheme(color,scheme='light') {
   const primary = normalizeBranding({ primaryColor: color }).primaryColor;
   const rgb = [1, 3, 5].map(index => parseInt(primary.slice(index, index + 2), 16));
   const channels = rgb.map(value => { const channel = value / 255; return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4; });
   const luminance = channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
   const blend = (other, weight) => '#' + rgb.map(value => Math.round(value * (1 - weight) + other * weight).toString(16).padStart(2, '0')).join('');
-  return { primary, foreground: (luminance + .05) / .05 >= 1.05 / (luminance + .05) ? '#000000' : '#ffffff', surface: blend(255, .93), border: luminance > .4 ? blend(0, .55) : blend(255, .3), ink: blend(0, .7), hover: blend(0, .15) };
+  return { primary, foreground: (luminance + .05) / .05 >= 1.05 / (luminance + .05) ? '#000000' : '#ffffff', surface: scheme==='dark'?blend(0,.7):blend(255, .93), border: scheme==='dark'?blend(255,.6):luminance > .4 ? blend(0, .55) : blend(255, .3), ink: scheme==='dark'?blend(255,.85):blend(0, .7), hover: blend(0, .15) };
 }

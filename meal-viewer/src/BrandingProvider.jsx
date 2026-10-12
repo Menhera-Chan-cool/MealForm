@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { brandingTheme, DEFAULT_BRANDING, normalizeBranding } from './branding.mjs';
+import {useAppearance} from './AppearanceProvider.jsx';
 
 const BrandingContext = createContext(DEFAULT_BRANDING);
 export const useBranding = () => useContext(BrandingContext);
@@ -14,6 +15,7 @@ function SchoolBrand({ branding }) {
 }
 
 export default function BrandingProvider({ children }) {
+  const appearance=useAppearance();
   const [branding, setBranding] = useState(DEFAULT_BRANDING);
   useEffect(() => {
     let active = true;
@@ -29,10 +31,10 @@ export default function BrandingProvider({ children }) {
     const originalTitle = document.title;
     if (branding.schoolName || branding.logoUrl || branding.primaryColor !== DEFAULT_BRANDING.primaryColor) {
       root.dataset.branding = 'true';
-      Object.entries(brandingTheme(branding.primaryColor)).forEach(([name, value]) => root.style.setProperty(`--brand-${name}`, value));
+      Object.entries(brandingTheme(branding.primaryColor,appearance.scheme)).forEach(([name, value]) => root.style.setProperty(`--brand-${name}`, value));
       if (branding.schoolName) document.title = `${branding.schoolName} - Menu bán trú`;
     }
     return () => { delete root.dataset.branding; Object.keys(brandingTheme(branding.primaryColor)).forEach(name => root.style.removeProperty(`--brand-${name}`)); document.title = originalTitle; };
-  }, [branding]);
+  }, [branding,appearance.scheme]);
   return <BrandingContext.Provider value={branding}><SchoolBrand branding={branding} />{children}</BrandingContext.Provider>;
 }
