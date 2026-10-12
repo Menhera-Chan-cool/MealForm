@@ -21,6 +21,7 @@ Selected-week audit filters, region-only OCR with editable preview/atomic Undo, 
 - Vercel retry reached READY for `dpl_BYjuy6w5pHzmsAoRvLSpbNDryVAB`, aliased to `https://menutaythanh.vercel.app`. Initial CLI authorization failure was resolved after read-only identity/project checks and retry, without replacing credentials.
 - Authenticated Edge production smoke: verified email header, batch metadata with 24 initial rows, zero-result history criteria acknowledged by the matching API response, mobile no page overflow, public version JSON with no-store and only id. Active asset `/assets/index-BeMyIiVj.js`; zero Dashboard mutation requests. The selected real week had fewer than 50 responses, so live load-more was not applicable; 50+ behavior is covered by native and browser fixtures.
 - Production checks restored original display cache/preferences and preserved the owner browser. No real response submission/delete/restore or paid OCR during QA.
+- Feature/source/README pushed and verified on GitHub main at `0633d3cb535fe6dfec5791981c3567c6e6ca0aa6`; local and remote heads matched. User-owned release checkout retained without resetting unrelated changes.
 
 ## Limits
 

@@ -9,7 +9,7 @@
 - [x] Region crop, authorized OCR parsing, editable preview and atomic Undo, native/browser tests.
 - [x] Build version metadata/banner and explicit draft flush, failure/browser tests.
 - [x] Full regressions, clean sharing configuration/README and browser QA.
-- [ ] Backend/web deployment, readonly production checks and verified GitHub delivery.
+- [x] Backend/web deployment, readonly production checks and verified GitHub delivery (Apps Script 76, Vercel READY, feature commit 0633d3c on main).
 
 ## Dashboard interaction QoL approved 2026-10-11
 
