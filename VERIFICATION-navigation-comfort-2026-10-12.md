@@ -19,7 +19,7 @@
 
 - Apps Script 77, 12/10/2026 20:44 Vietnam time. Saved and reloaded source matched before deploy; four active functions updated, four added, 122 unrelated active functions preserved. Existing execute-as-owner, public deployment URL/access and manifest retained. Private source backup is outside the clean package/repository.
 - Final Vercel deployment: `dpl_7uppiUTf4RwkAoWmTC9RmZqDN63M`, READY, production alias <https://menutaythanh.vercel.app>, asset `/assets/index-CUUf9vme.js`, version `1ab7732f-cbcb-41bd-bf92-9bab99560cf0`.
-- Clean release source/README synchronized to GitHub; configuration getters remain Script Properties based. RAR files were not rebuilt.
+- Clean release source/README synchronized to GitHub, feature commit `995fc0fdb012b47db36bbb1cdf9eaf163ffbb21c` verified on remote main; configuration getters remain Script Properties based. RAR files were not rebuilt.
 
 ## Limits
 

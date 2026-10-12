@@ -8,7 +8,7 @@
 - [x] Owner editor and expiry-safe public notice, browser checks.
 - [x] Read cancellation in Dashboard/viewer, stale/auth/readonly checks.
 - [x] Full regression, clean sharing config/README synchronization.
-- [ ] Backend/web deployment, readonly production and verified GitHub delivery.
+- [x] Backend/web deployment, readonly production and verified GitHub delivery (Apps Script 77, final Vercel READY, feature commit 995fc0f on main).
 
 ## Review and scale QoL approved 2026-10-12
 
