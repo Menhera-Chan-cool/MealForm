@@ -1,5 +1,15 @@
 # Admin upgrades
 
+## Navigation and comfort QoL approved 2026-10-12
+
+- [x] Pure preference/command/read-gate helpers with RED/GREEN tests.
+- [x] Text size and safe native palette, draft/focus/permission browser checks.
+- [x] Owner notice storage/API/audit/expiry guards, native and API tests.
+- [x] Owner editor and expiry-safe public notice, browser checks.
+- [x] Read cancellation in Dashboard/viewer, stale/auth/readonly checks.
+- [x] Full regression, clean sharing config/README synchronization.
+- [ ] Backend/web deployment, readonly production and verified GitHub delivery.
+
 ## Review and scale QoL approved 2026-10-12
 
 - [x] Verified private account badge and permissions, API/header tests.

@@ -2,11 +2,16 @@
 
 ## Cập nhật ngày 12/10/2026
 
-Mã backend đã đồng bộ đến Apps Script phiên bản 76: bộ lọc lịch sử toàn tuần, OCR từng vùng ảnh, tải thêm từng đợt, hiển thị tài khoản/quyền và thông báo phiên bản web mới. Giữ tám cải tiến Dashboard trước đó cùng ngày nghỉ, Undo OCR và các kiểm tra an toàn. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
+Mã backend đã đồng bộ đến Apps Script phiên bản 77: thêm thanh lệnh nhanh, cỡ chữ, thông báo tuần và dừng chờ dữ liệu. Giữ các cải tiến Dashboard, bộ lọc lịch sử toàn tuần, OCR từng vùng ảnh, tải từng đợt, ngày nghỉ và Undo. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.
 
 Điều hướng dùng nút xanh đồng bộ trên điện thoại và máy tính. Kho tuần cũ ở `/history` yêu cầu đăng nhập; `/old` đã ngừng phục vụ thực đơn và chuyển hướng về kho tuần. Không xóa dữ liệu các tuần cũ.
 
 ## Tính năng mới trong bản này
+
+- Lệnh nhanh: Ctrl/⌘ K hoặc nút trên điện thoại; tìm tuần đã đăng ký, tab Dashboard theo quyền và trang xem/cài đặt. Chỉ điều hướng, không xóa, tạo hay đọc OCR bằng phím tắt. Escape đóng và trả focus, phím mũi tên/Enter chọn lệnh. Chặn khi đang xử lý hoặc có hộp thoại khác; chờ lưu nháp OCR trước khi chuyển trang, lỗi lưu giữ nguyên trang.
+- Cỡ chữ Bình thường/Lớn dùng chung cho PC/mobile và hộp thoại, nhớ trên trình duyệt. Nếu trình duyệt chặn lưu thì vẫn đổi cỡ chữ trong lần mở hiện tại. Không thay dữ liệu hoặc đồng bộ tùy chọn giữa thiết bị.
+- Chủ sở hữu thêm/sửa/xóa thông báo văn bản tối đa 500 ký tự cho từng tuần đã đăng ký, có xác nhận và lịch sử. Ngày hết hạn là hết ngày Việt Nam; trang xem tự ẩn nội dung khi hết hạn, kể cả bản lưu. Lưu trong Script Properties riêng `MEAL_WEEK_NOTICE_<weekKey>`, không đổi câu trả lời Form/Sheet và không thêm OAuth scope. Thông báo là công khai: không nhập thông tin học sinh hoặc secrets. Hai phiên cùng sửa phải tải lại nếu phiên bản đã đổi; lỗi ghi lịch sử sau khi lưu được báo cần kiểm tra, không giả báo chưa thay đổi.
+- Dừng chờ dữ liệu: ngừng chờ các lượt đọc trên trình duyệt trong Dashboard/trang xem/kho tuần, giữ bản đúng tuần chỉ đọc và yêu cầu tải lại để xác minh trước khi thao tác. Bỏ qua phản hồi muộn, kể cả lỗi đăng nhập của lượt đã dừng. Không áp dụng cho xóa/khôi phục, sửa Form, lưu thông báo hoặc OCR; không hủy hay tự thử lại tác vụ backend.
 
 - Đầu Dashboard hiện Gmail từ phiên đăng nhập đã xác minh, vai trò Chủ sở hữu/Quản trị/Chỉ xem và quyền thực tế. Không nhận Gmail từ nội dung do trình duyệt gửi, không thêm danh tính này vào API trang xem công khai hoặc cache trình duyệt.
 - Lượt gửi tải 50 bản ghi mỗi đợt, có nút Tải thêm. Tìm tên không dấu/sắp xếp xử lý trên toàn bộ tuần ở backend; không chỉ lọc phần đã tải. Ghép Form–Sheet dùng chỉ mục cùng giây/tên/món chính xác như trước, vẫn từ chối ghép không duy nhất. Cache riêng của tài khoản thực thi giữ bản đối chiếu tối đa 30 giây, tách khỏi cache chống lặp yêu cầu, không chứa token xóa; chỉ cấp token cho trang trả về. Cache mất thì đọc lại; dữ liệu đổi giữa hai trang yêu cầu tải lại. Xóa/khôi phục vẫn đối chiếu dữ liệu thật ngay trước thao tác, không tin cache.

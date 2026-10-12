@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';import vm from 'node:vm';
+import {createDashboardHandler,createSessionToken,createViewerHandler} from './api/security.mjs';
+let now=Date.parse('2026-10-12T10:00:00Z'),writes=[],failAudit=false;
+class ClockDate extends Date{constructor(...args){super(...(args.length?args:[now]));}static now(){return now;}}
+const week='2026-10-12_2026-10-13_2026-10-14_2026-10-15_2026-10-16';
+const script=new Map([['MEAL_FORM_OWNER_EMAIL','owner@example.com']]);
+const user=new Map([['MEAL_FORM_REGISTRY',JSON.stringify({[week]:{formId:'form',spreadsheetId:'sheet'}})],['MEAL_DASHBOARD_ALLOWED_EMAILS','["manager@example.com"]']]);
+const props=map=>({getProperty:k=>map.get(k)||'',setProperty:(k,v)=>{writes.push(k);map.set(k,v);}});
+const gas=vm.createContext({Date:ClockDate,PropertiesService:{getScriptProperties:()=>props(script),getUserProperties:()=>props(user)},LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){}})},DriveApp:{getFileById:()=>({isTrashed:()=>false})},SpreadsheetApp:{openById:()=>({})}});
+vm.runInContext(fs.readFileSync(new URL('../MealForm.gs',import.meta.url),'utf8'),gas);
+assert.equal(typeof gas.setMealWeekNotice_,'function','owner weekly notices are missing');
+const audit=[];gas.getMealDashboardHistorySheet_=()=>({});gas.appendMealDashboardHistoryEvent_=(_s,event)=>{audit.push(event);return{id:'event',rowNumber:1};};gas.updateMealDashboardHistoryEvent_=(_s,_r,event)=>{if(failAudit)throw Error('audit unavailable');audit.push(event);};gas.invalidateMealDashboardSnapshot_=()=>{};
+const request={action:'dashboard-set-week-notice',email:'owner@example.com',weekKey:week,text:'Thứ Tư nghỉ',endsOn:'2026-10-12',expectedUpdatedAt:0};
+assert.throws(()=>gas.handleMealDashboardRequest_({...request,email:'manager@example.com'}),/chủ/);assert.equal(writes.length,0);
+assert.throws(()=>gas.handleMealDashboardRequest_({...request,endsOn:'2026-02-30'}),/hợp lệ/);assert.equal(writes.length,0);
+assert.throws(()=>gas.handleMealDashboardRequest_({...request,text:'x'.repeat(501)}),/500|hợp lệ/);assert.equal(writes.length,0);
+const saved=gas.handleMealDashboardRequest_(request);assert.equal(saved.notice.text,'Thứ Tư nghỉ');assert.equal(saved.notice.expiresAt,Date.parse('2026-10-12T17:00:00Z'));assert.ok(audit.some(e=>e.action==='week-notice-updated'));
+const registered=user.get('MEAL_FORM_REGISTRY');assert.equal(registered,JSON.stringify({[week]:{formId:'form',spreadsheetId:'sheet'}}),'notice text must not enlarge registry');
+assert.throws(()=>gas.handleMealDashboardRequest_({...request,text:'stale'}),/thay đổi|tải lại/);
+const publicData=gas.attachMealWeekNotice_({rows:[]},'sheet');assert.equal(publicData.weekNotice.text,'Thứ Tư nghỉ');assert.equal(JSON.stringify(publicData).includes('owner@example.com'),false);
+now=Date.parse('2026-10-12T17:00:00Z');assert.equal(gas.attachMealWeekNotice_({weekNotice:{text:'stale'}},'sheet').weekNotice,null,'expiry must beat cached text');
+assert.equal(gas.handleMealDashboardRequest_({action:'dashboard-week-notice',email:'owner@example.com',weekKey:week}).notice.text,'Thứ Tư nghỉ','owner can inspect expired notice');
+now=Date.parse('2026-10-13T03:00:00Z');const cleared=gas.handleMealDashboardRequest_({...request,text:'',expectedUpdatedAt:saved.notice.updatedAt});assert.equal(cleared.notice.text,'');assert.ok(cleared.notice.updatedAt>saved.notice.updatedAt);
+assert.throws(()=>gas.handleMealDashboardRequest_({...request,endsOn:'2026-10-14',expectedUpdatedAt:saved.notice.updatedAt}),/thay đổi|tải lại/);
+failAudit=true;assert.throws(()=>gas.handleMealDashboardRequest_({...request,endsOn:'2026-10-14',expectedUpdatedAt:cleared.notice.updatedAt}),/chưa|kiểm tra/);assert.equal(gas.readMealWeekNotice_(week).text,'Thứ Tư nghỉ','partial audit failure must not pretend property write failed');
+const secret='unit-secret',token=createSessionToken({sub:'manager',email:'manager@example.com'},secret),calls=[];
+const handler=createDashboardHandler({secret,callGas:async p=>{calls.push(p);return{role:'manager',permissions:{view:true,create:true,manageResponses:true}};}});
+const res=()=>({setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}});
+for(const req of [{method:'GET',query:{notice:'1',week}},{method:'POST',body:{action:'set-week-notice',weekKey:week,text:'x',endsOn:'2026-10-14',expectedUpdatedAt:0}}]){const reply=res(),before=calls.length;await handler({...req,headers:{cookie:`meal_session=${token}`,origin:'https://example.com',host:'example.com'}},reply);assert.equal(reply.code,403);assert.equal(calls.length,before+1,'non-owner notice access cannot reach backend');}
+const publicReply=res();await createViewerHandler({secret,now:()=>now,readViewerData:async()=>({title:'Test',serverNow:now,weekNotice:{text:'Public',expiresAt:now+1000,actor:'private'}})})({method:'GET',headers:{},query:{newest:'1',guest:'1'}},publicReply);
+assert.equal(publicReply.body.weekNotice?.text,'Public','public API must retain notice');assert.equal('actor' in publicReply.body.weekNotice,false);
+const expiredReply=res();await createViewerHandler({secret,now:()=>now+1000,readViewerData:async()=>({title:'Test',serverNow:now,weekNotice:{text:'Expired',expiresAt:now+1000}})})({method:'GET',headers:{},query:{next:'1'}},expiredReply);assert.equal(expiredReply.body.weekNotice,null,'gateway must filter cached expired notices too');
+console.log('Owner-only weekly notices, expiry, stale edits, public filtering and audit failures passed');

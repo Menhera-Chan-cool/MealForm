@@ -158,3 +158,34 @@ export function accountRoleLabel(account) {
 export function isNewBuild(latest, current) {
   return typeof latest?.id === 'string' && /^[\w-]{1,100}$/.test(latest.id) && latest.id !== current;
 }
+
+export function readTextSize(storage) {
+  try { storage||=globalThis.localStorage;return storage?.getItem('meal-text-size') === 'large' ? 'large' : 'normal'; } catch { return 'normal'; }
+}
+
+export function writeTextSize(value,storage) {
+  try { storage||=globalThis.localStorage;storage?.setItem('meal-text-size',value==='large'?'large':'normal'); } catch { /* Presentation still changes if storage is unavailable. */ }
+}
+
+export function dashboardCommands(account) {
+  if (!['owner','manager'].includes(account?.role) || account.permissions?.view === false) return [];
+  const permissions=account.permissions || {create:true,manageResponses:true};
+  const tabs=[['overview','Tổng quan'],['delete','Lượt gửi và lịch sử'],['reconcile','Đối soát']];
+  if(permissions.create)tabs.push(['create','Tạo tuần bằng OCR']);
+  if(account.role==='owner')tabs.push(['form','Điều khiển Form'],['notice','Thông báo tuần'],['branding','Thương hiệu'],['health','Hệ thống'],['access','Quyền Gmail']);
+  return [...tabs.map(([tab,label])=>({id:`tab-${tab}`,kind:'tab',tab,label})),...(account.weeks||[]).map(week=>({id:`week-${week.weekKey}`,kind:'week',weekKey:week.weekKey,label:`Mở ${week.name||week.weekKey}`}))];
+}
+
+export function createReadWait(changed=()=>{}) {
+  let version=0;const pending=new Set();
+  return {
+    begin(){const controller=new AbortController(),ticket={version,controller,signal:controller.signal};pending.add(ticket);changed(pending.size);return ticket;},
+    current(ticket){return ticket.version===version&&!ticket.signal.aborted;},
+    finish(ticket){pending.delete(ticket);changed(pending.size);},
+    cancel(){version++;for(const ticket of pending)ticket.controller.abort();pending.clear();changed(0);}
+  };
+}
+
+export function activeWeekNotice(notice,now=Date.now()) {
+  return typeof notice?.text==='string'&&notice.text.trim()&&notice.text.length<=500&&Number.isFinite(notice.expiresAt)&&notice.expiresAt>now?{text:notice.text,expiresAt:notice.expiresAt}:null;
+}

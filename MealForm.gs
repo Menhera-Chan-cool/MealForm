@@ -51,14 +51,14 @@ function getViewerData_(spreadsheetId, forceRefresh) {
   if (cache && !forceRefresh) {
     const cached = cache.get(cacheKey);
     if (cached) {
-      try { return JSON.parse(cached); } catch (error) { /* Ignore a stale cache entry. */ }
+      try { return attachMealWeekNotice_(JSON.parse(cached),id); } catch (error) { /* Ignore a stale cache entry. */ }
     }
   }
   const data = readViewerData_(id);
   if (cache) {
     try { cache.put(cacheKey, JSON.stringify(data), 45); } catch (error) { /* Cache is best effort. */ }
   }
-  return data;
+  return attachMealWeekNotice_(data,id);
 }
 
 function doPost(e) {
@@ -367,6 +367,10 @@ function handleMealDashboardRequest_(request) {
   }
   if (!role) throw new Error('Tài khoản này chưa được cấp quyền dashboard.');
   assertMealDashboardAccess_(request.email);
+  if (request.action==='dashboard-week-notice' || request.action==='dashboard-set-week-notice') {
+    if(role!=='owner')throw new Error('Chỉ chủ sở hữu được quản lý thông báo tuần.');
+    return request.action==='dashboard-set-week-notice'?setMealWeekNotice_(request):{notice:readMealWeekNotice_(request.weekKey),serverNow:Date.now()};
+  }
   if (['dashboard-delete','dashboard-restore','dashboard-form-control'].indexOf(request.action) >= 0) invalidateMealDashboardSnapshot_(request.weekKey);
   if (request.action === 'dashboard-form-control' || request.action === 'dashboard-set-branding') {
     if (role !== 'owner') throw new Error('Chỉ chủ sở hữu được thay đổi Form và thương hiệu.');
@@ -760,7 +764,7 @@ function getMealDashboardWeek_(weekKey, onlyReconciliation, snapshot) {
   return { week: { weekKey: key, name: item.weekFolderName || spreadsheet.getName(), formUrl: cleanMealText_(item.responseUrl) || form.getPublishedUrl(),
       spreadsheetUrl: item.spreadsheetUrl || spreadsheet.getUrl(), folderUrl: item.weekFolderUrl || '',
       formStatus: form.isAcceptingResponses() ? 'open' : 'closed', lockAt: getMealFormLockDeadline_(key, item),
-      dayLabels: layout.dayIndexes.map(function(index) { return cleanMealText_(headers[index]); }), closedDays: Array.isArray(item.closedDays) ? item.closedDays.slice(0, 5).map(cleanMealText_) : [] }, responseCount: rowCount, responseIds: formResponses.map(function(response) { return cleanMealText_(response.getId()); }).filter(Boolean), responses: responses, reconciliation: reconciliation, history: getMealDashboardHistoryForClient_(getMealDashboardHistorySheet_(spreadsheet, false), snapshot === true) };
+      dayLabels: layout.dayIndexes.map(function(index) { return cleanMealText_(headers[index]); }), closedDays: Array.isArray(item.closedDays) ? item.closedDays.slice(0, 5).map(cleanMealText_) : [], weekNotice:snapshot?null:publicMealWeekNotice_(key),serverNow:snapshot?0:Date.now() }, responseCount: rowCount, responseIds: formResponses.map(function(response) { return cleanMealText_(response.getId()); }).filter(Boolean), responses: responses, reconciliation: reconciliation, history: getMealDashboardHistoryForClient_(getMealDashboardHistorySheet_(spreadsheet, false), snapshot === true) };
 }
 
 function createMealDashboardDeleteToken_(weekKey, responseId, target) {
@@ -1973,7 +1977,7 @@ function getMealDashboardBatch_(request) {
   const events=data.history.filter(function(event) { return event.at>=start && event.at<end && (!audit.actor || fold(event.actor).indexOf(fold(audit.actor))>=0) && (!audit.action || event.action===audit.action) && (!audit.note || fold(dashboardAuditSearchText_(event.note)).indexOf(fold(audit.note))>=0) && (!audit.errorsOnly || /(?:-pending|-review|-failed)$|^partial$/.test(event.action)); });
   const restored=new Set(data.history.filter(function(event) { return /^restore-/.test(event.action) || event.action==='restored'; }).map(function(event) { return event.entryId; }));
   const historyPage={offset:historyOffset,nextOffset:historyOffset+50<events.length?historyOffset+50:null,matchedCount:events.length,total:data.history.length,filters:audit,actions:Array.from(new Set(data.history.map(function(event) { return event.action; })))};
-  return {week:data.week,responseCount:data.responseCount,responseIds:data.responseIds,responses:selected,history:offset === 0 ? events.slice(historyOffset,historyOffset+50).map(function(event) { return Object.assign({},event,{restorable:event.restorable && !restored.has(event.entryId)}); }) : undefined,historyPage:historyPage,
+  return {week:Object.assign({},data.week,{weekNotice:publicMealWeekNotice_(key),serverNow:Date.now()}),responseCount:data.responseCount,responseIds:data.responseIds,responses:selected,history:offset === 0 ? events.slice(historyOffset,historyOffset+50).map(function(event) { return Object.assign({},event,{restorable:event.restorable && !restored.has(event.entryId)}); }) : undefined,historyPage:historyPage,
     page:{offset:offset,nextOffset:offset + selected.length < matches.length ? offset + selected.length : null,matchedCount:matches.length,total:data.responses.length,query:query,sort:sort,revision:revision,snapshotAt:data.snapshotAt}};
 }
 
@@ -2041,4 +2045,51 @@ function dashboardAuditSearchText_(note) {
   if(details && details.reason) parts.push('Lý do: '+details.reason);
   if(details && details.diagnostic) parts.push(details.diagnostic);
   return parts.join(' ');
+}
+
+function readMealWeekNotice_(weekKey) {
+  const key=cleanMealText_(weekKey),item=getMealFormRegistry_()[key];
+  if(!item || !item.formId || !item.spreadsheetId)throw new Error('Không tìm thấy tuần đã đăng ký.');
+  const raw=PropertiesService.getScriptProperties().getProperty('MEAL_WEEK_NOTICE_'+key);
+  if(!raw)return{text:'',endsOn:'',expiresAt:0,updatedAt:0};
+  let value;try{value=JSON.parse(raw);}catch(error){throw new Error('Dữ liệu thông báo bị lỗi; chủ cần kiểm tra, không ghi đè.');}
+  if(typeof value.text!=='string'||value.text.length>500||typeof value.endsOn!=='string'||!Number.isSafeInteger(value.updatedAt)||value.updatedAt<0||!Number.isFinite(value.expiresAt))throw new Error('Dữ liệu thông báo không hợp lệ; không ghi đè.');
+  return{text:value.text,endsOn:value.endsOn,expiresAt:value.expiresAt,updatedAt:value.updatedAt};
+}
+
+function publicMealWeekNotice_(weekKey) {
+  try{const value=readMealWeekNotice_(weekKey);return value.text && value.expiresAt>Date.now()?{text:value.text,expiresAt:value.expiresAt}:null;}catch(error){return null;}
+}
+
+function attachMealWeekNotice_(data,spreadsheetId) {
+  const key=getMealFormWeekKeyBySpreadsheetId_(spreadsheetId);
+  return Object.assign({},data,{weekNotice:key?publicMealWeekNotice_(key):null,serverNow:Date.now()});
+}
+
+function setMealWeekNotice_(request) {
+  if(getMealDashboardAccessRole_(request.email)!=='owner')throw new Error('Chỉ chủ sở hữu được quản lý thông báo tuần.');
+  const key=cleanMealText_(request.weekKey),item=getMealFormRegistry_()[key];
+  if(!item || !isLiveMealFile_(item.formId) || !isLiveMealFile_(item.spreadsheetId))throw new Error('Không tìm thấy tuần đã đăng ký.');
+  if(typeof request.text!=='string'||request.text.length>500||!Number.isSafeInteger(request.expectedUpdatedAt)||request.expectedUpdatedAt<0)throw new Error('Thông báo phải là văn bản tối đa 500 ký tự, phiên sửa hợp lệ.');
+  const text=request.text.trim(),endsOn=text?request.endsOn:'';
+  if(text&&(typeof endsOn!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(endsOn)||parseDateKey_(endsOn)!==endsOn))throw new Error('Ngày hết hạn không hợp lệ.');
+  const expiresAt=text?Date.parse(endsOn+'T00:00:00+07:00')+86400000:0;
+  if(text&&expiresAt<=Date.now())throw new Error('Ngày hết hạn phải là hôm nay hoặc tương lai, theo giờ Việt Nam.');
+  const lock=LockService.getScriptLock();lock.waitLock(5000);
+  try{
+    const previous=readMealWeekNotice_(key);
+    if(previous.updatedAt!==request.expectedUpdatedAt)throw new Error('Thông báo đã thay đổi; tải lại trước khi sửa.');
+    const notice={text:text,endsOn:endsOn,expiresAt:expiresAt,updatedAt:Math.max(Date.now(),previous.updatedAt+1)};
+    const sheet=getMealDashboardHistorySheet_(SpreadsheetApp.openById(item.spreadsheetId),true);
+    const record=appendMealDashboardHistoryEvent_(sheet,{action:'week-notice-pending',actor:request.email,name:'Thông báo tuần',meals:[],note:text?'Đang lưu thông báo công khai.':'Đang gỡ thông báo công khai.'});
+    const event={id:record.id,entryId:record.id,at:Date.now(),actor:request.email,name:'Thông báo tuần',meals:[],restorable:false};
+    try{
+      PropertiesService.getScriptProperties().setProperty('MEAL_WEEK_NOTICE_'+key,JSON.stringify(notice));
+      event.action=text?'week-notice-updated':'week-notice-cleared';
+      event.note=text?'Thông báo công khai: '+text+' | Hết hạn cuối ngày '+endsOn+' (giờ Việt Nam).':'Đã gỡ thông báo công khai: '+previous.text;
+      updateMealDashboardHistoryEvent_(sheet,record.rowNumber,event);
+      invalidateMealDashboardSnapshot_(key);
+      return{notice:notice,serverNow:Date.now()};
+    }catch(error){event.action='week-notice-review';event.note='Thay đổi thông báo chưa xác nhận đầy đủ; tải lại và kiểm tra lịch sử.';try{updateMealDashboardHistoryEvent_(sheet,record.rowNumber,event);}catch(auditError){}invalidateMealDashboardSnapshot_(key);throw new Error('Thay đổi thông báo chưa hoàn tất; tải lại để kiểm tra trước khi thử lại.');}
+  }finally{lock.releaseLock();}
 }

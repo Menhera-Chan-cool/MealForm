@@ -59,7 +59,7 @@ export function createGasEnvelope(payload, secret, now = Date.now(), nonce = ran
 
 async function requestAppsScript(url, secret, payload, fetchImpl = fetch, now = Date.now, retried = false) {
   if (!url || !secret) throw new Error('Apps Script API is not configured.');
-  const readOnly = payload.action?.startsWith('read-') || ['dashboard-authorize', 'dashboard-overview', 'dashboard-week', 'dashboard-batch', 'dashboard-health', 'dashboard-reconcile', 'dashboard-response-ids', 'dashboard-locate'].includes(payload.action);
+  const readOnly = payload.action?.startsWith('read-') || ['dashboard-authorize', 'dashboard-overview', 'dashboard-week', 'dashboard-batch', 'dashboard-week-notice', 'dashboard-health', 'dashboard-reconcile', 'dashboard-response-ids', 'dashboard-locate'].includes(payload.action);
   const signal = readOnly ? AbortSignal.timeout(20000) : undefined;
   const retryRead = () => requestAppsScript(url, secret, payload, fetchImpl, now, true);
   const envelope = createGasEnvelope(payload, secret, now());
@@ -167,6 +167,11 @@ export function createDashboardHandler({ secret, callGas, readViewerData, config
         const weekKey = String(req.query?.week || '');
         if ((req.query?.reconcile === '1' || req.query?.updates === '1' || req.query?.locate === '1') && !weekKey) return res.status(400).json({ error: 'Chọn tuần trước khi kiểm tra.' });
         payload = weekKey ? { action: req.query?.reconcile === '1' ? 'dashboard-reconcile' : req.query?.updates === '1' ? 'dashboard-response-ids' : req.query?.locate === '1' ? 'dashboard-locate' : 'dashboard-week', email: session.email, weekKey } : { action: 'dashboard-overview', email: session.email };
+        if(req.query?.notice==='1'){
+          if(role!=='owner')return res.status(403).json({error:'Chỉ chủ sở hữu được quản lý thông báo tuần.'});
+          if(!weekKey)return res.status(400).json({error:'Chọn tuần để quản lý thông báo.'});
+          payload={action:'dashboard-week-notice',email:session.email,weekKey};
+        }
         if (req.query?.batch === '1') {
           const offset = Number(req.query.offset || 0), query = String(req.query.query || ''), sort = String(req.query.sort || 'newest'), revision = String(req.query.revision || '');
           if (!weekKey || !Number.isSafeInteger(offset) || offset < 0 || offset > 100000 || query.length > 200 || !['newest','oldest','name'].includes(sort) || (revision && !/^[a-f0-9]{64}$/.test(revision))) return res.status(400).json({ error: 'Tham số tải lượt gửi không hợp lệ.' });
@@ -183,9 +188,11 @@ export function createDashboardHandler({ secret, callGas, readViewerData, config
         const body = requestBody(req.body);
         if (['ocr', 'ocr-region', 'create'].includes(body.action) && permissions.create !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền OCR hoặc tạo tuần.' });
         if ((req.method === 'DELETE' || body.action === 'restore') && permissions.manageResponses !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền xóa hoặc khôi phục.' });
-        if (req.method === 'POST' && ['form-control', 'set-branding'].includes(body.action)) {
+        if (req.method === 'POST' && ['form-control', 'set-branding', 'set-week-notice'].includes(body.action)) {
           if (role !== 'owner') return res.status(403).json({ error: 'Chỉ chủ sở hữu được thay đổi Form và thương hiệu.' });
-          payload = body.action === 'form-control'
+          payload = body.action === 'set-week-notice'
+            ? {action:'dashboard-set-week-notice',email:session.email,weekKey:body.weekKey,text:body.text,endsOn:body.endsOn,expectedUpdatedAt:body.expectedUpdatedAt}
+            : body.action === 'form-control'
             ? { action: 'dashboard-form-control', email: session.email, weekKey: body.weekKey, mode: body.mode, deadline: body.deadline, expectedStatus: body.expectedStatus, expectedLockAt: body.expectedLockAt, reason: body.reason }
             : { action: 'dashboard-set-branding', email: session.email, branding: body.branding, expectedUpdatedAt: body.expectedUpdatedAt };
         } else if (body.action === 'authorize-script') {
@@ -219,11 +226,13 @@ export function cookieValue(header, name) {
   return '';
 }
 
-function publicViewerData(data) {
+function publicViewerData(data, now) {
   const headers = Array.isArray(data?.headers) ? data.headers.map(value => String(value ?? '')) : [];
   const hidden = headers.map((value, index) => /email|e-mail|địa chỉ thư điện tử/i.test(value) ? index : -1).filter(index => index >= 0);
   return {
     title: String(data?.title || ''),
+    serverNow: now,
+    weekNotice: typeof data?.weekNotice?.text === 'string' && data.weekNotice.text.trim() && data.weekNotice.text.length <= 500 && Number.isFinite(data.weekNotice.expiresAt) && data.weekNotice.expiresAt > now ? {text:data.weekNotice.text,expiresAt:data.weekNotice.expiresAt} : null,
     ...(Array.isArray(data?.closedDays) && data.closedDays.length ? {
       closedDays: data.closedDays.filter(value => typeof value === 'string').slice(0, 5),
       calendarDays: (Array.isArray(data.calendarDays) ? data.calendarDays : []).filter(value => typeof value === 'string').slice(0, 5)
@@ -253,10 +262,10 @@ export function createViewerHandler({ secret, readViewerData, now = Date.now }) 
     try {
       const action = isNewest ? 'read-latest-viewer' : isNext ? 'read-next-viewer' : 'read-viewer';
       const data = await readViewerData(sheetId, req.query?.refresh === '1', action);
-      const result = publicViewerData(data);
+      const result = publicViewerData(data,now());
       if (isNewest && data.formStatus === 'closed') {
         try {
-          const next = publicViewerData(await readViewerData('', req.query?.refresh === '1', 'read-next-viewer'));
+          const next = publicViewerData(await readViewerData('', req.query?.refresh === '1', 'read-next-viewer'),now());
           result.nextForm = { formUrl: next.formUrl, formStatus: next.formStatus, days: next.days };
         } catch (error) {
           if (!/^Chưa có thực đơn cho tuần sau\.$/.test(error?.message || '')) result.nextFormUnavailable = true;
@@ -281,7 +290,7 @@ export function createHistoryHandler({ secret, readViewerData, now = Date.now })
     if (weekKey && !/^[A-Za-z0-9_-]{1,120}$/.test(weekKey)) return res.status(400).json({ error: 'Tuần không hợp lệ.' });
     try {
       const data = await readViewerData(weekKey, req.query?.refresh === '1', weekKey ? 'read-history-viewer' : 'read-history');
-      return res.status(200).json(weekKey ? publicViewerData(data) : { weeks: data.weeks || [] });
+      return res.status(200).json(weekKey ? publicViewerData(data,now()) : { weeks: data.weeks || [] });
     } catch (error) {
       return res.status(502).json({ error: /^Không tìm thấy tuần đã đăng ký\.|^Chỉ xem tuần cũ/.test(error.message) ? error.message : 'Không thể tải kho tuần cũ. Hãy thử lại.' });
     }

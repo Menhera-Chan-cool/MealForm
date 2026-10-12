@@ -14,6 +14,8 @@ import HistoryArchive from './HistoryArchive.jsx';
 import SetupChecklist from './SetupChecklist.jsx';
 import VersionNotice from './VersionNotice.jsx';
 import { readLoginState } from './session-client.mjs';
+import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
+import WeekNotice from './WeekNotice.jsx';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '';
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
@@ -96,6 +98,12 @@ function App() {
   const rolloverTimer = useRef(null);
   const dataRef = useRef(data);
   dataRef.current = data;
+  const {gate:reads,pending:readPending}=useReadWait();
+  const [stoppedReading,setStoppedReading]=useState(false);
+  const stoppedRef=useRef(false);
+  function stopWaiting(){
+    stoppedRef.current=true;setStoppedReading(true);reads.cancel();loading.current=false;setBusy(false);setChecking(false);setFailure(null);setLoadError('');setMessage(STOP_WAIT_MESSAGE);
+  }
 
   useEffect(() => {
     if (fullMotion) document.documentElement.dataset.motionOverride = 'full';
@@ -115,13 +123,18 @@ function App() {
     const url = viewerApiUrl(viewerPath, viewerSearch, force, guest);
     if (!url) { setLoadError('Liên kết xem thiếu mã bảng tính.'); return; }
     if (loading.current) return;
+    if(background&&stoppedRef.current)return;
+    stoppedRef.current=false;setStoppedReading(false);
+    const ticket=reads.begin();
     loading.current = true;
     if (background) setChecking(true);
     else { setBusy(true); setLoadError(''); setMessage('Đang tải dữ liệu…'); }
     try {
-      const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+      const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store',signal:ticket.signal });
+      if(!reads.current(ticket))throw cancelledRead();
       if (response.status === 401) { setData(null); setAuth('anonymous'); setPendingUpdate(false); setLoadError(''); return; }
       const result = await response.json();
+      if(!reads.current(ticket))throw cancelledRead();
       const responseTime = Date.parse(response.headers.get('date') || '');
       if (Number.isFinite(responseTime)) setServerClockOffset(responseTime - Date.now());
       if (isWeekPage) {
@@ -140,6 +153,7 @@ function App() {
       if (!response.ok) throw Object.assign(new Error(errorMessage(result.error, 'Không thể tải dữ liệu.')), { status: response.status });
       setWeekUnavailable(false);
       if (background && shouldDeferViewerUpdate(dataRef.current, result)) {
+        setData(current=>({...current,weekNotice:result.weekNotice,serverNow:result.serverNow}));
         setPendingUpdate(true);
         setLoadError('');
         setMessage('');
@@ -151,6 +165,7 @@ function App() {
       setLoadError('');
       setMessage(background ? '' : 'Dữ liệu đã được cập nhật.');
     } catch (error) {
+      if(error.name==='AbortError')return;
       setFailure(safeErrorReport('viewer', error));
       const reason = error instanceof TypeError ? 'Không thể kết nối tới máy chủ.'
         : error instanceof SyntaxError ? 'Máy chủ trả về dữ liệu không hợp lệ.'
@@ -158,11 +173,14 @@ function App() {
       setLoadError(`${reason}${dataRef.current ? ' Dữ liệu lần tải trước đang được giữ.' : ''}`);
       setMessage('');
     } finally {
-      loading.current = false;
-      if (background) setChecking(false);
-      else setBusy(false);
+      if(reads.current(ticket)){
+        loading.current = false;
+        if (background) setChecking(false);
+        else setBusy(false);
+      }
+      reads.finish(ticket);
     }
-  }, [viewerPath, viewerSearch, isWeekPage]);
+  }, [viewerPath, viewerSearch, isWeekPage,reads]);
 
   useEffect(() => () => window.clearTimeout(rolloverTimer.current), [loadData]);
 
@@ -343,6 +361,9 @@ function App() {
       <MotionPreferenceToggle reducedMotion={reducedMotion} fullMotion={fullMotion} onToggle={() => setFullMotion(value => !value)} />
     </header>
     <nav className="viewer-navigation" aria-label="Các trang"><a className="action-link" href="/newest" aria-current={isNewestPage ? 'page' : undefined}>Tuần này</a><a className="action-link" href="/history">{isHistory ? '← Chọn tuần khác' : 'Kho tuần cũ'}</a></nav>
+    <WeekNotice notice={data?.weekNotice} serverNow={data?.serverNow}/>
+    {readPending>0&&<div className="read-wait"><button className="secondary" type="button" onClick={stopWaiting}>Dừng chờ dữ liệu</button><small>Không hủy tác vụ máy chủ.</small></div>}
+    {stoppedReading&&<p className="dashboard-cache-status" role="status">{message}</p>}
 
     {auth === 'anonymous' ? <section className="login-panel">
       <h2>{isWeekPage ? 'Đăng nhập hoặc xem với tư cách khách' : 'Đăng nhập để xem thực đơn'}</h2>
@@ -353,8 +374,8 @@ function App() {
         <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>
       </div>}
       <div className="message" role="status" aria-live="polite">{message}</div>
-    </section> : auth === 'loading' ? <p className="message" role="status">Đang xác nhận phiên đăng nhập…</p> : weekUnavailable ? <section className="login-panel" role="status">
-      <h2>{loadError}</h2>
+    </section> : auth === 'loading' ? <p className="message" role="status">Đang xác nhận phiên đăng nhập…</p> : weekUnavailable || (stoppedReading&&!data) ? <section className="login-panel" role="status">
+      <h2>{weekUnavailable?loadError:'Chưa tải được dữ liệu tuần này.'}</h2>
       <div className="actions">
         {weekLink.map(link => <a key={link.href} className="form-link week-link" href={link.href}>{link.label}</a>)}
         <button className="secondary" type="button" disabled={busy || checking} onClick={() => void loadData(true, auth === 'guest')}>Tải lại dữ liệu</button>

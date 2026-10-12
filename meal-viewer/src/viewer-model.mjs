@@ -29,7 +29,8 @@ export function mealRegistrationTarget(data, allowNext = false) {
 }
 
 export function shouldDeferViewerUpdate(current, incoming) {
-  return Boolean(current) && dayName(current.days?.[0]) === dayName(incoming.days?.[0]) && JSON.stringify(current) !== JSON.stringify(incoming);
+  const content = value => { const {serverNow,weekNotice,...rest}=value||{}; return rest; };
+  return Boolean(current) && dayName(current.days?.[0]) === dayName(incoming.days?.[0]) && JSON.stringify(content(current)) !== JSON.stringify(content(incoming));
 }
 
 export function millisecondsUntilMealWeekRollover(nowValue = Date.now()) {

@@ -6,7 +6,7 @@ const keyFor = (account, week) => `${PREFIX}${encodeURIComponent(account)}:${enc
 function displayData(data) {
   const fields = (value, names) => Object.fromEntries(names.filter(name => value?.[name] !== undefined).map(name => [name, value[name]]));
   return {
-    week: fields(data?.week, ['weekKey', 'name', 'formStatus', 'lockAt', 'dayLabels', 'closedDays']),
+    week: fields(data?.week, ['weekKey', 'name', 'formStatus', 'lockAt', 'dayLabels', 'closedDays', 'weekNotice', 'serverNow']),
     responseCount: Number(data?.responseCount) || 0,
     ...(data?.page ? {page:fields(data.page,['offset','nextOffset','matchedCount','total','query','sort','revision','snapshotAt'])} : {}),
     ...(data?.historyPage ? {historyPage:fields(data.historyPage,['offset','nextOffset','matchedCount','total','filters','actions'])} : {}),
@@ -22,7 +22,9 @@ export function readDashboardCache(account, week, storage, now = Date.now()) {
     storage ||= globalThis.localStorage;
     const value = JSON.parse(storage.getItem(keyFor(account, week)) || 'null');
     if (!value || value.account !== account || value.week !== week || !Number.isFinite(value.savedAt) || now < value.savedAt || now - value.savedAt >= TTL || value.data?.week?.weekKey !== week || !Array.isArray(value.data.responses) || !Array.isArray(value.data.history)) return null;
-    return { ...value, data: displayData(value.data) };
+    const data=displayData(value.data);
+    if (Number.isFinite(data.week.serverNow)) data.week.serverNow += now-value.savedAt;
+    return { ...value, data };
   } catch { return null; }
 }
 

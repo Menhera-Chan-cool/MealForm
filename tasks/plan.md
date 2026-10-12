@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Navigation and comfort QoL approved 2026-10-12
+
+text-size -> safe command palette -> owner week notices -> read wait cancellation -> integrate/full regression/template sync/backend-before-web deploy and readonly production/GitHub delivery. Native dialogs/context reuse, no extra dependencies. Separate per-week notice properties, optimistic audit, expiry-safe public getters. Abort and stale-generation checks are read-only; cancelled snapshots never regain mutation eligibility. Draft flush failures block hard navigation.
+
 ## Review and scale QoL approved 2026-10-12
 
 account-badge -> audit-filters + response-batches -> region-ocr -> version-notice -> full regression, browser QA, clean template sync and backend-before-web deployment. API paging is opt-in for compatibility. Exact indexed identity matching, token-free short-lived server snapshots, global search/sort and revision guards are required; mutations always read both stores again. Crop previews and one Undo reuse current menu history; explicit version refresh waits for current draft persistence. User authorized all five without separate step approvals.
