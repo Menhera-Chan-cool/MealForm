@@ -2,6 +2,8 @@
 
 ## Sửa giao diện tối ngày 13/10/2026
 
+Rà soát thêm trạng thái tuần trống/đăng nhập trên mọi trang, toàn bộ tab Dashboard và hộp thoại. Sửa nền sáng còn sót ở nút có dữ liệu mới/cảnh báo, chữ xem ảnh/khôi phục nháp, lỗi cập nhật và chữ gợi ý tìm kiếm khi màu chủ đạo sáng. Kiểm tra độ tương phản trên PC/mobile; không đổi dữ liệu hay quyền.
+
 Nền trang, panel, ô nhập, bảng, dropdown, viền focus và màu chữ tối được tính theo màu chủ đạo đang lưu, không còn cố định xanh lá. Đổi màu khi đang ở chế độ Tối cập nhật ngay; Theo hệ thống dùng cùng bảng màu. Giữ màu nhận biết riêng cho Form mở/đóng, cảnh báo và lỗi. Đây là bản sửa frontend, Apps Script vẫn phiên bản 78; không cần thêm quyền hay đổi cấu hình backend.
 
 ## Cập nhật ngày 12/10/2026
