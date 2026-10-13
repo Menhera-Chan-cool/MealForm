@@ -1,4 +1,8 @@
 async page=>{
+ const settings=async()=>{if(!await p.locator('.comfort-menu').isVisible())await p.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();};
+ const chooseAppearance=async(name,value)=>{await settings();await p.getByLabel(name,{exact:true}).selectOption(value);await p.keyboard.press('Escape');};
+ const chooseFont=async name=>{await settings();await p.getByRole('button',{name,exact:true}).click();await p.keyboard.press('Escape');};
+ const openCommands=async()=>{await settings();await p.getByRole('button',{name:'Lệnh nhanh',exact:true}).click();};
  const p=await page.context().newPage();const failures=[],checked=[];let filled=false;
  const week={weekKey:'2026-10-12_2026-10-13_2026-10-14_2026-10-15_2026-10-16',name:'Tuần thử',formStatus:'open',dayLabels:['Thứ 2 (12/10/2026)'],formUrl:'https://example.com/form',spreadsheetUrl:'https://example.com/sheet'};
  await p.addInitScript(()=>localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'off'})));
@@ -24,7 +28,7 @@ async page=>{
   for(const route of ['/newest','/next','/history','/dashboard','/setup']){await p.goto('http://127.0.0.1:5176'+route);await p.waitForFunction(()=>document.documentElement.style.getPropertyValue('--brand-primary')==='#357185');await p.locator('main').waitFor();if(route==='/next'||route==='/newest')await p.locator('.login-panel[role=status]').waitFor();if(route==='/history')await p.locator('.archive-panel').waitFor();await audit('main h2,main p,main label,main a,main small');}
   filled=true;await p.goto('http://127.0.0.1:5176/dashboard');await p.getByRole('button',{name:'Tổng quan',exact:true}).waitFor();
   for(const tab of ['Tổng quan','Tạo tuần bằng OCR','Lượt gửi & lịch sử','Điều khiển Form','Thông báo tuần','Đối soát','Thương hiệu','Hệ thống','Quyền Gmail']){await p.getByRole('button',{name:tab,exact:true}).click();await audit('.dashboard-panel h2,.dashboard-panel p,.dashboard-panel label,.dashboard-panel a,.dashboard-panel small,.dashboard-panel span');}
-  await p.getByRole('button',{name:'Lệnh nhanh',exact:true}).click();await p.locator('.quick-dialog[open]').waitFor();await audit('.quick-dialog h2,.quick-dialog p,.quick-dialog button');await p.keyboard.press('Escape');
+  await openCommands();await p.locator('.quick-dialog[open]').waitFor();await audit('.quick-dialog h2,.quick-dialog p,.quick-dialog button');await p.keyboard.press('Escape');
   for(const className of ['dashboard-confirm-dialog','response-quick-dialog','menu-image-dialog','region-ocr-dialog','merge-dialog']){
    await p.evaluate(className=>{const modal=document.createElement('dialog');modal.id='dialog-fixture';modal.className=className;modal.innerHTML='<h2>Tiêu đề hộp thoại</h2><p>Nội dung cần đọc rõ</p><label>Ghi chú<input value="Nội dung thử" /></label><button class="secondary">Đóng</button>';document.body.append(modal);modal.showModal();},className);await audit('#dialog-fixture h2,#dialog-fixture p,#dialog-fixture label,#dialog-fixture button');await p.evaluate(()=>document.querySelector('#dialog-fixture').remove());
   }

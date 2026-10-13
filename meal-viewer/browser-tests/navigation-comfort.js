@@ -1,4 +1,8 @@
 async page => {
+ const settings=async()=>{if(!await p.locator('.comfort-menu').isVisible())await p.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();};
+ const chooseAppearance=async(name,value)=>{await settings();await p.getByLabel(name,{exact:true}).selectOption(value);await p.keyboard.press('Escape');};
+ const chooseFont=async name=>{await settings();await p.getByRole('button',{name,exact:true}).click();await p.keyboard.press('Escape');};
+ const openCommands=async()=>{await settings();await p.getByRole('button',{name:'Lệnh nhanh',exact:true}).click();};
  const p=await page.context().newPage(),key='2026-10-12_2026-10-13_2026-10-14_2026-10-15_2026-10-16';let role='owner',stage='',posts=[];
  const week={weekKey:key,name:'Tuần 12/10/2026 - 16/10/2026',formStatus:'open',dayLabels:['Thứ 2 (12/10/2026)']};
  const rows=[{responseId:'row',timestamp:Date.now(),name:'Bạn kiểm thử có tên dài để kiểm tra giao diện điện thoại',meals:['MÓN KIỂM THỬ DÀI ĐỂ KIỂM TRA CỠ CHỮ'],deletable:true,deleteToken:'qa-only',rowNumber:2}];
@@ -34,7 +38,7 @@ async page => {
  try{
   for(const width of [1280,390,320]){
    stage=`${width}: font/palette`;await p.setViewportSize({width,height:844});await p.goto('http://127.0.0.1:5176/dashboard');await p.locator('.dashboard-account').waitFor();
-   await p.getByRole('button',{name:'Lớn',exact:true}).click();
+   await chooseFont('Lớn');
    const large=await p.evaluate(()=>parseFloat(getComputedStyle(document.documentElement).fontSize));
    if(large<(width<700?21:18))throw Error('Large text did not change font');
    if(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error('Large text overflow');
@@ -44,9 +48,9 @@ async page => {
    if(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error('Cards overflow');
    await p.getByRole('button',{name:'Xem nhanh',exact:true}).click();await p.getByRole('dialog').waitFor();
    await p.keyboard.press('Control+k');if(await p.getByRole('dialog',{name:'Lệnh nhanh'}).count())throw Error('Palette opened behind modal');await p.keyboard.press('Escape');
-   await p.getByRole('button',{name:'Lệnh nhanh',exact:true}).click();await p.keyboard.press('Escape');if(await p.getByRole('button',{name:'Lệnh nhanh',exact:true}).evaluate(el=>el!==document.activeElement))throw Error('Focus did not return');
+   await openCommands();await p.keyboard.press('Escape');if(await p.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).evaluate(el=>el!==document.activeElement))throw Error('Focus did not return');
    await p.reload();await p.locator('.dashboard-account').waitFor();if(await p.evaluate(()=>document.documentElement.dataset.textSize)!=='large')throw Error('Font preference lost');
-   await p.getByRole('button',{name:'Bình thường',exact:true}).click();
+   await chooseFont('Bình thường');
    stage=`${width}: cancellation`;await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.getByText(/^Dữ liệu đã xác minh\./).waitFor();
    await p.evaluate(data=>{window.qaLate=data;window.qaHold=true;},dataset);
    await p.getByRole('button',{name:'Tải lại dữ liệu',exact:true}).click();await p.waitForFunction(()=>typeof window.qaRelease==='function');
@@ -80,7 +84,7 @@ async page => {
   await p.waitForTimeout(650);
   if(await p.getByRole('button',{name:'Dừng chờ dữ liệu',exact:true}).count())throw Error('A scheduled tab read restarted after stop');
   await p.evaluate(()=>{window.qaRelease();window.qaHold=false;});
-  stage='manager permissions';role='manager';await p.goto('http://127.0.0.1:5176/dashboard');await p.locator('.dashboard-account').waitFor();await p.getByRole('button',{name:'Lệnh nhanh',exact:true}).click();
+  stage='manager permissions';role='manager';await p.goto('http://127.0.0.1:5176/dashboard');await p.locator('.dashboard-account').waitFor();await openCommands();
   if(await p.getByRole('option',{name:'Thông báo tuần',exact:true}).count()||await p.getByRole('option',{name:'Tạo tuần bằng OCR',exact:true}).count())throw Error('Private owner/create commands leaked');await p.keyboard.press('Escape');
   stage='late cancelled unauthorized';await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.getByText(/^Dữ liệu đã xác minh\./).waitFor();
   await p.evaluate(()=>{window.qaHold=true;window.qaLateStatus=401;window.qaLate={error:'expired'};});await p.getByRole('button',{name:'Tải lại dữ liệu',exact:true}).click();await p.waitForFunction(()=>typeof window.qaRelease==='function');await p.getByRole('button',{name:'Dừng chờ dữ liệu',exact:true}).click();await p.evaluate(()=>{window.qaRelease();window.qaHold=false;});await p.waitForTimeout(100);if(!await p.locator('.dashboard-account').count())throw Error('Cancelled 401 changed login state');
@@ -91,7 +95,7 @@ async page => {
    await new Promise(resolve=>{const tx=db.transaction('drafts','readwrite');tx.objectStore('drafts').put({version:1,accountId:'comfort-fixture',image:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jmAAAAABJRU5ErkJggg==',filename:'test.png',menu:{title:'Original',days:[12,13,14,15,16].map((date,i)=>({day:`Thứ ${i+2}`,date:`${date}/10/2026`,meals:['Gà','Cá','Bún']}))},savedAt:Date.now()});tx.oncomplete=resolve;});db.close();
   });await p.reload();await p.getByLabel('Tiêu đề tuần',{exact:true}).waitFor();await p.getByLabel('Tiêu đề tuần',{exact:true}).fill('Draft preserved by palette');
   await p.evaluate(()=>{window.qaOpen=indexedDB.open;indexedDB.open=()=>{throw Error('simulated blocked storage');};});
-  await p.getByRole('button',{name:'Lệnh nhanh',exact:true}).click();await p.getByRole('combobox',{name:'Tìm lệnh hoặc tuần'}).fill('tuần sau');await p.getByRole('option',{name:'Tuần sau',exact:true}).click();await p.getByRole('alert').filter({hasText:'trang chưa chuyển'}).waitFor();if(!p.url().includes('/dashboard'))throw Error('Blocked draft navigation occurred');
+  await openCommands();await p.getByRole('combobox',{name:'Tìm lệnh hoặc tuần'}).fill('tuần sau');await p.getByRole('option',{name:'Tuần sau',exact:true}).click();await p.getByRole('alert').filter({hasText:'trang chưa chuyển'}).waitFor();if(!p.url().includes('/dashboard'))throw Error('Blocked draft navigation occurred');
   await p.evaluate(()=>{indexedDB.open=window.qaOpen;});await Promise.all([p.waitForURL('**/next'),p.getByRole('option',{name:'Tuần sau',exact:true}).click()]);
   await p.goto('http://127.0.0.1:5176/dashboard?tab=create');await p.getByLabel('Tiêu đề tuần',{exact:true}).waitFor();if(await p.getByLabel('Tiêu đề tuần',{exact:true}).inputValue()!=='Draft preserved by palette')throw Error('Palette lost OCR draft');
   stage='viewer notice and cancellation';await p.goto('http://127.0.0.1:5176/newest');await p.getByText('Thông báo thử tự ẩn',{exact:true}).waitFor();await p.getByText('Thông báo thử tự ẩn',{exact:true}).waitFor({state:'hidden',timeout:3500});

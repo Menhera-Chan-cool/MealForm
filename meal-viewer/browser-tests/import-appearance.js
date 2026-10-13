@@ -1,4 +1,8 @@
 async page => {
+ const settings=async()=>{if(!await p.locator('.comfort-menu').isVisible())await p.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();};
+ const chooseAppearance=async(name,value)=>{await settings();await p.getByLabel(name,{exact:true}).selectOption(value);await p.keyboard.press('Escape');};
+ const chooseFont=async name=>{await settings();await p.getByRole('button',{name,exact:true}).click();await p.keyboard.press('Escape');};
+ const openCommands=async()=>{await settings();await p.getByRole('button',{name:'Lệnh nhanh',exact:true}).click();};
  const p=await page.context().newPage(),key='2026-10-12_2026-10-13_2026-10-14_2026-10-15_2026-10-16';let changed=false,posts=[],stage='';
  const week={weekKey:key,name:'Tuần 12/10/2026 - 16/10/2026',formStatus:'open',dayLabels:['Thứ 2 (12/10/2026)']};
  const versions=()=>Array.from({length:120},(_,i)=>['id-'+i,(changed&&i===119?'b':'a').repeat(64)]).filter(([id])=>!changed||id!=='id-118').concat(changed?[['new-id','c'.repeat(64)]]:[]);
@@ -25,14 +29,14 @@ async page => {
  try{
   for(const width of [1280,390,320]){
    changed=false;stage=`${width}: preference`;await p.setViewportSize({width,height:844});await p.emulateMedia({colorScheme:'light',reducedMotion:'no-preference'});await p.goto('http://127.0.0.1:5176/dashboard');await p.locator('.dashboard-account').waitFor();
-   await p.getByLabel('Giao diện',{exact:true}).selectOption('dark');await p.waitForFunction(()=>document.documentElement.dataset.colorScheme==='dark');
+   await chooseAppearance('Giao diện','dark');await p.waitForFunction(()=>document.documentElement.dataset.colorScheme==='dark');
    if(await p.evaluate(()=>getComputedStyle(document.querySelector('main')).backgroundColor)==='rgb(255, 255, 255)')throw Error('Dark surface stayed white');
-   await p.getByLabel('Giao diện',{exact:true}).selectOption('system');await p.emulateMedia({colorScheme:'dark'});await p.waitForFunction(()=>document.documentElement.dataset.colorScheme==='dark');await p.getByLabel('Giao diện',{exact:true}).selectOption('light');await p.emulateMedia({colorScheme:'dark'});if(await p.evaluate(()=>document.documentElement.dataset.colorScheme)!=='light')throw Error('Explicit light followed system');
-   await p.getByLabel('Hiệu ứng',{exact:true}).selectOption('off');await p.reload();await p.locator('.dashboard-account').waitFor();if(await p.getByLabel('Hiệu ứng',{exact:true}).inputValue()!=='off')throw Error('Motion preference lost');
+   await chooseAppearance('Giao diện','system');await p.emulateMedia({colorScheme:'dark'});await p.waitForFunction(()=>document.documentElement.dataset.colorScheme==='dark');await chooseAppearance('Giao diện','light');await p.emulateMedia({colorScheme:'dark'});if(await p.evaluate(()=>document.documentElement.dataset.colorScheme)!=='light')throw Error('Explicit light followed system');
+   await chooseAppearance('Hiệu ứng','off');await p.reload();await p.locator('.dashboard-account').waitFor();if(await p.getByLabel('Hiệu ứng',{exact:true}).inputValue()!=='off')throw Error('Motion preference lost');
    stage=`${width}: changes`;await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.getByText(/^Dữ liệu đã xác minh\./).waitFor();changed=true;await p.getByRole('button',{name:'Tải lại dữ liệu',exact:true}).click();await p.getByText('1 mới · 1 đã mất · 1 thay đổi',{exact:false}).waitFor();
    stage=`${width}: import`;await p.getByRole('button',{name:'Tạo tuần bằng OCR',exact:true}).click();await p.getByRole('heading',{name:'Tạo tuần từ ảnh thực đơn',exact:true}).waitFor();await p.waitForFunction(()=>!document.querySelector('.dashboard-file input')?.disabled);await addImage('file');await p.waitForFunction(()=>document.querySelectorAll('.image-source').length===1);
    await addImage('paste');await p.waitForFunction(()=>document.querySelectorAll('.image-source').length===2);
-   await p.getByLabel('Giao diện',{exact:true}).selectOption('dark');await p.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await p.getByRole('dialog',{name:'Rà soát ghép ảnh OCR',exact:true}).waitFor();
+   await chooseAppearance('Giao diện','dark');await p.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await p.getByRole('dialog',{name:'Rà soát ghép ảnh OCR',exact:true}).waitFor();
    await p.waitForFunction(()=>document.documentElement.dataset.colorScheme==='dark');
    const pane=await p.locator('.merge-dialog .menu-image-pane').evaluate(el=>({bg:getComputedStyle(el).backgroundColor,ink:getComputedStyle(el.querySelector('h3')).color}));
    if(pane.bg==='rgb(255, 255, 255)')throw Error('Dark dialog has unreadable white image pane');
@@ -49,7 +53,7 @@ async page => {
    if(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error('Page overflow');
    results.push({width,wholeWeekChanges:true,pasteDrop:true,mergeConflictUndo:true,draftRestored:true,preferences:true});
   }
-  stage='viewer motion';await p.goto('http://127.0.0.1:5176/newest');await p.getByLabel('Hiệu ứng',{exact:true}).selectOption('off');await p.getByLabel('Form đang mở',{exact:true}).waitFor();if(await p.locator('.form-status-message').evaluate(el=>getComputedStyle(el).opacity)!=='1')throw Error('Off hid status text');
+  stage='viewer motion';await p.goto('http://127.0.0.1:5176/newest');await chooseAppearance('Hiệu ứng','off');await p.getByLabel('Form đang mở',{exact:true}).waitFor();if(await p.locator('.form-status-message').evaluate(el=>getComputedStyle(el).opacity)!=='1')throw Error('Off hid status text');
   await p.getByRole('button',{name:'Mở tổng hợp',exact:true}).click();await p.getByRole('button',{name:'Đóng tổng hợp',exact:true}).click();if(await p.locator('#summary-panel').evaluate(el=>el.classList.contains('closing')))throw Error('Off retained disclosure closing timer');
   return{passed:true,results,ocrRequests:posts.length,realWrites:0};
  }catch(error){const info=await p.evaluate(()=>({dialogs:[...document.querySelectorAll('dialog[open]')].map(d=>d.textContent.slice(0,120)),forms:document.querySelectorAll('.menu-review').length,sources:document.querySelectorAll('.image-source').length,draft:document.querySelector('.draft-toolbar p')?.textContent,alerts:[...document.querySelectorAll('[role=alert]')].map(d=>d.textContent.slice(0,120))}));throw Error(stage+': '+error.message+' '+JSON.stringify(info));}finally{await p.close();}

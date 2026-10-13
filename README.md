@@ -1,5 +1,9 @@
 # MealForm
 
+## Menu hiển thị ngày 13/10/2026
+
+Lệnh nhanh, cỡ chữ, giao diện và mức hiệu ứng nằm trong nút ba chấm ở góc phải. Menu nổi dưới nút, bấm lại/bấm ngoài/Esc để đóng; hỗ trợ bàn phím và tự giới hạn kích thước trên mobile. Ctrl/⌘ K vẫn mở Lệnh nhanh trực tiếp, không chồng hai hộp lên nhau. Giữ nguyên thiết lập đang lưu theo trình duyệt. Bản sửa frontend, không cần đổi Apps Script hoặc quyền.
+
 ## Sửa giao diện tối ngày 13/10/2026
 
 Rà soát thêm trạng thái tuần trống/đăng nhập trên mọi trang, toàn bộ tab Dashboard và hộp thoại. Sửa nền sáng còn sót ở nút có dữ liệu mới/cảnh báo, chữ xem ảnh/khôi phục nháp, lỗi cập nhật và chữ gợi ý tìm kiếm khi màu chủ đạo sáng. Kiểm tra độ tương phản trên PC/mobile; không đổi dữ liệu hay quyền.
