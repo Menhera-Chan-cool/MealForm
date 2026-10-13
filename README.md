@@ -1,5 +1,9 @@
 # MealForm
 
+## Khung chọn ảnh ngày 13/10/2026
+
+Tab OCR dùng khung chọn ảnh lớn với icon upload tròn và nội dung căn giữa. Bấm khung/Duyệt ảnh để chọn nhiều ảnh; không hiện nút chọn file mặc định. Icon lấy đúng màu chủ đạo, chữ dùng sắc độ tương phản của thương hiệu cho Sáng/Tối. Giữ PNG/JPEG/WEBP, tối đa 5 ảnh/tổng 2,8 MB, dán/kéo thả, thêm/bỏ ảnh và nháp. Chọn lại thay bộ ảnh; hủy chọn không xóa ảnh, OCR chỉ chạy khi bấm Đọc thực đơn.
+
 ## Menu hiển thị ngày 13/10/2026
 
 Lệnh nhanh, cỡ chữ, giao diện và mức hiệu ứng nằm trong nút ba chấm ở góc phải. Menu nổi dưới nút, bấm lại/bấm ngoài/Esc để đóng; hỗ trợ bàn phím và tự giới hạn kích thước trên mobile. Ctrl/⌘ K vẫn mở Lệnh nhanh trực tiếp, không chồng hai hộp lên nhau. Giữ nguyên thiết lập đang lưu theo trình duyệt. Bản sửa frontend, không cần đổi Apps Script hoặc quyền.
