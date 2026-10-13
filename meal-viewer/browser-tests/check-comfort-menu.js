@@ -19,6 +19,7 @@ async page=>{
   }
   await show();await p.setViewportSize({width:390,height:300});await menu.waitFor({state:'hidden'});await show();const short=await menu.boundingBox();if(short.y+short.height>300)throw Error('Short viewport overflow');await p.keyboard.press('Escape');await p.setViewportSize({width:390,height:844});
   for(const route of['/next','/history','/dashboard','/setup']){await p.goto('http://127.0.0.1:5176'+route);await show();await p.keyboard.press('Escape');}
+  await p.setViewportSize({width:320,height:500});await p.goto('http://127.0.0.1:5176/setup');await p.evaluate(()=>document.documentElement.style.overflowY='scroll');await show();const gutter=await menu.boundingBox();if(gutter.x<0||gutter.x+gutter.width>320)throw Error('Classic scrollbar gutter overflow '+JSON.stringify(gutter));
   return{passed:true,widths:[1280,390,320],routes:5,toggleOutsideEscape:true,keyboardFocus:true,commandShortcut:true,preferences:true};
  }finally{await p.close();}
 }

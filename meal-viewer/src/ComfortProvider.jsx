@@ -28,7 +28,7 @@ export default function ComfortProvider({children}) {
     if(event.newState!=='open')return;
     const rect=settingsTrigger.current.getBoundingClientRect();
     settings.current.style.setProperty('--settings-top',`${Math.min(rect.bottom+8,window.innerHeight-100)}px`);
-    settings.current.style.setProperty('--settings-right',`${Math.max(12,window.innerWidth-rect.right)}px`);
+    settings.current.style.setProperty('--settings-right',`${Math.max(12,document.documentElement.clientWidth-rect.right)}px`);
   }
   function moveSettingsFocus(event){
     if(event.target.tagName!=='BUTTON'||!['ArrowUp','ArrowDown','Home','End'].includes(event.key))return;

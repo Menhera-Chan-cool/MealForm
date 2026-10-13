@@ -14,7 +14,9 @@ Browser regression failed first on the missing ellipsis control, and separately 
 
 Existing navigation/draft guards, import/appearance, dark surface/palette/status browser fixtures adapted to open the new menu and passed. Build and all 26 Node/native/API scripts passed with final source in main, release and clean GitHub. Final source also built on Vercel.
 
-Production READY: dpl_BY1Nd5suSnUHNWqmrgyzoqEsvai6, https://menutaythanh.vercel.app. Asset /assets/index-Dmz_f70u.js; version 5e0f5003-fb57-481b-91ec-fa904ddb5190. Readonly deployed /setup smoke passed at all three widths, testing open/close, dark/motion selection, shortcuts and bounds; temporary preferences restored.
+Final production READY: dpl_FMasojAGsLogBrirNfuFu8QCnC4C, https://menutaythanh.vercel.app. Asset /assets/index-DP0helLs.js; version 94731e7a-790a-45a4-a7d8-ddad9404e52a. Readonly deployed /setup smoke passed on headed Edge at all three widths, testing open/close, dark/motion selection, shortcuts and bounds; temporary preferences restored.
+
+The final Edge production check caught a classic-scrollbar boundary case: at 320px the visible layout width was 305px, and the old right-offset calculation placed the menu at x=-6. Positioning now uses clientWidth and the panel is capped by the fixed containing block width, rather than 100vw. Added scrollbar-gutter regression coverage and verified the originally failing deployed Edge path passes after the second frontend deployment. Final build/all 26 tests repeated successfully in all three sources.
 
 Selected frontend and browser fixtures synchronized to release/GitHub with README. Backend template getters/private configuration and unrelated dirty release changes preserved. No actual brand settings, sessions, student records, Forms, Sheets or OCR calls changed. RAR archives not rebuilt.
 
