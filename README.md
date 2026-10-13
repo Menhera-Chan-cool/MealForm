@@ -1,5 +1,9 @@
 # MealForm
 
+## Sửa giao diện tối ngày 13/10/2026
+
+Nền trang, panel, ô nhập, bảng, dropdown, viền focus và màu chữ tối được tính theo màu chủ đạo đang lưu, không còn cố định xanh lá. Đổi màu khi đang ở chế độ Tối cập nhật ngay; Theo hệ thống dùng cùng bảng màu. Giữ màu nhận biết riêng cho Form mở/đóng, cảnh báo và lỗi. Đây là bản sửa frontend, Apps Script vẫn phiên bản 78; không cần thêm quyền hay đổi cấu hình backend.
+
 ## Cập nhật ngày 12/10/2026
 
 Mã backend đã đồng bộ đến Apps Script phiên bản 78: thêm đối chiếu thay đổi toàn tuần, dán/kéo thả ảnh, ghép OCR nhiều ảnh, giao diện Sáng/Tối/Theo hệ thống và mức hiệu ứng Đầy đủ/Nhẹ/Tắt. Giữ các cải tiến Dashboard, bộ lọc lịch sử, OCR từng vùng, tải từng đợt, ngày nghỉ và Undo. Repo này vẫn là bản template độc lập: người nhận tự điền cấu hình và deploy, không có khóa hoặc dữ liệu production trong mã.

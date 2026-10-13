@@ -29,12 +29,14 @@ export default function BrandingProvider({ children }) {
   useEffect(() => {
     const root = document.documentElement;
     const originalTitle = document.title;
-    if (branding.schoolName || branding.logoUrl || branding.primaryColor !== DEFAULT_BRANDING.primaryColor) {
+    const custom = branding.schoolName || branding.logoUrl || branding.primaryColor !== DEFAULT_BRANDING.primaryColor;
+    const theme = custom || appearance.scheme === 'dark' ? brandingTheme(branding.primaryColor, appearance.scheme) : {};
+    Object.entries(theme).forEach(([name, value]) => root.style.setProperty(`--brand-${name}`, value));
+    if (custom) {
       root.dataset.branding = 'true';
-      Object.entries(brandingTheme(branding.primaryColor,appearance.scheme)).forEach(([name, value]) => root.style.setProperty(`--brand-${name}`, value));
       if (branding.schoolName) document.title = `${branding.schoolName} - Menu bán trú`;
     }
-    return () => { delete root.dataset.branding; Object.keys(brandingTheme(branding.primaryColor)).forEach(name => root.style.removeProperty(`--brand-${name}`)); document.title = originalTitle; };
+    return () => { delete root.dataset.branding; Object.keys(theme).forEach(name => root.style.removeProperty(`--brand-${name}`)); document.title = originalTitle; };
   }, [branding,appearance.scheme]);
   return <BrandingContext.Provider value={branding}><SchoolBrand branding={branding} />{children}</BrandingContext.Provider>;
 }

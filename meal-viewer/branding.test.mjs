@@ -15,4 +15,10 @@ assert.equal(brandingTheme('#000000').foreground,'#ffffff');
 assert.equal(brandingTheme('#087f5b').foreground,'#ffffff');
 assert.equal(brandingTheme('red;display:none').primary,'#087f5b');
 assert.equal(normalizeBranding({schoolName:'Trường A',logoUrl:'https://example.com/logo.png',primaryColor:'#aabbcc',secret:'never-public'}).secret,undefined);
-console.log('Branding filtering, safe logo URL and foreground contrast passed');
+const blue=brandingTheme('#2563eb','dark'),red=brandingTheme('#ef4444','dark'),green=brandingTheme('#087f5b','dark');
+for(const name of ['canvas','panel','field','raised','text','muted','line','highlight'])assert.match(blue[name]||'',/^#[0-9a-f]{6}$/,'dark '+name+' must be derived from the primary color');
+assert.notEqual(blue.canvas,green.canvas);assert.notEqual(blue.panel,green.panel);assert.notEqual(blue.field,green.field);assert.notEqual(red.panel,blue.panel);
+const rgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));assert.ok(rgb(blue.panel)[2]>rgb(blue.panel)[1],'blue dark panel must stay blue, not green');assert.ok(rgb(red.field)[0]>rgb(red.field)[1],'red field must retain primary hue');
+const luma=hex=>{const s=rgb(hex).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return s[0]*.2126+s[1]*.7152+s[2]*.0722;};const contrast=(a,b)=>(Math.max(luma(a),luma(b))+.05)/(Math.min(luma(a),luma(b))+.05);
+for(const color of ['#2563eb','#ef4444','#087f5b','#ffffff','#000000','#ffff00']){const theme=brandingTheme(color,'dark');for(const background of ['canvas','panel','field','raised','highlight'])assert.ok(contrast(theme.text,theme[background])>=4.5,'readable dark text for '+color+'/'+background);assert.ok(contrast(theme.muted,theme.field)>=4.5,'readable secondary text');assert.ok(contrast(theme.line,theme.field)>=3,'visible control borders');}
+console.log('Branding filtering, safe logo URL, primary-derived dark palette and contrast passed');
