@@ -1,6 +1,6 @@
 # Interaction motion verification — 14/10/2026
 
-Status: implemented and locally verified; final staging approval, GitHub merge and production promotion pending. `SPEC-motion-2026-10-14.md` records the scoped motion thesis. Existing visual identity, application controllers, API/auth contracts, data and configuration are unchanged.
+Status: RELEASED after explicit user staging approval on 14/10/2026. PR #4 is merged and the exact approved staged artifact serves the main domain. `SPEC-motion-2026-10-14.md` records the scoped motion thesis. Existing visual identity, application controllers, API/auth contracts, data and configuration are unchanged.
 
 ## Implemented motion
 
@@ -31,4 +31,13 @@ Fresh main-domain version remained `aefaf0b6-92d2-430d-9a43-559b2b67410c`, confi
 
 Headed Chrome session `mealform-motion-staging` opens actual deployed Dashboard PC, viewer mobile and Dashboard mobile assets. A banner identifies synthetic GET data, full motion and blocked writes. All non-GET API requests are rejected in that browser context; the fake delete button can display its real confirmation but cannot write to the real backend. Mock refresh reads wait 650ms solely to demonstrate the pending indicator; this is not a backend latency measurement. The Google SDK request is deliberately aborted in this isolated review context. No credentials/browser auth state were saved. The PR app attachment was attempted but returned Invalid app tool request; the GitHub PR exists.
 
-User visual approval and merge/promotion remain pending. Present the staged controls for live interaction, then promote this exact artifact only after approval; perform genuine main-domain read-only smoke afterward. Do not claim a production release at this handoff.
+The staging handoff above was subsequently approved and released as recorded below.
+
+## Approved release and genuine production smoke
+
+- User explicitly approved merging PR #4 and promoting the displayed artifact. Merge was pinned to approved head `f442a3048ffe544e49237abb8c9fa1759a56f0ee`. GitHub confirmed MERGED at `2026-10-14T13:51:14Z`, merge commit `7def7bc911315b41faa75012433b834ca3ea5602`. A fresh fetch independently confirmed `origin/main`; only this verification document differs from runtime source `af9230b8201199ce4a734fd839f7bf75207bc052`.
+- Fresh project/deployment checks confirmed the correct existing team/project and READY production-environment artifact. Promotion of `dpl_4WqD8AxQhaxoTEn6bkUFVQaqe1Rr` succeeded without a rebuild. Main-domain version is now `22d5121a-5e27-4223-bbc8-d3ffca680313`; its JS/CSS assets exactly match the approved stage.
+- Separate genuine `mealform-production` browser used no mocks or review injections. Full-mode native menu transitions ran within the configured 220ms budget, closed popovers were inert and focus returned to the trigger. After waiting for preference commit and the prior transition to settle, Light mode opened with only a 160ms opacity transition and `transform:none`. Off mode had zero menu animations. Rapid preference-switch samples can include a still-finishing/reversing prior transition and are not a fresh Light-mode entry certificate.
+- Real guest viewer loaded 22 records. Its dropdown used opacity/clip-path/visibility with 220ms opening and completed its closing state within the bounded check. At 390px there was no document overflow and no browser page error in that read-only flow. No names or meal records were emitted in diagnostic output. Owner mutations, actual sign-in and permission grants were not retested.
+- Anonymous Dashboard/history API reads still returned 401. The 15-minute error-level Vercel scan returned one existing Node `DEP0169` `url.parse()` deprecation warning during a successful viewer request, not an application failure. No ongoing monitoring or drain configuration was added.
+- Rollback target is prior serving deployment `dpl_GLsSK4iasorZGHGpSxq51RPULnzh`, version `aefaf0b6-92d2-430d-9a43-559b2b67410c`. No data rollback is in scope. Physical-device smoothness/FPS, Safari/Firefox runtime timing and low-end hardware remain unverified.
