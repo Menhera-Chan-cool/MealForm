@@ -1,5 +1,14 @@
 # MealForm
 
+## Bốn cải tiến UI — bản cục bộ 15/10/2026, chưa phát hành
+
+- Bộ đếm phân biệt lượt gửi với lựa chọn món theo bộ lọc hiện tại; không đếm người theo tên và không coi số hàng chiếu theo món là số lượt gửi. Nhãn từng món ghi rõ “lựa chọn”.
+- Form tuần đang xem và Form đăng ký tuần sau có nhóm ngày/trạng thái riêng; giữ nguyên quy tắc chọn Form và liên kết an toàn.
+- Ngày trên thẻ mobile rút gọn như `T4 · 14/10`, chạm để mở lại ngày đầy đủ. Dashboard/Xem nhanh dùng đúng ngày phục vụ, không đoán theo vị trí cột; PC vẫn giữ ngày đầy đủ. Không thêm lại thanh chọn ngày.
+- Menu “…” có mục “Có gì mới?” mở theo yêu cầu, đóng menu sẽ thu gọn; không tự bật, không tải thêm dữ liệu.
+
+Phạm vi: ý tưởng 2, 3, 7, 10; chỉ frontend. Bản này chưa được đẩy lên GitHub hay deploy production. Xem `SPEC-viewer-reading.md` và `VERIFICATION-viewer-context-2026-10-15.md`. API, Apps Script, dữ liệu thật, phân quyền và dependency giữ nguyên; RAR cũ không tự cập nhật.
+
 ## 13 cải tiến UI bổ sung — đã phát hành 14/10/2026
 
 - Tô nổi từ khóa tên/món và nút × xóa riêng từng ô tìm kiếm, không đổi dữ liệu hay tuần đã chọn.

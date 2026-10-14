@@ -24,6 +24,7 @@ export function mealRegistrationTarget(data, allowNext = false) {
   const dates = (target?.calendarDays || target?.days || []).map(day => dayName(day).match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0]).filter(Boolean);
   return {
     formUrl: safeUrl(target?.formUrl), status: target?.formStatus || 'unknown',
+    isNext: Boolean(next),
     label: next ? 'Đăng ký tuần sau' : 'Chọn món', dates: next && dates.length ? `${dates[0]} – ${dates.at(-1)}` : ''
   };
 }
@@ -181,3 +182,10 @@ export function buildDetailModel(data, filters, sortMode = 'newest') {
 }
 
 export { ALL };
+
+export function detailResultCounts(model) {
+  return {
+    responses: model.sourceRows.length,
+    choices: model.rows.reduce((count,row) => count + model.mealIndexes.filter(index => clean(row[index])).length, 0)
+  };
+}
