@@ -16,6 +16,9 @@ import VersionNotice from './VersionNotice.jsx';
 import { readLoginState } from './session-client.mjs';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
 import WeekNotice from './WeekNotice.jsx';
+import ViewerSummary from './ViewerSummary.jsx';
+import WeekNavigation from './WeekNavigation.jsx';
+import {DisplayPreferencesSlot} from './ComfortProvider.jsx';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '';
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
@@ -295,24 +298,6 @@ function App() {
     setAdvancedError('');
     window.location.assign(`/?view=${encodeURIComponent(sheetId)}`);
   }
-  function renderSummary() {
-    const groups = [];
-    days.forEach((day, dayIndex) => {
-      const dayLabel = typeof day === 'string' ? day : day.day;
-      if (filters.day !== ALL && dayLabel !== filters.day) return;
-      const meals = (day.meals || []).filter(meal => filters.meal === ALL || meal.toLocaleLowerCase().includes(filters.meal.toLocaleLowerCase()));
-      if (!meals.length) return;
-      groups.push(<tbody className="summary-day" key={dayLabel}>{meals.map((meal, mealIndex) => {
-        const count = model.sourceRows.filter(row => String(row?.[2 + dayIndex] || '').trim() === meal).length;
-        return <tr key={`${dayIndex}-${meal}`}>
-          {mealIndex === 0 && <td className="summary-day-label" rowSpan={meals.length}>{dayLabel}</td>}
-          <td className="summary-meal">{meal}</td>
-          <td className="summary-count"><span className="summary-count-value">{count}<span className="summary-count-unit"> lượt</span></span></td>
-        </tr>;
-      })}</tbody>);
-    });
-    return groups.length ? groups : <tbody className="summary-empty"><tr><td className="empty" colSpan="3">Không có dữ liệu phù hợp.</td></tr></tbody>;
-  }
 
   async function signOutDashboard() {
     const response = await fetch('/api/session', { method: 'DELETE', credentials: 'same-origin' });
@@ -327,25 +312,26 @@ function App() {
   }
 
   if (isSetup) return <SetupChecklist authenticated={auth === 'authenticated'} />;
-  if (auth === 'error') return <main><section className="login-panel"><h1>Chưa kết nối được</h1><p role="alert">{message}</p><p>Thông tin phiên chưa bị xóa. Bạn không cần đăng xuất để thử lại.</p><div className="actions"><button type="button" onClick={() => void checkSession()}>Kiểm tra lại</button><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đăng xuất</button>{isWeekPage && <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>}</div><ErrorReportButton report={failure} /></section></main>;
-  if (isHistoryList && auth === 'loading') return <main><p>Đang xác nhận đăng nhập…</p></main>;
-  if (isHistoryList && auth === 'authenticated') return <main><header><h1>Kho thực đơn tuần cũ</h1><nav className="viewer-navigation" aria-label="Các trang"><a className="action-link" href="/newest">← Tuần này</a></nav></header><HistoryArchive onUnauthorized={() => setAuth('anonymous')} /></main>;
+  if (auth === 'error') return <main className="meal-ui ui-viewer"><section className="login-panel"><h1>Chưa kết nối được</h1><p role="alert">{message}</p><p>Thông tin phiên chưa bị xóa. Bạn không cần đăng xuất để thử lại.</p><div className="actions"><button type="button" onClick={() => void checkSession()}>Kiểm tra lại</button><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đăng xuất</button>{isWeekPage && <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>}</div><ErrorReportButton report={failure} /></section></main>;
+  if (isHistoryList && auth === 'loading') return <main className="meal-ui ui-viewer"><p>Đang xác nhận đăng nhập…</p></main>;
+  if (isHistoryList && auth === 'authenticated') return <main className="meal-ui ui-viewer"><header className="viewer-header"><h1>Kho thực đơn tuần cũ</h1><DisplayPreferencesSlot/></header><WeekNavigation current="history"/><HistoryArchive onUnauthorized={() => setAuth('anonymous')} /></main>;
   if (isDashboard) {
-    if (auth === 'loading') return <main><p className="message">Đang xác nhận đăng nhập và quyền dashboard…</p></main>;
-    if (auth === 'anonymous') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p><ErrorReportButton report={failure} /></section></main>;
-    if (auth === 'forbidden') return <main><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đổi tài khoản Google</button><ErrorReportButton report={failure} /></section></main>;
+    if (auth === 'loading') return <main className="meal-ui ui-viewer"><p className="message">Đang xác nhận đăng nhập và quyền dashboard…</p></main>;
+    if (auth === 'anonymous') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p><ErrorReportButton report={failure} /></section></main>;
+    if (auth === 'forbidden') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đổi tài khoản Google</button><ErrorReportButton report={failure} /></section></main>;
     return <Dashboard key={dashboardData?.accountId} initialData={dashboardData} onSignOut={signOutDashboard} onUnauthorized={(message, status) => { setFailure(safeErrorReport('dashboard', { status })); clearDashboardCache(); authRequest.current++; setDashboardData(null); setAuth(status === 401 ? 'anonymous' : 'forbidden'); setMessage(message); }} />;
   }
 
-  return <main>
+  return <main className="meal-ui ui-viewer">
     <VersionNotice disabled={busy} />
     <header className="viewer-header">
       <div className="viewer-title-group">
         <h1>{pageTitle}</h1>
         {weekDates.length > 0 && <p className="week-date-range">{weekDates[0]} – {weekDates[weekDates.length - 1]} <SproutIcon /></p>}
       </div>
+      <DisplayPreferencesSlot/>
     </header>
-    <nav className="viewer-navigation" aria-label="Các trang"><a className="action-link" href="/newest" aria-current={isNewestPage ? 'page' : undefined}>Tuần này</a><a className="action-link" href="/history">{isHistory ? '← Chọn tuần khác' : 'Kho tuần cũ'}</a></nav>
+    <WeekNavigation current={isNewestPage?'current':isNextPage?'next':isHistory?'history':''} selected={isHistory}/>
     <WeekNotice notice={data?.weekNotice} serverNow={data?.serverNow}/>
     {readPending>0&&<div className="read-wait"><button className="secondary" type="button" onClick={stopWaiting}>Dừng chờ dữ liệu</button><small>Không hủy tác vụ máy chủ.</small></div>}
     {stoppedReading&&<p className="dashboard-cache-status" role="status">{message}</p>}
@@ -421,7 +407,7 @@ function App() {
         <div id="summary-panel" className={`collapse-panel ${summaryOpen ? 'expanded' : summaryClosing ? 'closing' : 'collapsed'}`} aria-hidden={!summaryOpen} inert={!summaryOpen}>
           <div className="summary-content">
             <p className="summary-result-count" aria-live="polite">Đang hiển thị {model.rows.length} kết quả</p>
-            <div className="table-wrap summary-wrap"><table><thead><tr><th>Ngày</th><th>Món</th><th>Số lượng</th></tr></thead>{renderSummary()}</table></div>
+            <ViewerSummary days={days} filters={filters} model={model}/>
           </div>
         </div>
       </section>

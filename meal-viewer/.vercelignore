@@ -2,5 +2,14 @@
 .playwright-cli
 node-compile-cache
 node_modules
-dist
 .env*
+review
+test-results
+playwright-report
+dist
+*.test.mjs
+admin-branding-mobile.png
+dashboard-qol-mobile.png
+editor-qol-mobile.png
+.impeccable
+DESIGN.md

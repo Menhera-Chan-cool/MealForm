@@ -1,10 +1,13 @@
 import {createContext,useContext,useEffect,useId,useMemo,useRef,useState,useCallback} from 'react';
+import {createPortal} from 'react-dom';
 import {readTextSize,writeTextSize} from './dashboard-model.mjs';
 import {foldSearchText} from './viewer-model.mjs';
 import './comfort.css';
 import {useAppearance} from './AppearanceProvider.jsx';
 
 const Comfort=createContext(()=>()=>{});
+const PreferencesSlot=createContext(()=>{});
+export function DisplayPreferencesSlot(){const setSlot=useContext(PreferencesSlot);return <div className="ui-preferences-slot" ref={setSlot}/>;}
 const pages=[['/newest','Tuần này'],['/next','Tuần sau'],['/history','Kho tuần cũ'],['/dashboard','Dashboard'],['/setup','Cài đặt']].map(([href,label])=>({id:href,kind:'page',href,label}));
 
 export function useQuickCommands(commands,blocked,run,beforeNavigate) {
@@ -19,6 +22,7 @@ export default function ComfortProvider({children}) {
   const dialog=useRef(null),input=useRef(null),returnFocus=useRef(null);
   const settings=useRef(null),settingsTrigger=useRef(null),settingsId=useId();
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [displaySlot,setDisplaySlot]=useState(null);
   const register=useCallback(value=>{setRegistered(value);return()=>setRegistered(null);},[]);
   const commands=useMemo(()=>[...(registered?.commands||[]),...pages].filter(command=>foldSearchText(command.label).includes(foldSearchText(query))),[registered,query]);
   const blocked=registered?.blocked||navigating;
@@ -62,7 +66,7 @@ export default function ComfortProvider({children}) {
     }catch{setError('Chưa lưu nháp/vị trí được; trang chưa chuyển. Hãy thử lại.');}
     finally{setNavigating(false);}
   }
-  return <Comfort.Provider value={register}>
+  const toolbar=<>
     <div className="comfort-toolbar" aria-label="Điều hướng và cỡ chữ">
       <button ref={settingsTrigger} type="button" className="secondary comfort-menu-toggle" aria-label="Tùy chọn hiển thị" title="Tùy chọn hiển thị" aria-haspopup="dialog" aria-expanded={settingsOpen} aria-controls={settingsId} popoverTarget={settingsId} onKeyDown={event=>{if(event.key==='ArrowDown'){event.preventDefault();if(!settings.current.matches(':popover-open'))settingsTrigger.current.click();settings.current.querySelector('button:not(:disabled)')?.focus();}}}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="4" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg></button>
       <div ref={settings} id={settingsId} className="comfort-menu" popover="auto" role="dialog" aria-label="Tùy chọn hiển thị" onBeforeToggle={positionSettings} onToggle={event=>setSettingsOpen(event.newState==='open')} onKeyDown={moveSettingsFocus}>
@@ -72,6 +76,9 @@ export default function ComfortProvider({children}) {
         <div className="appearance-controls"><label>Giao diện<select aria-label="Giao diện" value={appearance.theme} onChange={event=>appearance.setPreference({theme:event.target.value})}><option value="light">Sáng</option><option value="dark">Tối</option><option value="system">Theo hệ thống</option></select></label><label>Hiệu ứng<select aria-label="Hiệu ứng" value={appearance.motion} onChange={event=>appearance.setPreference({motion:event.target.value})}><option value="full">Đầy đủ</option><option value="light">Nhẹ</option><option value="off">Tắt</option></select></label></div>
       </div>
     </div>
+  </>;
+  return <Comfort.Provider value={register}><PreferencesSlot.Provider value={setDisplaySlot}>
+    {displaySlot?createPortal(toolbar,displaySlot):toolbar}
     {children}
     {open&&<dialog ref={dialog} className="quick-dialog" aria-labelledby="quick-title" onCancel={event=>{event.preventDefault();if(!navigating)setOpen(false);}}>
       <h2 id="quick-title">Lệnh nhanh</h2><p>Chỉ mở trang, tuần hoặc tab; không xóa hay thay đổi dữ liệu.</p>
@@ -83,5 +90,5 @@ export default function ComfortProvider({children}) {
       {!commands.length&&<p role="status">Không có lệnh phù hợp.</p>}{error&&<p role="alert">{error}</p>}
       <button type="button" className="secondary" disabled={navigating} onClick={()=>setOpen(false)}>Đóng</button>
     </dialog>}
-  </Comfort.Provider>;
+  </PreferencesSlot.Provider></Comfort.Provider>;
 }

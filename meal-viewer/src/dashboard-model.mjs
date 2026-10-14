@@ -1,6 +1,24 @@
 import { foldSearchText } from './viewer-model.mjs';
 const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
 
+export function groupDashboardWeeks(weeks, now = Date.now()) {
+  const date = new Date(now + 7 * 3600000);
+  date.setUTCDate(date.getUTCDate() - (date.getUTCDay() + 6) % 7);
+  const start = date.toISOString().slice(0, 10);
+  date.setUTCDate(date.getUTCDate() + 7);
+  const next = date.toISOString().slice(0, 10);
+  const result = { current: null, next: null, past: [], other: [] };
+  for (const week of weeks || []) {
+    const key = String(week.weekKey || '').split('_')[0];
+    if (key === start) result.current = week;
+    else if (key === next) result.next = week;
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(key) && key < start) result.past.push(week);
+    else result.other.push(week);
+  }
+  result.past.sort((a,b) => b.weekKey.localeCompare(a.weekKey));
+  return result;
+}
+
 export function filterAuditHistory(events, filters = {}) {
   const start = filters.from ? Date.parse(`${filters.from}T00:00:00+07:00`) : -Infinity;
   const end = filters.to ? Date.parse(`${filters.to}T00:00:00+07:00`) + 86400000 : Infinity;

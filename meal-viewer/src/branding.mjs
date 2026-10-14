@@ -1,5 +1,16 @@
 export const DEFAULT_BRANDING = { schoolName: '', logoUrl: '', primaryColor: '#087f5b', updatedAt: 0 };
 
+export function uiThemeVariables(color, scheme = 'light') {
+  const theme = brandingTheme(color, scheme);
+  return {
+    '--meal-ui-primary': theme.primary, '--meal-ui-primary-foreground': theme.foreground,
+    '--meal-ui-hover': theme.hover, '--meal-ui-background': theme.canvas || '#f5f8f9',
+    '--meal-ui-card': theme.panel || '#ffffff', '--meal-ui-muted': theme.raised || theme.surface,
+    '--meal-ui-field': theme.field || '#ffffff', '--meal-ui-foreground': theme.text || theme.ink,
+    '--meal-ui-muted-foreground': theme.muted || '#526a74', '--meal-ui-border': theme.line || theme.border
+  };
+}
+
 export function normalizeBranding(value) {
   const schoolName = typeof value?.schoolName === 'string' && value.schoolName.length <= 100 && !/[\x00-\x1f]/.test(value.schoolName) ? value.schoolName.trim() : '';
   const logoUrl = typeof value?.logoUrl === 'string' && value.logoUrl.length <= 512 && /^https:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d{1,5})?(?:[/?#][^\s\x00-\x1f]*)?$/i.test(value.logoUrl) ? value.logoUrl : '';

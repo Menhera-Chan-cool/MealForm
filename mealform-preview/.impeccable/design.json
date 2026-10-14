@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-13T12:39:31Z",
+  "title": "Design System: MealForm UI preview",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Settings sample teal" },
+      "primary-hover": { "role": "primary", "displayName": "Deeper teal hover" },
+      "white": { "role": "neutral", "displayName": "Primary foreground" },
+      "light-background": { "role": "neutral", "displayName": "Light canvas" },
+      "light-card": { "role": "neutral", "displayName": "Light card" },
+      "light-muted": { "role": "neutral", "displayName": "Light muted surface" },
+      "light-foreground": { "role": "neutral", "displayName": "Light text" },
+      "light-muted-foreground": { "role": "neutral", "displayName": "Light secondary text" },
+      "light-border": { "role": "neutral", "displayName": "Light divider" },
+      "dark-background": { "role": "neutral", "displayName": "Dark canvas" },
+      "dark-card": { "role": "neutral", "displayName": "Dark card" },
+      "dark-muted": { "role": "neutral", "displayName": "Dark muted surface" },
+      "dark-foreground": { "role": "neutral", "displayName": "Dark text" },
+      "dark-muted-foreground": { "role": "neutral", "displayName": "Dark secondary text" },
+      "dark-border": { "role": "neutral", "displayName": "Dark divider" }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Page heading", "purpose": "Desktop page title; mobile override is 26px." },
+      "title": { "displayName": "Section heading", "purpose": "Week, archive and tool headings." },
+      "record-title": { "displayName": "Record heading", "purpose": "Illustrative submitter names." },
+      "body": { "displayName": "Body", "purpose": "Descriptions and meal entries." },
+      "small": { "displayName": "Secondary copy", "purpose": "Metadata and supporting text." },
+      "button": { "displayName": "Action label", "purpose": "Standard button text." }
+    },
+    "shadows": [
+      { "name": "appearance-menu", "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)", "purpose": "Tailwind medium shadow retained by the appearance dropdown only." },
+      { "name": "quick-view", "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)", "purpose": "Tailwind large shadow retained by the temporary Sheet; content cards remain flat." }
+    ],
+    "motion": [
+      { "name": "button-transition", "value": "all 150ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Tailwind default transition-all on used Button source." },
+      { "name": "sheet-open", "value": "500ms ease-in-out", "purpose": "Declared opening timing; animation utility trajectory has not been certified." },
+      { "name": "sheet-close", "value": "300ms ease-in-out", "purpose": "Declared closing timing; reduced-motion CSS removes transitions and animations." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "760px" },
+      { "name": "header-wrap-upper", "value": "1050px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary week action with deeper hover, keyboard focus and disabled state.",
+      "html": "<button class=\"ds-primary\">Xem lượt gửi</button>",
+      "css": ".ds-primary{font-family:var(--token-font-family,'Noto Sans'),sans-serif;font-size:14px;line-height:20px;font-weight:600;min-height:44px;min-width:44px;padding:8px 16px;border:0;border-radius:var(--token-radius-control,8px);background:var(--primary,#357185);color:var(--primary-foreground,#ffffff);transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-primary:hover{background:var(--primary-hover,#2d6071)}.ds-primary:focus-visible{outline:2px solid var(--primary,#357185);outline-offset:3px;box-shadow:0 0 0 3px color-mix(in srgb,var(--primary,#357185) 50%,transparent)}.ds-primary:disabled{pointer-events:none;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "name": "Outline action",
+      "kind": "button",
+      "refersTo": "button-outline-light",
+      "description": "Secondary action; dark theme follows the source's translucent input border fill.",
+      "html": "<button class=\"ds-outline\">Điều khiển Form</button>",
+      "css": ".ds-outline{font-family:var(--token-font-family,'Noto Sans'),sans-serif;font-size:14px;line-height:20px;font-weight:600;min-height:44px;min-width:44px;padding:8px 16px;border:1px solid var(--border,#bacbd1);border-radius:var(--token-radius-control,8px);background:var(--background,#f5f8f9);color:var(--foreground,#172d35);transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-outline:hover{background:var(--muted,#eff4f6)}:host-context(.theme-dark) .ds-outline{background:color-mix(in srgb,var(--input,#788e97) 30%,transparent)}:host-context(.theme-dark) .ds-outline:hover{background:color-mix(in srgb,var(--input,#788e97) 50%,transparent)}.ds-outline:focus-visible{outline:2px solid var(--primary,#357185);outline-offset:3px;box-shadow:0 0 0 3px color-mix(in srgb,var(--primary,#357185) 50%,transparent)}.ds-outline:disabled{pointer-events:none;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-outline{transition:none}}"
+    },
+    {
+      "name": "Ghost action",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Low-emphasis action with neutral hover.",
+      "html": "<button class=\"ds-ghost\">Form</button>",
+      "css": ".ds-ghost{font-family:var(--token-font-family,'Noto Sans'),sans-serif;font-size:14px;line-height:20px;font-weight:600;min-height:44px;min-width:44px;padding:8px 16px;border:0;border-radius:var(--token-radius-control,8px);background:transparent;color:var(--foreground,#172d35);transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-ghost:hover{background:var(--muted,#eff4f6)}:host-context(.theme-dark) .ds-ghost:hover{background:color-mix(in srgb,var(--muted,#233035) 50%,transparent)}.ds-ghost:focus-visible{outline:2px solid var(--primary,#357185);outline-offset:3px;box-shadow:0 0 0 3px color-mix(in srgb,var(--primary,#357185) 50%,transparent)}.ds-ghost:disabled{pointer-events:none;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-ghost{transition:none}}"
+    },
+    {
+      "name": "Name search",
+      "kind": "input",
+      "refersTo": "input-light",
+      "description": "Native labeled field used for local illustrative filtering.",
+      "html": "<label class=\"ds-field\">Tìm họ tên<input class=\"ds-input\" placeholder=\"Nhập tên cần tìm…\" /></label>",
+      "css": ".ds-field{display:flex;flex-direction:column;gap:8px;font-family:var(--token-font-family,'Noto Sans'),sans-serif;font-size:14px;font-weight:600;color:var(--foreground,#172d35)}.ds-input{min-height:44px;width:100%;padding:10px 12px;border:1px solid var(--border,#bacbd1);border-radius:var(--token-radius-control,8px);background:var(--card,#ffffff);color:var(--foreground,#172d35);font-family:var(--token-font-family,'Noto Sans'),sans-serif;font-size:16px;font-weight:400;line-height:1.55;caret-color:var(--primary,#357185)}.ds-input::placeholder{color:var(--muted-foreground,#526a74);opacity:1}.ds-input:focus-visible{outline:2px solid var(--primary,#357185);outline-offset:3px}"
+    },
+    {
+      "name": "Closed-week badge",
+      "kind": "chip",
+      "refersTo": "status-light",
+      "description": "Noninteractive status badge with control-radius override.",
+      "html": "<span class=\"ds-status\">Đã đóng</span>",
+      "css": ".ds-status{display:inline-flex;align-items:center;width:fit-content;padding:6px 12px;border:1px solid transparent;border-radius:var(--token-radius-control,8px);background:var(--muted,#eff4f6);color:var(--foreground,#172d35);font-family:var(--token-font-family,'Noto Sans'),sans-serif;font-size:14px;font-weight:500;line-height:20px;white-space:nowrap}"
+    },
+    {
+      "name": "Current-week surface",
+      "kind": "card",
+      "refersTo": "week-card-light",
+      "description": "Flat bordered week card with date and secondary metadata hierarchy.",
+      "html": "<section class=\"ds-week\"><h2>Tuần này</h2><p class=\"ds-dates\">12/10/2026 – 16/10/2026</p><p class=\"ds-meta\">23 lượt gửi · 5 ngày phục vụ</p></section>",
+      "css": ".ds-week{padding:var(--token-space-lg,24px);border:1px solid var(--border,#bacbd1);border-radius:var(--token-radius-card,14px);background:var(--card,#ffffff);color:var(--foreground,#172d35);box-shadow:none;font-family:var(--token-font-family,'Noto Sans'),sans-serif;line-height:1.55}.ds-week h2{margin:0 0 20px;font-size:20px;font-weight:700;line-height:1.4}.ds-dates{margin:0;font-size:24px;font-weight:700;line-height:1.4;font-variant-numeric:tabular-nums}.ds-meta{margin:8px 0 0;color:var(--muted-foreground,#526a74);font-size:16px}@media(max-width:760px){.ds-week{padding:20px}.ds-week h2{margin-bottom:16px}.ds-dates{font-size:20px}.ds-meta{font-size:14px}}"
+    },
+    {
+      "name": "Selected navigation item",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Text and inline SVG navigation with the source's filled active state.",
+      "html": "<nav aria-label=\"Quản trị\"><button class=\"ds-nav\" aria-current=\"page\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/></svg>Tổng quan</button></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;min-width:44px;margin-bottom:4px;padding:10px 12px;text-align:left;border:0;border-radius:var(--token-radius-control,8px);background:transparent;color:var(--foreground,#172d35);font-family:var(--token-font-family,'Noto Sans'),sans-serif;font-size:14px;font-weight:600;line-height:1.4;white-space:normal;transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-nav:hover{background:var(--muted,#eff4f6)}.ds-nav[aria-current=page]{background:var(--primary,#357185);color:var(--primary-foreground,#ffffff)}.ds-nav svg{flex-shrink:0}.ds-nav:focus-visible{outline:2px solid var(--primary,#357185);outline-offset:3px;box-shadow:0 0 0 3px color-mix(in srgb,var(--primary,#357185) 50%,transparent)}@media(prefers-reduced-motion:reduce){.ds-nav{transition:none}}"
+    }
+  ],
+  "narrative": {
+    "overview": "This records the approved preview's week-oriented administration structure: a grouped desktop sidebar, four mobile destinations, and a prominent active-week card followed by next-week and archive content. Vietnamese labels and visible task/status separation support school meal administrators.\n\nThis is an extracted snapshot of `mealform-preview`, not authority to redesign or deploy production. `tokens/tokens.json` remains the compiler source; `src/generated/variables.css` and `tailwind.css` are generated output. Refresh this document and its sidecar when the implemented preview system changes. The parent `PRODUCT.md`, approved surface brief and local `SPEC.md` define scope, not extra tokens.",
+    "keyCharacteristics": [
+      "Active-week hierarchy and grouped navigation.",
+      "One Settings-derived accent with separate light/dark neutrals.",
+      "Vietnamese Noto Sans typography and touch targets of at least 44px.",
+      "Flat content surfaces with labeled illustrative actions and data."
+    ],
+    "rules": [],
+    "dos": [
+      "Do preserve the active-week hierarchy and access to all nine tools and owner commands.",
+      "Do use source token roles for light/dark surfaces and the Settings-derived sample accent.",
+      "Do retain Vietnamese labels, visible keyboard focus and at least 44px interactive targets.",
+      "Do label synthetic records and actions as illustrative."
+    ],
+    "donts": [
+      "Don't turn this preview snapshot into production implementation or deployment approval.",
+      "Don't add a fixed green brand, invented KPI claims or live student/account data.",
+      "Don't hand-edit generated token CSS or introduce a second compiler source in this document.",
+      "Don't claim pixel agreement with Figma: fresh high-fidelity context was unavailable after the Starter quota was exhausted."
+    ]
+  }
+}

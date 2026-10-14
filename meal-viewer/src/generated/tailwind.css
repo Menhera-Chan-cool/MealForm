@@ -1,0 +1,55 @@
+/* Generated from tokens/tokens.json; do not edit. */
+:root, .theme-light, .theme-dark {
+  --background: var(--token-light-background);
+  --card: var(--token-light-card);
+  --muted: var(--token-light-muted);
+  --foreground: var(--token-light-foreground);
+  --muted-foreground: var(--token-light-muted-foreground);
+  --border: var(--token-light-border);
+  --primary: var(--token-color-primary);
+  --primary-foreground: var(--token-color-primary-foreground);
+  --primary-hover: var(--token-color-primary-hover);
+  --card-foreground: var(--foreground);
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --input: var(--border);
+  --ring: var(--primary);
+  --radius: var(--token-radius-control);
+}
+.theme-dark {
+  --background: var(--token-dark-background);
+  --card: var(--token-dark-card);
+  --muted: var(--token-dark-muted);
+  --foreground: var(--token-dark-foreground);
+  --muted-foreground: var(--token-dark-muted-foreground);
+  --border: var(--token-dark-border);
+  color-scheme: dark;
+}
+@theme inline {
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-card-foreground: var(--card-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --font-sans: var(--token-font-family), sans-serif;
+  --radius-lg: var(--token-radius-card);
+  --radius-md: var(--token-radius-control);
+  --radius-sm: calc(var(--token-radius-control) - 2px);
+}
