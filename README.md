@@ -1,6 +1,6 @@
 # MealForm
 
-## 13 cải tiến UI bổ sung — 14/10/2026
+## 13 cải tiến UI bổ sung — đã phát hành 14/10/2026
 
 - Tô nổi từ khóa tên/món và nút × xóa riêng từng ô tìm kiếm, không đổi dữ liệu hay tuần đã chọn.
 - Kho tuần có đường dẫn ngữ cảnh, quay lại đúng tháng/chế độ xem; thẻ có số lượt/trạng thái khi API cung cấp. Thiếu dữ liệu ghi “Chưa đọc được”, không giả 0 và không tự quét Form.
@@ -10,7 +10,7 @@
 - Ngày OCR đã rà soát có thể thu gọn; ngày lỗi vẫn mở. Chỉnh nội dung/Undo hoặc OCR mới không được dùng dấu rà soát để bỏ qua kiểm tra ngày/món.
 - Bảng PC phóng rộng giữ cùng dữ liệu, bộ lọc và vị trí; chân hộp xác nhận luôn trong vùng nhìn khi nội dung cuộn hoặc bàn phím mở.
 
-User đã cho phép phát hành trực tiếp, không yêu cầu vòng duyệt preview. Hồ sơ kiểm thử/trạng thái phát hành: `VERIFICATION-ui-clarity-2026-10-14.md`. Chỉ đổi frontend; API, Apps Script, quyền, cấu hình và dependency giữ nguyên. Bản RAR cũ không tự cập nhật.
+Đã merge [PR #6](https://github.com/Menhera-Chan-cool/MealForm/pull/6) và chuyển đúng artifact đã kiểm tra lên [production](https://menutaythanh.vercel.app), không build lại và không yêu cầu vòng duyệt preview. Hồ sơ kiểm thử/phát hành: `VERIFICATION-ui-clarity-2026-10-14.md`. Chỉ đổi frontend; API, Apps Script, quyền, cấu hình và dependency giữ nguyên. Bản RAR cũ không tự cập nhật.
 
 ## Chín cải tiến UI — đã phát hành 14/10/2026
 

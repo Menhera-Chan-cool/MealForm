@@ -7,7 +7,7 @@
 - [x] Mobile native filter sheet, same-DOM PC workspaces and keyboard-height confirmation footer with focus/state/scroll tests.
 - [x] Unsaved brand/notice guards, failed-save retention/retry and content-bound valid OCR reviewed days with synthetic tests.
 - [x] Full regressions: 29 native/API scripts, 38 real-frontend browser tests, 11 compatibility browser tests, 5 token/guard tests; preview/Storybook builds and bounded PC/mobile/light-dark checks passed.
-- [ ] GitHub update + verified exact Vercel artifact production release; no preview approval round requested.
+- [x] PR #6 merged at exact head 8ce0358; promoted READY dpl_14tQxX9URMbxNGLujbA3evbjeKJB without rebuild. Genuine readonly production smoke passed; README/release record updated. No preview approval requested and no live Form/Sheet/configuration writes used for QA.
 
 ## Ten UI improvements approved 2026-10-14
 
