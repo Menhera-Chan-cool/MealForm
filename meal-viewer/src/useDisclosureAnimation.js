@@ -38,7 +38,8 @@ export default function useDisclosureAnimation(storageKey = '') {
       document.documentElement.dataset.motionOverride,document.documentElement.dataset.motionLevel
     )) return;
     setClosing(true);
-    timer.current = window.setTimeout(() => setClosing(false), document.documentElement.dataset.motionLevel==='light'?160:1250);
+    const exit = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--meal-disclosure-exit')) || 1250;
+    timer.current = window.setTimeout(() => setClosing(false), document.documentElement.dataset.motionLevel==='light'?160:exit);
   }
 
   return { open, closing, active: open || closing, show, hide, toggle: open ? hide : show };

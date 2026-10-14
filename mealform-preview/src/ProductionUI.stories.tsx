@@ -13,6 +13,7 @@ import '../../meal-viewer/src/styles.css';
 import '../../meal-viewer/src/mobile-cards.css';
 import '../../meal-viewer/src/branding.css';
 import '../../meal-viewer/src/production-ui.css';
+import '../../meal-viewer/src/motion.css';
 
 function ProductionSurface({section='Tổng quan',viewer=false}:{section?:string;viewer?:boolean}){
   const root=useRef<HTMLDivElement>(null),[filters,setFilters]=useState(readViewerFilters(''));

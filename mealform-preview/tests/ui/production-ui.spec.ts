@@ -358,3 +358,109 @@ test('mobile submissions and audit share the panel palette without alternating n
     await page.screenshot({path:`review/production/submissions-audit-mobile-${theme}.png`,fullPage:true});
   }
 });
+
+test('full motion explains menus with bounded entry, fast disclosure close and interruption',async({page})=>{
+  await page.addInitScript(()=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'full'}));});
+  await interceptMealServices(page);
+  await page.goto('http://127.0.0.1:5175/newest');
+  await expect(page.locator('.detail-wrap tbody tr')).toHaveCount(2);
+  const trigger=page.getByRole('button',{name:'Tùy chọn hiển thị'}),menu=page.locator('.comfort-menu');
+  await trigger.click();
+  const motion=await menu.evaluate(el=>el.getAnimations().map(animation=>({duration:Number(animation.effect!.getTiming().duration),frames:animation.effect!.getKeyframes()})));
+  expect(motion.length,'the native menu should have a real opening transition').toBeGreaterThan(0);
+  expect(Math.max(...motion.map(item=>item.duration))).toBeLessThanOrEqual(260);
+  for(const time of [0,100,240]) {
+    await menu.evaluate((el,time)=>el.getAnimations().forEach(animation=>{animation.pause();animation.currentTime=time;}),time);
+    await page.screenshot({path:`review/motion/menu-${time}ms.png`});
+  }
+  await page.keyboard.press('Escape');
+  await trigger.click();
+  expect(await menu.evaluate(el=>el.matches(':popover-open'))).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(trigger).toBeFocused();
+  await expect(menu).toHaveAttribute('inert','');
+  const name=page.getByRole('combobox',{name:'Họ tên',exact:true});
+  await name.click();
+  const properties=await page.locator('#name-options').evaluate(el=>getComputedStyle(el).transitionProperty);
+  expect(properties).not.toMatch(/height|padding|width/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#name-options')).not.toHaveClass(/closing/,{timeout:450});
+  await name.click();await page.keyboard.press('Escape');await name.click();
+  await expect(name).toHaveAttribute('aria-expanded','true');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('motion preferences preserve useful light feedback, immediate off and automatic OS reduction',async({page})=>{
+  await interceptMealServices(page);
+  await page.setViewportSize({width:390,height:844});
+  await page.addInitScript(()=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme:'light',motion:'light'}));});
+  await page.goto('http://127.0.0.1:5175/newest');
+  await page.getByRole('button',{name:'Tùy chọn hiển thị'}).click();
+  const menu=page.locator('.comfort-menu');
+  const motions=await menu.evaluate(el=>el.getAnimations().map(animation=>animation.effect!.getKeyframes()));
+  expect(motions.length,'light mode keeps short opacity feedback').toBeGreaterThan(0);
+  expect(motions.flat().every(frame=>!frame.transform||frame.transform==='none')).toBe(true);
+  await page.getByRole('combobox',{name:'Hiệu ứng',exact:true}).selectOption('off');
+  expect(await menu.evaluate(el=>el.getAnimations().length)).toBe(0);
+  await page.keyboard.press('Escape');
+  const name=page.getByRole('combobox',{name:'Họ tên',exact:true});
+  await name.click();await page.keyboard.press('Escape');
+  await expect(name).toHaveAttribute('aria-expanded','false');
+  await expect(page.locator('#name-options')).not.toHaveClass(/closing/);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.addInitScript(()=>localStorage.removeItem('meal-appearance'));
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-motion-level','off');
+  await page.getByRole('button',{name:'Tùy chọn hiển thị'}).click();
+  expect(await menu.evaluate(el=>el.getAnimations().length)).toBe(0);
+});
+
+test('confirmation motion never delays cancel and busy animation follows the real pending read',async({page})=>{
+  const writes:object[]=[];
+  await page.addInitScript(()=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme:'light',motion:'full'}));});
+  await interceptMealServices(page,'owner','#357185',writes);
+  await page.goto('http://127.0.0.1:5175/dashboard');
+  await page.locator('.ui-sidebar').getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();
+  const remove=page.getByRole('button',{name:'Xóa lượt này',exact:true});
+  await remove.click();
+  const dialog=page.getByRole('dialog',{name:'Xác nhận thao tác'});
+  expect(await dialog.evaluate(el=>el.getAnimations().length),'confirmation should acknowledge its focus layer').toBeGreaterThan(0);
+  await dialog.evaluate(el=>el.getAnimations().forEach(animation=>{animation.pause();animation.currentTime=90;}));
+  await dialog.screenshot({path:'review/motion/confirmation-90ms.png'});
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);expect(writes).toEqual([]);
+  let release!:()=>void;
+  const pending=new Promise<void>(resolve=>{release=resolve;});
+  await page.route('**/api/dashboard?week=**',async route=>{await pending;await route.fallback();});
+  const reload=page.getByRole('button',{name:'Tải lại dữ liệu',exact:true});
+  try {
+    await reload.click();
+    const busy=page.getByRole('button',{name:'Đang tải lại…',exact:true});
+    await expect(busy).toHaveAttribute('aria-busy','true');
+    expect(await busy.evaluate(el=>getComputedStyle(el,'::after').animationName)).not.toBe('none');
+    await busy.screenshot({path:'review/motion/pending-read.png'});
+  } finally {release();}
+  await expect(reload).toHaveAttribute('aria-busy','false');
+  expect(writes).toEqual([]);
+});
+
+test('mobile More motion preserves tool navigation, inert exit and an explicit full-motion override',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.addInitScript(()=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'full'}));});
+  await interceptMealServices(page);
+  await page.goto('http://127.0.0.1:5175/dashboard');
+  const more=page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true});
+  await more.focus();await page.keyboard.press('Enter');
+  const menu=page.locator('.ui-more-menu');
+  expect(await menu.evaluate(el=>el.getAnimations().length)).toBeGreaterThan(0);
+  await menu.evaluate(el=>el.getAnimations().forEach(animation=>{animation.pause();animation.currentTime=100;}));
+  await page.screenshot({path:'review/motion/mobile-more-100ms.png'});
+  await menu.getByRole('button',{name:'Đối soát',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Đối soát Form–Sheet'})).toBeVisible();
+  await expect(menu).toHaveAttribute('inert','');
+  expect(await menu.evaluate(el=>el.matches(':popover-open'))).toBe(false);
+  await more.click();await page.keyboard.press('Escape');await more.click();
+  await expect(more).toHaveAttribute('aria-expanded','true');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
