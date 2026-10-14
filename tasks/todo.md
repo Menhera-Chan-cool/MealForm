@@ -12,7 +12,7 @@
 - [x] dashboard-workflow: contextual draft-brand preview across surface/device/theme.
 - [x] Integration: native/API + 25 actual-frontend browser + 11 preview browser + 5 token/guard tests; Storybook/preview builds and bounded PC/mobile light/dark QA. Day strip removed and verified absent.
 - [x] GitHub PR #5 + exact READY staged artifact dpl_EiNwPZLLD1sZdrEYNZfyTHcMKR9x; four synthetic review tabs opened and verified. Main domain remains unchanged.
-- [ ] User visual approval, then exact-head merge/promotion only when explicitly authorized. No production release yet.
+- [x] User approved PR #5 and production. Exact-head merge dccfddc; promoted the same staged artifact without rebuild. Genuine readonly production smoke passed; no Form/Sheet writes. Verification record and README updated.
 
 ## Import and appearance QoL approved 2026-10-12
 

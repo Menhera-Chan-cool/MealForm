@@ -1,6 +1,6 @@
 # MealForm
 
-## Chín cải tiến UI — đang chờ duyệt staging 14/10/2026
+## Chín cải tiến UI — đã phát hành 14/10/2026
 
 - Viewer mobile có tab Tổng hợp/Chi tiết, giữ bộ lọc và sắp xếp; thẻ đặt tên ở đầu và thời điểm bên dưới. PC ghim cột Họ tên khi cuộn ngang.
 - Bộ tìm tuần Dashboard phân nhóm Tuần này/Tuần sau/Tuần đã qua/Tuần khác, giữ đúng tuần được chọn. Kho tuần có Danh sách/Lịch tháng; tuần giao tháng xuất hiện trong cả hai tháng và mở đúng URL cũ.
@@ -9,7 +9,7 @@
 - Thương hiệu có khung minh họa Trang xem/Dashboard, Điện thoại/PC, Sáng/Tối; chỉ nút Lưu thương hiệu mới áp dụng.
 - Khung chờ chỉ hiện khi chưa có dữ liệu. Tải lại giữ bản đã xem và khóa thao tác cho tới khi xác minh xong.
 
-Theo yêu cầu mới, **không thêm thanh chọn ngày trong tuần**. Bộ lọc Ngày, nút Hôm nay và thông báo ngày nghỉ hiện có vẫn giữ. Bản này chỉ đổi frontend, không đổi API, Apps Script, quyền, cấu hình hay dependency. Chưa merge hoặc đưa lên domain production; chi tiết kiểm thử và staging ở `VERIFICATION-ui-bundle-2026-10-14.md`. Các RAR đã phát hành trước đây không tự cập nhật.
+Theo yêu cầu mới, **không thêm thanh chọn ngày trong tuần**. Bộ lọc Ngày, nút Hôm nay và thông báo ngày nghỉ hiện có vẫn giữ. Bản này chỉ đổi frontend, không đổi API, Apps Script, quyền, cấu hình hay dependency. PR #5 đã merge sau khi chủ dự án duyệt; đúng artifact staging đã được chuyển lên [website production](https://menutaythanh.vercel.app), không build lại. Chi tiết kiểm thử/phát hành ở `VERIFICATION-ui-bundle-2026-10-14.md`. Các RAR đã phát hành trước đây không tự cập nhật.
 
 ## Khung chọn ảnh ngày 13/10/2026
 
