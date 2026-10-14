@@ -1,6 +1,6 @@
 # Production UI verification — 2026-10-14
 
-Status: frontend implementation and local review completed; user staging approval is pending. This record does not assert a GitHub merge, production alias promotion or deployed read-only smoke result. The release owner must append the exact staged deployment URL/artifact, source commit and user approval before the release gate can pass.
+Status: RELEASED. The user approved staging on 14 October 2026; GitHub PR #1 is merged and the exact approved artifact is serving the main production domain. Post-promotion read-only checks passed within the limits recorded below.
 
 ## Implemented scope
 
@@ -34,7 +34,7 @@ The production detail view retains the real response table, native sorting and c
 
 Root `PRODUCT.md` began with preview-only scope and Noto/dependency isolation; that historical phase should not be confused with the current user-approved production migration in `SPEC-production-ui.md`. Prior `mealform-preview/DESIGN.md` and `VIEWER-DESIGN.md` describe the isolated previews. At the source read, their token references and the compiler bridge comment still named the former `tokens/tokens.json` path; the integration owner is reconciling migration-related path references and appending current authorization without erasing the earlier phase. This documentation pass does not rewrite those files. The canonical source is now `meal-viewer/design/tokens.json`. No claim is made of imported official Figma kit assets, pixel-perfect Figma agreement or automatic two-way token synchronization.
 
-## Release gate — pending
+## Release gate — completed
 
 1. Record the previous serving deployment and source commit for rollback. The integration owner verified the exact linked CLI project/team and serving artifact `dpl_7uarNkV1ZoixaYZCVAmb9qHotsDJ`; the connector's team request returned 403, so the mapped CLI credentials supplied this inspection. The source commit remains to be recorded.
 2. Prepare the reviewable source branch/PR and the exact production-environment staged artifact without switching the production alias, as required by `SPEC-production-ui.md`.
@@ -45,11 +45,20 @@ Root `PRODUCT.md` began with preview-only scope and Noto/dependency isolation; t
 
 Staged URL/artifact: https://menutaythanh-bp4fmmq70-anh-tun.vercel.app — `dpl_DvF1xpniLG8AUVU2jg62JrYiySQ3`, READY, production environment with `--skip-domain`. Build version `83c4d096-03eb-44e0-997d-f9f1dc166f7a`; entry asset `/assets/index-Ce33QV0b.js` and CSS `/assets/index-GtbmNmS3.css`.
 
-UI source commit: `ac94b2a468b354f760510fb35bd024747840c3a2` on `codex/ui-remake-2026-10-14`. PR: https://github.com/Menhera-Chan-cool/MealForm/pull/1 — OPEN, not merged.
+UI source commit: `ac94b2a468b354f760510fb35bd024747840c3a2` on `codex/ui-remake-2026-10-14`. PR: https://github.com/Menhera-Chan-cool/MealForm/pull/1 — MERGED at `2026-10-14T11:11:01Z`, merge commit `feb344d9731b68813df3c2eea0a01b4407d21897`. The only difference between the approved artifact source and this merge is this root verification document, not runtime code.
 
 User staging approval: explicitly approved in this thread on14/10/2026 — merge GitHub and put the approved artifact on production.
 
-Merge/promotion and deployed smoke evidence: pending.
+Merge/promotion and deployed smoke evidence:
+
+- `gh pr view` confirmed MERGED; fetching `origin/main` independently confirmed merge commit `feb344d9731b68813df3c2eea0a01b4407d21897`.
+- Vercel promotion of `dpl_DvF1xpniLG8AUVU2jg62JrYiySQ3` succeeded. A fresh CLI inspection of `menutaythanh.vercel.app` resolved to this READY deployment. No second build was created for promotion.
+- Main-domain `/version.json` returned `83c4d096-03eb-44e0-997d-f9f1dc166f7a`; HTML references exactly `/assets/index-Ce33QV0b.js` and `/assets/index-GtbmNmS3.css`, matching the approved staged artifact.
+- A separate, fresh headed Playwright session (`mealform-production`) used no mock routes or injected review scripts. Real guest reads of `/newest` and `/next` each rendered five day-summary cards, summary/detail headings, no alert and no document overflow at 390px. The browser reported no page errors in this flow. No names or meal records were emitted to logs.
+- Fresh anonymous `/dashboard` and `/history` displayed their real login guards without overflow. `/api/session` returned `authenticated:false`, `/api/branding` returned the existing `#357185` primary color, and unauthenticated Dashboard/history endpoints returned 401. Existing Google SDK requests were allowed in this production session.
+- A bounded error-level Vercel log query over the preceding 15 minutes returned no entries. This is a point-in-time check, not ongoing monitoring or proof that every authenticated action works.
+- Real owner-authenticated administration and all live mutations were deliberately not retested in production. Exact request/confirmation behavior was exercised against synthetic transport before release; this does not substitute for a live owner end-to-end certificate. No Form/Sheet data, access permissions, OAuth origins, environment secrets or Apps Script code changed.
+- Rollback target remains the previous serving deployment `dpl_7uarNkV1ZoixaYZCVAmb9qHotsDJ` (`https://menutaythanh-bskh1zcag-anh-tun.vercel.app`), version `d02f3489-b81a-47b4-afa7-6d064375a224`. Its original source commit was not independently available; the immutable deployment identifier is the concrete rollback target. No data rollback is part of this UI release.
 
 ## Staging inspection and review handoff
 
