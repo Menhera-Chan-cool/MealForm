@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ALL, buildDetailModel, errorMessage, readViewerFilters, spreadsheetIdFromUrl, viewerApiUrl, weekNavigation, shouldDeferViewerUpdate, millisecondsUntilMealWeekRollover, todayDayLabel, mealRegistrationTarget } from './viewer-model.mjs';
 import Dashboard from './Dashboard.jsx';
+import ContentSkeleton from './ContentSkeleton.jsx';
 import {useAppearance} from './AppearanceProvider.jsx';
 import { clearDashboardCache } from './dashboard-cache.mjs';
 import { safeErrorReport } from './safe-error-report.mjs';
@@ -18,6 +19,7 @@ import { readLoginState } from './session-client.mjs';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
 import WeekNotice from './WeekNotice.jsx';
 import ViewerSummary from './ViewerSummary.jsx';
+import ViewerTabs from './ViewerTabs.jsx';
 import WeekNavigation from './WeekNavigation.jsx';
 import {DisplayPreferencesSlot} from './ComfortProvider.jsx';
 
@@ -85,6 +87,14 @@ function App() {
   const [failure, setFailure] = useState(null);
   const [message, setMessage] = useState('Đang kiểm tra đăng nhập…');
   const { open: summaryOpen, closing: summaryClosing, active: summaryActive, toggle: toggleSummary } = useDisclosureAnimation(SUMMARY_PANEL_STORAGE_KEY);
+  const [mobileViewer,setMobileViewer]=useState(()=>window.matchMedia('(max-width:700px)').matches);
+  const [viewerTab,setViewerTab]=useState(()=>summaryOpen?'summary':'detail');
+  useEffect(()=>{
+    const media=window.matchMedia('(max-width:700px)');
+    const update=()=>setMobileViewer(media.matches);
+    media.addEventListener('change',update);return()=>media.removeEventListener('change',update);
+  },[]);
+  const summaryVisible=mobileViewer?viewerTab==='summary':summaryOpen;
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState('');
   const [advancedError, setAdvancedError] = useState('');
@@ -328,10 +338,10 @@ function App() {
 
   if (isSetup) return <SetupChecklist authenticated={auth === 'authenticated'} />;
   if (auth === 'error') return <main className="meal-ui ui-viewer"><section className="login-panel"><h1>Chưa kết nối được</h1><p role="alert">{message}</p><p>Thông tin phiên chưa bị xóa. Bạn không cần đăng xuất để thử lại.</p><div className="actions"><button type="button" onClick={() => void checkSession()}>Kiểm tra lại</button><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đăng xuất</button>{isWeekPage && <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>}</div><ErrorReportButton report={failure} /></section></main>;
-  if (isHistoryList && auth === 'loading') return <main className="meal-ui ui-viewer"><p>Đang xác nhận đăng nhập…</p></main>;
+  if (isHistoryList && auth === 'loading') return <main className="meal-ui ui-viewer"><ContentSkeleton label="Đang xác nhận đăng nhập…" /></main>;
   if (isHistoryList && auth === 'authenticated') return <main className="meal-ui ui-viewer"><header className="viewer-header"><h1>Kho thực đơn tuần cũ</h1><DisplayPreferencesSlot/></header><WeekNavigation current="history"/><HistoryArchive onUnauthorized={() => setAuth('anonymous')} /></main>;
   if (isDashboard) {
-    if (auth === 'loading') return <main className="meal-ui ui-viewer"><p className="message">Đang xác nhận đăng nhập và quyền dashboard…</p></main>;
+    if (auth === 'loading') return <main className="meal-ui ui-viewer"><ContentSkeleton label="Đang xác nhận đăng nhập và quyền dashboard…" /></main>;
     if (auth === 'anonymous') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p><ErrorReportButton report={failure} /></section></main>;
     if (auth === 'forbidden') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đổi tài khoản Google</button><ErrorReportButton report={failure} /></section></main>;
     return <Dashboard key={dashboardData?.accountId} initialData={dashboardData} onSignOut={signOutDashboard} onUnauthorized={(message, status) => { setFailure(safeErrorReport('dashboard', { status })); clearDashboardCache(); authRequest.current++; setDashboardData(null); setAuth(status === 401 ? 'anonymous' : 'forbidden'); setMessage(message); }} />;
@@ -360,7 +370,7 @@ function App() {
         <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>
       </div>}
       <div className="message" role="status" aria-live="polite">{message}</div>
-    </section> : auth === 'loading' ? <p className="message" role="status">Đang xác nhận phiên đăng nhập…</p> : weekUnavailable || (stoppedReading&&!data) ? <section className="login-panel" role="status">
+    </section> : auth === 'loading' ? <ContentSkeleton label="Đang xác nhận phiên đăng nhập…" /> : busy && !data ? <ContentSkeleton label="Đang tải thực đơn…" /> : weekUnavailable || (stoppedReading&&!data) ? <section className="login-panel" role="status">
       <h2>{weekUnavailable?loadError:'Chưa tải được dữ liệu tuần này.'}</h2>
       <div className="actions">
         {weekLink.map(link => <a key={link.href} className="form-link week-link" href={link.href}>{link.label}</a>)}
@@ -413,13 +423,14 @@ function App() {
 
       <ErrorReportButton report={failure} />
       {data?.closedDays?.length > 0 && <p className="closed-days-note">Ngày không phục vụ: {data.closedDays.join(' · ')}</p>}
-      <section className="data-section">
+      <ViewerTabs value={viewerTab} onChange={setViewerTab}/>
+      <section className="data-section viewer-reading-panel" id="viewer-summary" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-summary':undefined} hidden={mobileViewer&&viewerTab!=='summary'}>
         <div className="section-heading"><div className="section-heading-title"><SummaryIcon /><h2>Tổng hợp lựa chọn</h2></div><button
           className="section-toggle" type="button" aria-expanded={summaryOpen} data-active={summaryActive}
           aria-controls="summary-panel" aria-label={summaryOpen ? 'Đóng tổng hợp' : 'Mở tổng hợp'}
           title={summaryOpen ? 'Đóng tổng hợp' : 'Mở tổng hợp'} onClick={toggleSummary}
         ><ChevronIcon expanded={summaryActive} className="summary-chevron" /></button></div>
-        <div id="summary-panel" className={`collapse-panel ${summaryOpen ? 'expanded' : summaryClosing ? 'closing' : 'collapsed'}`} aria-hidden={!summaryOpen} inert={!summaryOpen}>
+        <div id="summary-panel" className={`collapse-panel ${summaryVisible ? 'expanded' : !mobileViewer&&summaryClosing ? 'closing' : 'collapsed'}`} aria-hidden={!summaryVisible} inert={!summaryVisible}>
           <div className="summary-content">
             <p className="summary-result-count" aria-live="polite">Đang hiển thị {model.rows.length} kết quả</p>
             <ViewerSummary days={days} filters={filters} model={model}/>
@@ -427,7 +438,7 @@ function App() {
         </div>
       </section>
 
-      <section className="data-section">
+      <section className="data-section viewer-reading-panel" id="viewer-detail" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-detail':undefined} hidden={mobileViewer&&viewerTab!=='detail'}>
         <div className="section-heading detail-heading">
           <div className="section-heading-title"><PeopleIcon /><h2>Chi tiết lựa chọn</h2></div>
           <div className="detail-sort">

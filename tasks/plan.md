@@ -1,5 +1,10 @@
 # Approved admin upgrades: implementation plan
 
+## Ten UI improvements approved 2026-10-14
+
+Map: CAPABILITY-MAP-ui-ten.md. User approved all four groups and delegated detailed planning/implementation; no further design-step gates before staging.
+loading-states (shared component, then each caller) → week-discovery (pure helpers, grouped picker, calendar) → viewer-reading (model metadata/cards, mobile tabs, PC pinning) → dashboard-workflow (progress, action menus, brand preview) → full regression/visual review → one staged release, explicit user approval before merge/promotion. User removed day-strip idea 2 before staging; the other nine remain authorized. Existing Day filter/Today, APIs/permissions/drafts/cache identities remain unchanged. Keep each implementation checkpoint to a small component/model/caller/test slice; preserve prior plan history below.
+
 ## Import and appearance QoL approved 2026-10-12
 
 reload-changes -> common validated image-ingest -> multi-image OCR reviewed merge -> shared color-scheme and motion-level -> integration, native/API/browser regression -> backend before web deploy -> clean release/README/GitHub sync. Preserve whole-week verified change baselines independent of filters/pages; invalid uploads and failed OCR retain drafts. Merge conflict choices and apply are explicit and one Undo. Reuse comfort/branding/native dialogs, no new dependencies/services/scopes. Test fake OCR/record changes only; production smoke is readonly.

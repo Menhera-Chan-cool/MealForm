@@ -141,6 +141,7 @@ export function buildDetailModel(data, filters, sortMode = 'newest') {
   const dayIndex = selectedDay === ALL ? -1 : days.findIndex(day => dayName(day) === selectedDay);
   const sourceRows = [];
   const mealRows = [];
+  const mealTimes = [];
 
   rows.forEach(row => {
     const name = clean(row?.[1]);
@@ -159,6 +160,7 @@ export function buildDetailModel(data, filters, sortMode = 'newest') {
         if (choice && choice.toLocaleLowerCase().includes(wantedMeal)) {
           matched = true;
           mealRows.push([name, dayName(day), choice]);
+          mealTimes.push(clean(row[0]));
         }
       });
       if (matched) sourceRows.push(row);
@@ -170,11 +172,12 @@ export function buildDetailModel(data, filters, sortMode = 'newest') {
   if (dayIndex >= 0) {
     return {
       headers: [headers[1] || 'Họ và tên', headers[2 + dayIndex] || selectedDay],
-      rows: sourceRows.map(row => [clean(row[1]), clean(row[2 + dayIndex])]), sourceRows
+      rows: sourceRows.map(row => [clean(row[1]), clean(row[2 + dayIndex])]), sourceRows,
+      nameIndex: 0, timeIndex: -1, rowTimes: sourceRows.map(row => clean(row[0]))
     };
   }
-  if (wantedMeal) return { headers: ['Họ và tên', 'Ngày', 'Món'], rows: mealRows, sourceRows };
-  return { headers, rows: sourceRows, sourceRows };
+  if (wantedMeal) return { headers: ['Họ và tên', 'Ngày', 'Món'], rows: mealRows, sourceRows, nameIndex: 0, timeIndex: -1, rowTimes: mealTimes };
+  return { headers, rows: sourceRows, sourceRows, nameIndex: 1, timeIndex: 0, rowTimes: sourceRows.map(row => clean(row[0])) };
 }
 
 export { ALL };

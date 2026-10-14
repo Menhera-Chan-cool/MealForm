@@ -14,6 +14,7 @@ export function installProductionFixtures(){
     let data;
     if(url.pathname==='/api/branding')data={schoolName:'Trường minh họa',logoUrl:'',primaryColor:'#357185'};
     else if(url.pathname==='/api/session')data={authenticated:true};
+    else if(url.pathname==='/api/history')data={weeks:[{weekKey:'2026-09-28_2026-10-02',name:'Tuần 28/09/2026 - 02/10/2026',startDate:'2026-09-28',endDate:'2026-10-02'}]};
     else if(url.pathname==='/api/dashboard'){
       if(options?.method&&options.method!=='GET')return new Response(JSON.stringify({error:'Storybook chỉ minh họa, không gửi thao tác đến hệ thống thật.'}),{status:400,headers:{'Content-Type':'application/json'}});
       if(url.searchParams.has('notice'))data={notice:{text:'',endsOn:'',updatedAt:0}};
