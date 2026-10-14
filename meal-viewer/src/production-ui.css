@@ -77,6 +77,8 @@
 :root .meal-ui .dashboard-panel { padding:24px; margin:0 0 24px; border:1px solid var(--meal-ui-border); border-radius:var(--token-radius-card); color:var(--meal-ui-foreground); background:var(--meal-ui-card); }
 :root .meal-ui :is(.dashboard-panel h2,.dashboard-section-title h2) { margin:0; }
 :root .meal-ui .dashboard-section-title { gap:16px; margin:0 0 20px; }
+:root .meal-ui .dashboard-week-picker { width:min(100%,420px); min-width:0; }
+:root .meal-ui .dashboard-week-picker .combo { min-width:0; }
 :root .meal-ui :is(.dashboard-panel label,.dashboard-search,.dashboard-deadline) { font-size:.875rem; line-height:1.5; }
 .ui-current-weeks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
 .ui-card-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
@@ -187,8 +189,10 @@
   :root .meal-ui .detail-wrap { overflow:visible; border:0; max-height:none; }
   :root .meal-ui .detail-wrap table,:root .meal-ui .detail-wrap tbody { display:block; min-width:0; width:100%; }
   :root .meal-ui .detail-wrap thead { display:none; }
-  :root .meal-ui .detail-wrap tr { display:block; padding:16px; border:1px solid var(--meal-ui-border); border-radius:14px; background:var(--meal-ui-card); margin-bottom:16px; }
-  :root .meal-ui .detail-wrap td { display:block; padding:10px 0; border:0; color:var(--meal-ui-foreground); white-space:normal; }
+  :root .meal-ui .detail-wrap tbody tr { display:block; padding:16px; border:1px solid var(--meal-ui-border); border-radius:14px; background:var(--meal-ui-card); margin-bottom:16px; }
+  :root .meal-ui .detail-wrap td { display:block; padding:12px 0; border:0; background:transparent; color:var(--meal-ui-foreground); font-size:1rem; font-weight:400; white-space:normal; }
+  :root .meal-ui .detail-wrap td:first-child { padding-top:0; }
+  :root .meal-ui .detail-wrap td:last-child { padding-bottom:0; }
   :root .meal-ui .detail-wrap td+td { border-top:1px solid var(--meal-ui-border); }
   :root .meal-ui .mobile-cell-label { display:block; font-size:.875rem; font-weight:400; color:var(--meal-ui-muted-foreground); margin:0 0 4px; }
   :root .meal-ui .detail-wrap td:before { display:none; }
