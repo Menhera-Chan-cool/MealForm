@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ALL, buildDetailModel, errorMessage, readViewerFilters, spreadsheetIdFromUrl, viewerApiUrl, weekNavigation, shouldDeferViewerUpdate, millisecondsUntilMealWeekRollover, todayDayLabel, mealRegistrationTarget } from './viewer-model.mjs';
 import Dashboard from './Dashboard.jsx';
+import {useAppearance} from './AppearanceProvider.jsx';
 import { clearDashboardCache } from './dashboard-cache.mjs';
 import { safeErrorReport } from './safe-error-report.mjs';
 import ErrorReportButton from './ErrorReportButton.jsx';
@@ -62,6 +63,7 @@ export function MotionPreferenceToggle({ reducedMotion, fullMotion, onToggle }) 
 }
 
 function App() {
+  const appearance = useAppearance();
   const viewerPath = window.location.pathname;
   const viewerSearch = window.location.search;
   const isDashboard = viewerPath === '/dashboard' || viewerPath === '/dashboard/';
@@ -90,6 +92,8 @@ function App() {
   const [weekUnavailable, setWeekUnavailable] = useState(false);
   const [serverClockOffset, setServerClockOffset] = useState(0);
   const signInRoot = useRef(null);
+  const googleClient = useRef(null);
+  const currentSessionCheck = useRef(null);
   const authRequest = useRef(0);
   const loading = useRef(false);
   const rolloverTimer = useRef(null);
@@ -235,12 +239,16 @@ function App() {
     };
   }, [auth, isDashboard, loadData]);
 
+  currentSessionCheck.current = checkSession;
   useEffect(() => {
     if (auth !== 'anonymous' || !signInRoot.current || !CLIENT_ID) return undefined;
     let timer;
+    let lastWidth;
     const renderButton = () => {
       if (!window.google?.accounts?.id || !signInRoot.current) return false;
-      window.google.accounts.id.initialize({
+      const client = window.google.accounts.id;
+      if (googleClient.current !== client) {
+        client.initialize({
         client_id: CLIENT_ID,
         callback: async response => {
           try {
@@ -252,20 +260,27 @@ function App() {
             });
             const body = await result.json();
             if (!result.ok) throw Object.assign(new Error(errorMessage(body.error, 'Không thể đăng nhập.')), { status: result.status });
-            await checkSession();
+            await currentSessionCheck.current();
           } catch (error) { setFailure(safeErrorReport('session', error)); setMessage(errorMessage(error, 'Không thể đăng nhập Google.')); }
         }
-      });
+        });
+        googleClient.current = client;
+      }
+      const width = Math.min(400, Math.max(120, Math.floor(signInRoot.current.clientWidth - 20)));
+      if (lastWidth === width) return true;
+      lastWidth = width;
       signInRoot.current.replaceChildren();
-      window.google.accounts.id.renderButton(signInRoot.current, {
-        theme: 'outline', size: 'large', shape: 'rectangular', text: 'signin_with',
-        locale: 'vi', width: Math.max(240, signInRoot.current.clientWidth)
+      client.renderButton(signInRoot.current, {
+        theme: appearance.scheme === 'dark' ? 'outline_dark' : 'outline', size: 'large', shape: 'rectangular', text: 'signin_with',
+        locale: 'vi', width
       });
       return true;
     };
     if (!renderButton()) timer = window.setInterval(() => { if (renderButton()) window.clearInterval(timer); }, 150);
-    return () => window.clearInterval(timer);
-  }, [auth, checkSession]);
+    const observer = new ResizeObserver(renderButton);
+    observer.observe(signInRoot.current);
+    return () => { window.clearInterval(timer); observer.disconnect(); };
+  }, [auth, checkSession, appearance.scheme]);
 
   const days = Array.isArray(data?.days) ? data.days : [];
   const weekDates = (data?.calendarDays || days).map(day => typeof day === 'string' ? day : String(day?.day || ''))

@@ -105,7 +105,7 @@ export default function FilterControls({ days, nameOptions, mealOptions, filters
     </div>
     {activeFilters.length > 0 && <div className="filter-chips" aria-label="Bộ lọc đang áp dụng" aria-live="polite">
       {activeFilters.map(([key, label, value]) => <button
-        key={key} className="filter-chip" type="button" aria-label={`Bỏ lọc ${label}: ${value}`}
+        key={key} className="secondary filter-chip" type="button" aria-label={`Bỏ lọc ${label}: ${value}`}
         onClick={() => onChange(key, ALL)}
       ><span>{label}: {value}</span><span aria-hidden="true">×</span></button>)}
     </div>}

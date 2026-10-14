@@ -21,3 +21,13 @@ assert.notEqual(blue['--meal-ui-background'], red['--meal-ui-background']);
 assert.notEqual(blue['--meal-ui-card'], red['--meal-ui-card']);
 assert.equal(branding.uiThemeVariables('invalid', 'light')['--meal-ui-primary'], '#087f5b');
 console.log('Calendar-safe overview grouping and live-brand UI variables passed');
+
+assert.equal(typeof dashboard.isAppsScriptPermissionError,'function');
+for(const message of [
+  'You do not have permission to call DriveApp.Folder.createFolder. Required permissions: https://www.googleapis.com/auth/drive',
+  'You do not have permission to call FormApp.create.',
+  'Required permissions: https://www.googleapis.com/auth/script.external_request',
+  'Authorization is required to perform that action.',
+  'Thiếu quyền Apps Script'
+]) assert.equal(dashboard.isAppsScriptPermissionError(message),true);
+for(const message of ['Yêu cầu bị từ chối.','Bạn không có quyền Dashboard.','Phiên đã hết hạn.','Lỗi mạng','You do not have permission to access this document.',null]) assert.equal(dashboard.isAppsScriptPermissionError(message),false);

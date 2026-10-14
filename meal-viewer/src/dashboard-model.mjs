@@ -1,6 +1,10 @@
 import { foldSearchText } from './viewer-model.mjs';
 const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
 
+export function isAppsScriptPermissionError(message) {
+  return /you do not have permission to call|authorization is required to perform that action|required permissions?:\s*https:\/\/www\.googleapis\.com\/auth\/|(?:thiếu|chưa (?:cấp|được cấp)) quyền Apps Script/i.test(String(message || ''));
+}
+
 export function groupDashboardWeeks(weeks, now = Date.now()) {
   const date = new Date(now + 7 * 3600000);
   date.setUTCDate(date.getUTCDate() - (date.getUTCDay() + 6) % 7);
