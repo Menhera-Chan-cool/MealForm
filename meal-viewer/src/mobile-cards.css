@@ -148,7 +148,6 @@
   .detail-wrap tbody { display: grid; gap: 10px; }
   .detail-wrap tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; border: 1px solid #aac9b8; border-radius: 10px; background: #fff; box-shadow: 0 2px 8px #164b3512; }
   .detail-wrap tbody td { display: grid; gap: 4px; min-width: 0; padding: 10px; border: 0; border-bottom: 1px solid #d6e9de; overflow-wrap: anywhere; font-size: 16px; }
-  .detail-wrap tbody td:nth-child(-n+2) { background: #f7fcf9; font-weight: 650; }
   .detail-wrap tbody td:nth-child(n+3) { grid-column: 1 / -1; grid-template-columns: minmax(110px, 35%) minmax(0, 1fr); align-items: start; gap: 10px; }
   .detail-wrap .mobile-cell-label { display: block; color: #356b52; font-size: 13px; font-weight: 700; line-height: 1.25; }
   .detail-wrap td[colspan] { grid-column: 1 / -1; display: block; text-align: center; }

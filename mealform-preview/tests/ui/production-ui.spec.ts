@@ -129,6 +129,95 @@ test('real viewer displays weekly day cards while filtering and retains preferen
   expect(geometry.scroll,JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.width);
 });
 
+test('mobile detail cards keep one surface and type hierarchy across full, day and meal filters',async({page})=>{
+  for(const theme of ['light','dark']) {
+    await page.setViewportSize({width:390,height:960});
+    await page.addInitScript(theme=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme,motion:'off'}));},theme);
+    await interceptMealServices(page);
+    await page.goto('http://127.0.0.1:5175/newest');
+    const rows=page.locator('.detail-wrap tbody tr');
+    await expect(rows).toHaveCount(2);
+    async function checkCards() {
+      const styles=await rows.evaluateAll(elements=>elements.map(row=>({
+        surface:getComputedStyle(row).backgroundColor,
+        fields:[...row.querySelectorAll('td')].map(cell=>({background:getComputedStyle(cell).backgroundColor,weight:getComputedStyle(cell).fontWeight,size:parseFloat(getComputedStyle(cell).fontSize)}))
+      })));
+      expect.soft(new Set(styles.map(row=>row.surface)).size,'row striping must not turn adjacent cards into different surfaces').toBe(1);
+      const fields=styles.flatMap(row=>row.fields);
+      expect.soft([...new Set(fields.map(field=>field.background))],'table cell fills must not appear inside a mobile card').toEqual(['rgba(0, 0, 0, 0)']);
+      expect.soft([...new Set(fields.map(field=>field.weight))],'filtered columns must not inherit first-two-column emphasis').toEqual(['400']);
+      expect.soft(Math.min(...fields.map(field=>field.size)),'mobile values must use the readable body size').toBeGreaterThanOrEqual(16);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    }
+    await checkCards();
+    await page.getByRole('button',{name:'Bộ lọc',exact:true}).click();
+    await page.getByRole('combobox',{name:'Ngày',exact:true}).click();
+    await page.getByRole('option',{name:'Thứ 4 (14/10/2026)',exact:true}).click();
+    await expect(rows.first().locator('td')).toHaveCount(2);
+    await expect(rows.first()).toContainText('Trường An');
+    await checkCards();
+    await page.locator('.detail-wrap').screenshot({path:`review/production/detail-day-${theme}.png`});
+    await page.getByRole('button',{name:'Xóa bộ lọc',exact:true}).click();
+    await page.getByRole('combobox',{name:'Món',exact:true}).fill('CƠM GÀ');
+    await page.getByRole('heading',{name:'Chi tiết lựa chọn',exact:true}).click();
+    await expect(rows).toHaveCount(5);
+    await expect(rows.first().locator('td')).toHaveCount(3);
+    await checkCards();
+    await page.getByRole('button',{name:'Xóa bộ lọc',exact:true}).click();
+    await page.getByRole('combobox',{name:'Sắp xếp',exact:true}).click();
+    await page.getByRole('option',{name:'Cũ nhất',exact:true}).click();
+    await expect(rows.first()).toContainText('Minh Anh');
+    await page.setViewportSize({width:360,height:960});
+    await checkCards();
+    await page.locator('.detail-wrap').screenshot({path:`review/production/detail-week-${theme}.png`});
+  }
+});
+
+test('Dashboard week searches display the committed week in every shared picker',async({page})=>{
+  await interceptMealServices(page);
+  await page.goto('http://127.0.0.1:5175/dashboard');
+  const nav=page.locator('.ui-sidebar nav');
+  const current='Tuần 12/10/2026 - 16/10/2026';
+  const previous='Tuần 05/10/2026 - 09/10/2026';
+  for(const tab of ['Thông báo tuần','Lượt gửi & lịch sử','Điều khiển Form','Đối soát','Hệ thống']) {
+    await nav.getByRole('button',{name:tab,exact:true}).click();
+    const picker=page.getByRole('combobox',{name:'Tìm tuần',exact:true});
+    await expect.soft(picker,'the selected week belongs in the input, not an extra line').toHaveValue(current);
+    await picker.click();
+    await expect(page.getByRole('option',{name:previous,exact:true})).toBeVisible();
+    await picker.fill('05/10');
+    await page.getByRole('option',{name:previous,exact:true}).click();
+    await expect.soft(picker).toHaveValue(previous);
+    await expect(page.locator('.selected-week-name')).toHaveCount(0);
+    await picker.click();
+    await picker.fill('không có tuần này');
+    await page.keyboard.press('Escape');
+    await expect(picker,'canceling a search must restore the committed selection').toHaveValue(previous);
+    await picker.click();
+    await page.getByRole('option',{name:current,exact:true}).click();
+  }
+  const selectionFits=()=>page.getByRole('combobox',{name:'Tìm tuần',exact:true}).evaluate(input=>{
+    const element=input as HTMLInputElement,style=getComputedStyle(element),canvas=document.createElement('canvas'),context=canvas.getContext('2d')!;
+    context.font=style.font;
+    return context.measureText(element.value).width<=element.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
+  });
+  expect(await selectionFits(),'the chosen date range must not be clipped by a narrow desktop picker').toBe(true);
+  await page.locator('.dashboard-week-picker').screenshot({path:'review/production/week-picker-desktop.png'});
+  await page.setViewportSize({width:390,height:960});
+  await page.evaluate(()=>localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'off'})));
+  await page.reload();
+  await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();
+  await page.getByRole('dialog',{name:'Thêm chức năng'}).getByRole('button',{name:'Thông báo tuần',exact:true}).click();
+  const picker=page.getByRole('combobox',{name:'Tìm tuần',exact:true});
+  await picker.click();
+  await page.getByRole('option',{name:previous,exact:true}).click();
+  await expect(picker).toHaveValue(previous);
+  expect(await selectionFits(),'the mobile picker must show the full selected week').toBe(true);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await expect(page.getByRole('textbox',{name:'Nội dung thông báo'})).toBeEnabled();
+  await page.locator('.dashboard-panel').screenshot({path:'review/production/week-picker-mobile-dark.png'});
+});
+
 test('large text, next-week empty, anonymous and retry states preserve real viewer boundaries',async({page})=>{
   await page.setViewportSize({width:360,height:960});
   await page.addInitScript(()=>{localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'off'}));});
