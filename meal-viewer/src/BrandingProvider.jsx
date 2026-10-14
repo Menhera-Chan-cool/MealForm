@@ -40,5 +40,6 @@ export default function BrandingProvider({ children }) {
     }
     return () => { delete root.dataset.branding; Object.keys(ui).forEach(name => root.style.removeProperty(name)); Object.keys(theme).forEach(name => root.style.removeProperty(`--brand-${name}`)); document.title = originalTitle; };
   }, [branding,appearance.scheme]);
-  return <BrandingContext.Provider value={branding}><SchoolBrand branding={branding} />{children}</BrandingContext.Provider>;
+  const dashboard = typeof window !== 'undefined' && /^\/dashboard\/?$/.test(window.location.pathname);
+  return <BrandingContext.Provider value={branding}>{!dashboard && <SchoolBrand branding={branding} />}{children}</BrandingContext.Provider>;
 }

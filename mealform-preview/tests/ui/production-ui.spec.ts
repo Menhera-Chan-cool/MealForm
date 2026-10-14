@@ -244,3 +244,115 @@ test('large text, next-week empty, anonymous and retry states preserve real view
   await expect(page.getByText('Thông tin phiên chưa bị xóa.',{exact:false})).toBeVisible();
   await page.screenshot({path:'review/production/session-error-dark.png',fullPage:true});
 });
+
+test('Dashboard removes duplicate chrome and consolidates owner setup and authorization in System',async({page})=>{
+  await interceptMealServices(page);
+  await page.goto('http://127.0.0.1:5175/dashboard');
+  await expect(page.locator('.ui-overview')).toBeVisible();
+  await expect(page.locator('.school-brand')).toHaveCount(0);
+  const header=page.locator('.dashboard-header');
+  await expect(header.getByRole('button',{name:'Đăng xuất',exact:true})).toHaveCount(0);
+  await expect(header.getByRole('link')).toHaveCount(0);
+  await expect(header.getByRole('button',{name:'Cấp quyền Apps Script',exact:true})).toHaveCount(0);
+  await expect(page.locator('.ui-sidebar').getByRole('button',{name:'Đăng xuất',exact:true})).toBeVisible();
+  await page.locator('.ui-sidebar').getByRole('button',{name:'Hệ thống',exact:true}).click();
+  await expect(page.locator('.dashboard-panel').first().getByRole('button',{name:'Cấp quyền Apps Script',exact:true})).toBeVisible();
+  await expect(page.locator('.setup-steps li')).toHaveCount(7);
+  await page.goto('http://127.0.0.1:5175/setup');
+  await expect(page.locator('.setup-steps li')).toHaveCount(7);
+});
+
+test('explicit Apps Script OCR permission failures offer the owner a scoped authorization action',async({page})=>{
+  await interceptMealServices(page);
+  await page.route('**/api/dashboard',async route=>{
+    if(route.request().method()==='POST'&&route.request().postDataJSON()?.action==='ocr')return route.fulfill({status:400,json:{error:'You do not have permission to call UrlFetchApp.fetch. Required permissions: https://www.googleapis.com/auth/script.external_request'}});
+    return route.fallback();
+  });
+  await page.goto('http://127.0.0.1:5175/dashboard?tab=create');
+  await expect(page.getByRole('button',{name:'Chọn ảnh thực đơn',exact:true})).toBeEnabled();
+  const image=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=4;canvas.height=4;canvas.getContext('2d')!.fillRect(0,0,4,4);return canvas.toDataURL('image/png').split(',')[1];});
+  await page.locator('input[type=file]').first().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')});
+  await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();
+  const message=page.locator('.dashboard-message');
+  await expect(message).toContainText('Thiếu quyền Apps Script');
+  await expect(message.getByRole('button',{name:'Cấp quyền Apps Script',exact:true})).toBeVisible();
+});
+
+test('mobile filters, week links and two-line registration/status controls stay aligned',async({page})=>{
+  await page.setViewportSize({width:360,height:960});
+  await page.addInitScript(()=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'off'}));});
+  await interceptMealServices(page);
+  const nextForm={formStatus:'open',formUrl:weeks[0].formUrl,calendarDays:['Thứ 2 (19/10/2026)','Thứ 6 (23/10/2026)']};
+  await page.route('**/api/viewer**',route=>route.fulfill({status:200,json:{headers:['Thời điểm','Họ tên',...days.map(day=>day.day)],rows:[['08/10/2026 20:59','Trường An',...days.map(()=> 'CƠM GÀ')]],days,formStatus:'closed',formUrl:weeks[0].formUrl,nextForm}}));
+  await page.goto('http://127.0.0.1:5175/newest');
+  await expect(page.getByRole('link',{name:/Đăng ký tuần sau/})).toBeVisible();
+  await expect(page.getByRole('link',{name:/Đăng ký tuần sau/})).toHaveCSS('background-color','rgb(53, 113, 133)');
+  await page.getByRole('button',{name:'Bộ lọc',exact:true}).click();
+  await page.getByRole('combobox',{name:'Ngày',exact:true}).click();
+  await page.getByRole('option',{name:'Thứ 4 (14/10/2026)',exact:true}).click();
+  const geometry=await page.evaluate(()=>{
+    const filter=document.querySelector('.mobile-filter-toggle')!,label=filter.querySelector('span')!,name=document.querySelector('#name')!;
+    const actions=[...document.querySelectorAll('.form-access .meal-form-link,.form-access .form-status')].map(el=>el.getBoundingClientRect().height);
+    return {labelHeight:label.getBoundingClientRect().height,lineHeight:parseFloat(getComputedStyle(label).lineHeight),aligned:Math.abs(filter.getBoundingClientRect().bottom-name.getBoundingClientRect().bottom),actions,nav:[...document.querySelectorAll('.viewer-navigation a')].map(el=>el.getBoundingClientRect().height),overflow:document.documentElement.scrollWidth>innerWidth};
+  });
+  expect.soft(geometry.labelHeight).toBeLessThanOrEqual(geometry.lineHeight+1);
+  expect.soft(geometry.aligned).toBeLessThanOrEqual(1);
+  expect.soft(Math.max(...geometry.actions)-Math.min(...geometry.actions)).toBeLessThanOrEqual(1);
+  expect.soft(Math.max(...geometry.nav)-Math.min(...geometry.nav)).toBeLessThanOrEqual(1);
+  expect(geometry.overflow).toBe(false);
+  await page.screenshot({path:'review/production/controls-mobile-dark.png',fullPage:true});
+  await page.route('**/api/viewer**',route=>route.fulfill({status:200,json:{headers:['Thời điểm','Họ tên',...days.map(day=>day.day)],rows:[],days,formStatus:'closed',formUrl:''}}));
+  await page.reload();
+  const unavailable=page.getByText('Form chưa sẵn sàng',{exact:true});
+  await expect(unavailable).toBeVisible();
+  expect(Math.abs((await unavailable.boundingBox())!.height-(await page.locator('.form-status').boundingBox())!.height)).toBeLessThanOrEqual(1);
+});
+
+test('Google sign-in respects appearance and resizes its official widget without changing session flow',async({page})=>{
+  await interceptMealServices(page);
+  await page.route('**/api/session',route=>route.fulfill({status:200,json:{authenticated:false}}));
+  await page.addInitScript(()=>{
+    localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'off'}));
+    (window as any).__gsi={calls:[],initializations:0};
+    (window as any).google={accounts:{id:{initialize(){(window as any).__gsi.initializations++;},renderButton(root:HTMLElement,options:any){
+      (window as any).__gsi.calls.push(options);
+      const frame=document.createElement('iframe');frame.title='Đăng nhập bằng Google';frame.style.width=(Number(options.width)+20)+'px';frame.style.height='44px';root.append(frame);
+    }}}};
+  });
+  await page.setViewportSize({width:1440,height:960});
+  await page.goto('http://127.0.0.1:5175/newest');
+  await expect(page.locator('.google-signin iframe')).toBeVisible();
+  expect(await page.evaluate(()=>(window as any).__gsi.calls.at(-1).theme)).toBe('outline_dark');
+  await page.setViewportSize({width:360,height:844});
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const fit=await page.locator('.google-signin').evaluate(root=>root.querySelector('iframe')!.getBoundingClientRect().width<=root.getBoundingClientRect().width);
+  expect(fit).toBe(true);
+  await page.getByRole('button',{name:'Tùy chọn hiển thị'}).click();
+  await page.getByRole('combobox',{name:'Giao diện',exact:true}).selectOption('light');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__gsi.calls.at(-1).theme)).toBe('outline');
+  expect(await page.evaluate(()=>(window as any).__gsi.initializations)).toBe(1);
+});
+
+test('mobile submissions and audit share the panel palette without alternating nested card fills',async({page})=>{
+  await page.setViewportSize({width:390,height:960});
+  for(const theme of ['light','dark']) {
+    await page.addInitScript(theme=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme,motion:'off'}));},theme);
+    await interceptMealServices(page);
+    await page.route('**/api/dashboard?week=**',route=>route.fulfill({status:200,json:{
+      week:{...weeks[0],dayLabels:days.map(day=>day.day)},responseCount:2,responseIds:['sample-a','sample-b'],responses:[
+        {responseId:'sample-a',name:'Trường An',timestamp:1791467940000,meals:days.map(()=> 'CƠM GÀ'),deletable:false,rowNumber:2},
+        {responseId:'sample-b',name:'Minh Anh',timestamp:1791467880000,meals:days.map(()=> 'BÚN BÒ'),deletable:false,rowNumber:3}
+      ],history:[{id:'audit-a',action:'form-closed',at:1791467940000,actor:'admin@example.com',note:'Đã chốt đăng ký'},{id:'audit-b',action:'form-deadline-updated',at:1791467880000,actor:'admin@example.com',note:'Đã đổi hạn đăng ký'}]
+    }}));
+    await page.goto('http://127.0.0.1:5175/dashboard');
+    await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Lượt gửi',exact:true}).click();
+    await expect(page.locator('.dashboard-history-table tbody tr')).toHaveCount(2);
+    const colors=await page.evaluate(()=>{
+      const panel=document.querySelector('.dashboard-panel')!,toolbar=document.querySelector('.dashboard-sticky-tools')!;
+      return {panel:getComputedStyle(panel).backgroundColor,toolbar:getComputedStyle(toolbar).backgroundColor,rows:[...new Set([...document.querySelectorAll('.dashboard-response-table tbody tr,.dashboard-history-table tbody tr')].map(row=>getComputedStyle(row).backgroundColor))]};
+    });
+    expect.soft(colors.toolbar).toBe(colors.panel);
+    expect.soft(colors.rows).toEqual([colors.panel]);
+    await page.screenshot({path:`review/production/submissions-audit-mobile-${theme}.png`,fullPage:true});
+  }
+});
