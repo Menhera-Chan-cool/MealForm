@@ -1,5 +1,14 @@
 # Admin upgrades
 
+## UI clarity — 13 items, production authorized 2026-10-14
+
+- [x] Map/specs; safe literal highlights, Vietnamese display headers, clear controls and external affordances with focused RED/GREEN tests.
+- [x] Contextual titles, breadcrumbs/month return, honest archive metadata and expandable/expiry-safe notices with boundary tests.
+- [x] Mobile native filter sheet, same-DOM PC workspaces and keyboard-height confirmation footer with focus/state/scroll tests.
+- [x] Unsaved brand/notice guards, failed-save retention/retry and content-bound valid OCR reviewed days with synthetic tests.
+- [x] Full regressions: 29 native/API scripts, 38 real-frontend browser tests, 11 compatibility browser tests, 5 token/guard tests; preview/Storybook builds and bounded PC/mobile/light-dark checks passed.
+- [ ] GitHub update + verified exact Vercel artifact production release; no preview approval round requested.
+
 ## Ten UI improvements approved 2026-10-14
 
 - [x] loading-states: shared accessible skeleton; delayed initial reads/error/stop and retained-cache tests.

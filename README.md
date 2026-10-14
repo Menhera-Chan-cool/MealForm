@@ -1,5 +1,17 @@
 # MealForm
 
+## 13 cải tiến UI bổ sung — 14/10/2026
+
+- Tô nổi từ khóa tên/món và nút × xóa riêng từng ô tìm kiếm, không đổi dữ liệu hay tuần đã chọn.
+- Kho tuần có đường dẫn ngữ cảnh, quay lại đúng tháng/chế độ xem; thẻ có số lượt/trạng thái khi API cung cấp. Thiếu dữ liệu ghi “Chưa đọc được”, không giả 0 và không tự quét Form.
+- Bộ lọc mobile thành bảng trượt từ dưới, đóng/mở giữ lựa chọn; thông báo dài có Xem thêm/Thu gọn. Vẫn không thêm thanh chọn ngày.
+- Nhãn hiển thị tiếng Việt, tên tab theo tuần/mục Dashboard và biểu tượng liên kết mở tab mới.
+- Thương hiệu/thông báo có dấu Chưa lưu và cảnh báo rời mục/trang. Lỗi lưu giữ nội dung; xung đột thông báo cần tải lại rõ ràng trước khi lưu phiên bản mới. Không tự lưu cấu hình lên máy chủ.
+- Ngày OCR đã rà soát có thể thu gọn; ngày lỗi vẫn mở. Chỉnh nội dung/Undo hoặc OCR mới không được dùng dấu rà soát để bỏ qua kiểm tra ngày/món.
+- Bảng PC phóng rộng giữ cùng dữ liệu, bộ lọc và vị trí; chân hộp xác nhận luôn trong vùng nhìn khi nội dung cuộn hoặc bàn phím mở.
+
+User đã cho phép phát hành trực tiếp, không yêu cầu vòng duyệt preview. Hồ sơ kiểm thử/trạng thái phát hành: `VERIFICATION-ui-clarity-2026-10-14.md`. Chỉ đổi frontend; API, Apps Script, quyền, cấu hình và dependency giữ nguyên. Bản RAR cũ không tự cập nhật.
+
 ## Chín cải tiến UI — đã phát hành 14/10/2026
 
 - Viewer mobile có tab Tổng hợp/Chi tiết, giữ bộ lọc và sắp xếp; thẻ đặt tên ở đầu và thời điểm bên dưới. PC ghim cột Họ tên khi cuộn ngang.

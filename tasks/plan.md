@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## UI clarity — 13 items, production authorized 2026-10-14
+
+Map: CAPABILITY-MAP-ui-clarity.md. User explicitly requests all 13 changes, GitHub and production with no preview approval. Four specs: search-presentation → week-context → responsive-workspaces → editing-safety. Keep slices small and verify RED/GREEN per presenter/model/caller, then full 29 native/API scripts and real-frontend browser regressions plus preview/Storybook compatibility. Bounded light/dark PC/mobile review, one repair confirmation. No API/Apps Script/dependency changes; no new day-strip or real Form writes. Publish feature PR, verify exact source and mapped Vercel project, build tested artifact without switching main domain, smoke, merge and promote that artifact under already-given release authority; record main version and readonly live checks.
+
 ## Ten UI improvements approved 2026-10-14
 
 Map: CAPABILITY-MAP-ui-ten.md. User approved all four groups and delegated detailed planning/implementation; no further design-step gates before staging.

@@ -173,11 +173,11 @@ export function buildDetailModel(data, filters, sortMode = 'newest') {
     return {
       headers: [headers[1] || 'Họ và tên', headers[2 + dayIndex] || selectedDay],
       rows: sourceRows.map(row => [clean(row[1]), clean(row[2 + dayIndex])]), sourceRows,
-      nameIndex: 0, timeIndex: -1, rowTimes: sourceRows.map(row => clean(row[0]))
+      nameIndex: 0, timeIndex: -1, mealIndexes:[1], rowTimes: sourceRows.map(row => clean(row[0]))
     };
   }
-  if (wantedMeal) return { headers: ['Họ và tên', 'Ngày', 'Món'], rows: mealRows, sourceRows, nameIndex: 0, timeIndex: -1, rowTimes: mealTimes };
-  return { headers, rows: sourceRows, sourceRows, nameIndex: 1, timeIndex: 0, rowTimes: sourceRows.map(row => clean(row[0])) };
+  if (wantedMeal) return { headers: ['Họ và tên', 'Ngày', 'Món'], rows: mealRows, sourceRows, nameIndex: 0, timeIndex: -1, mealIndexes:[2], rowTimes: mealTimes };
+  return { headers, rows: sourceRows, sourceRows, nameIndex: 1, timeIndex: 0, mealIndexes:days.map((_day,index)=>index+2), rowTimes: sourceRows.map(row => clean(row[0])) };
 }
 
 export { ALL };

@@ -5,9 +5,9 @@ const labels = {
 
 export default function FormStatus({ status }) {
   const copy = labels[status];
-  if (!copy) return <div className="form-status loading" role="status" aria-live="polite" aria-label="Loading form">
+  if (!copy) return <div className="form-status loading" role="status" aria-live="polite" aria-label="Đang kiểm tra Form">
     <span className="form-status-spinner" aria-hidden="true" />
-    <span>Loading form</span>
+    <span>Đang kiểm tra Form</span>
   </div>;
 
   return <div className={`form-status ${status}`} role="status" aria-live="polite" aria-label={copy.full}>
