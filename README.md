@@ -207,6 +207,16 @@ Khi sửa Apps Script: Manage deployments → chọn đúng deployment → Edit 
 
 ## Tài liệu chính thức
 
+### UI Dashboard và viewer — đợt 14/10/2026
+
+Frontend được chuyển sang bộ UI đã duyệt, giữ nguyên API, Apps Script và các chốt phân quyền/xác nhận. Đủ9 mục Dashboard, sidebar PC/điều hướng mobile và viewer tuần/kho tuần. Xem `SPEC-production-ui.md` và `VERIFICATION-production-ui-2026-10-14.md` để biết kiểm thử/trạng thái phát hành; có mã trên nhánh/PR không đồng nghĩa domain production đã chuyển bản.
+
+Nguồn token duy nhất: `meal-viewer/design/tokens.json`; compiler Style Dictionary: `meal-viewer/scripts/build-tokens.mjs`. Màu runtime vẫn lấy từ Settings, không cố định màu mẫu. Trong `meal-viewer`, chạy `npm ci` rồi `npm test` hoặc `npm run build`.
+
+Storybook/preview ở `mealform-preview`. Cài dependencies `meal-viewer` trước; sau đó trong `mealform-preview` chạy `npm ci`, `npm run storybook`. Nhóm Production UI dùng component thật với fixture development, không gửi thao tác ghi đến hệ thống thật. Kiểm tra browser: `npx playwright test --config playwright.production.config.ts`. Không đưa `.env`, `.vercel-global`, browser auth state hoặc ảnh kiểm thử vào Git.
+
+### Liên kết nền tảng
+
 - Apps Script quyền: https://developers.google.com/apps-script/concepts/scopes
 - Apps Script Web app: https://developers.google.com/apps-script/guides/web
 - Google Login: https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid

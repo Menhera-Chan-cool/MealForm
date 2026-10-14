@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-14T10:57:35Z",
+  "title": "Design System: MealForm production frontend",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Runtime school accent", "canonical": "var(--meal-ui-primary)" },
+      "primary-foreground": { "role": "neutral", "displayName": "Contrast-selected primary text", "canonical": "var(--meal-ui-primary-foreground)" },
+      "primary-hover": { "role": "primary", "displayName": "Runtime deeper accent", "canonical": "var(--meal-ui-hover)" },
+      "background": { "role": "neutral", "displayName": "Runtime canvas", "canonical": "var(--meal-ui-background)" },
+      "card": { "role": "neutral", "displayName": "Runtime card surface", "canonical": "var(--meal-ui-card)" },
+      "muted": { "role": "neutral", "displayName": "Runtime muted surface", "canonical": "var(--meal-ui-muted)" },
+      "field": { "role": "neutral", "displayName": "Runtime field surface", "canonical": "var(--meal-ui-field)" },
+      "foreground": { "role": "neutral", "displayName": "Runtime body text", "canonical": "var(--meal-ui-foreground)" },
+      "muted-foreground": { "role": "neutral", "displayName": "Runtime supporting text", "canonical": "var(--meal-ui-muted-foreground)" },
+      "border": { "role": "neutral", "displayName": "Runtime border", "canonical": "var(--meal-ui-border)" }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Page heading", "purpose": "Dashboard and viewer page titles; responsive rem sizing." },
+      "title": { "displayName": "Section heading", "purpose": "Panel and summary/detail section titles." },
+      "record": { "displayName": "Day or record heading", "purpose": "Day cards and response grouping." },
+      "body": { "displayName": "Vietnamese body", "purpose": "Self-hosted Noto Sans body text, scaled by the original comfort provider." },
+      "label": { "displayName": "Control label", "purpose": "Action controls and visible field labels." }
+    },
+    "shadows": [
+      { "name": "appearance-popover", "value": "0 12px 36px #0003", "purpose": "Existing native appearance popover only; ordinary cards remain flat." }
+    ],
+    "motion": [
+      { "name": "control-color", "value": "background-color .16s, color .16s, border-color .16s", "purpose": "Observed production control transitions; original motion preferences can reduce or remove them." }
+    ],
+    "breakpoints": [
+      { "name": "intermediate-max", "value": "1100px" },
+      { "name": "mobile-max", "value": "700px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "A runtime-brand action with the observed production control sizing and focus treatment.",
+      "html": "<button class=\"ds-primary\">Xem lượt gửi</button>",
+      "css": ".ds-primary{min-height:44px;padding:10px 14px;border:1px solid var(--meal-ui-primary);border-radius:8px;background:var(--meal-ui-primary);color:var(--meal-ui-primary-foreground);font:600 .875rem/1.5 'Noto Sans',sans-serif;box-shadow:none;transition:background-color .16s,color .16s,border-color .16s}.ds-primary:focus-visible{outline:2px solid var(--meal-ui-border);outline-offset:3px}.ds-primary:disabled{opacity:.5;cursor:not-allowed}"
+    },
+    {
+      "name": "Outline action",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "A secondary neutral action; source utilities provide the muted hover state.",
+      "html": "<button class=\"ds-outline\">Tải lại</button>",
+      "css": ".ds-outline{min-height:44px;padding:10px 14px;border:1px solid var(--meal-ui-border);border-radius:8px;background:var(--meal-ui-card);color:var(--meal-ui-foreground);font:600 .875rem/1.5 'Noto Sans',sans-serif;box-shadow:none;transition:background-color .16s,color .16s,border-color .16s}.ds-outline:hover{background:var(--meal-ui-muted)}.ds-outline:focus-visible{outline:2px solid var(--meal-ui-border);outline-offset:3px}.ds-outline:disabled{opacity:.5;cursor:not-allowed}"
+    },
+    {
+      "name": "Ghost navigation action",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The transparent, text-led treatment used by unselected navigation and link rows.",
+      "html": "<button class=\"ds-ghost\">Tổng quan</button>",
+      "css": ".ds-ghost{min-height:44px;padding:10px 14px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--meal-ui-foreground);font:600 .875rem/1.5 'Noto Sans',sans-serif;box-shadow:none;transition:background-color .16s,color .16s,border-color .16s}.ds-ghost:hover{background:var(--meal-ui-muted)}.ds-ghost:focus-visible{outline:2px solid var(--meal-ui-border);outline-offset:3px}"
+    },
+    {
+      "name": "Labeled field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A native input with a persistent Vietnamese label and runtime field surface.",
+      "html": "<label class=\"ds-field\">Họ tên<input placeholder=\"Tìm họ tên\" /></label>",
+      "css": ".ds-field{display:grid;gap:8px;font:600 .875rem/1.5 'Noto Sans',sans-serif;color:var(--meal-ui-foreground)}.ds-field input{min-height:44px;min-width:0;padding:10px 12px;border:1px solid var(--meal-ui-border);border-radius:8px;background:var(--meal-ui-field);color:var(--meal-ui-foreground);font:400 1rem/1.5 'Noto Sans',sans-serif;caret-color:var(--meal-ui-primary);box-shadow:none}.ds-field input::placeholder{color:var(--meal-ui-muted-foreground);opacity:1}.ds-field input:focus-visible{outline:2px solid var(--meal-ui-border);outline-offset:3px}"
+    },
+    {
+      "name": "Neutral count badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Noninteractive status or count text; its 32px height is not a touch target.",
+      "html": "<span class=\"ds-badge\">2 lượt</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;gap:3px;min-height:32px;padding:4px 10px;border:0;border-radius:8px;background:var(--meal-ui-muted);color:var(--meal-ui-foreground);font:400 .875rem/1.5 'Noto Sans',sans-serif;white-space:nowrap}"
+    },
+    {
+      "name": "Flat content card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A content surface separated by tone, a border and spacing.",
+      "html": "<section class=\"ds-card\"><h2>Tuần này</h2><p>Thực đơn và lượt gửi của tuần đang diễn ra.</p></section>",
+      "css": ".ds-card{display:flex;flex-direction:column;gap:16px;padding:24px;border:1px solid var(--meal-ui-border);border-radius:14px;background:var(--meal-ui-card);color:var(--meal-ui-foreground);font:400 1rem/1.5 'Noto Sans',sans-serif;box-shadow:none}.ds-card h2{margin:0;font-size:1.25rem;font-weight:700;line-height:1.4}.ds-card p{margin:0;color:var(--meal-ui-muted-foreground)}@media(max-width:700px){.ds-card{padding:16px}}"
+    },
+    {
+      "name": "Selected navigation",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Selected and unselected page links using the existing canonical viewer routes.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Các trang\"><a href=\"/newest\" aria-current=\"page\">Tuần này</a><a href=\"/next\">Tuần sau</a><a href=\"/history\">Kho tuần cũ</a></nav>",
+      "css": ".ds-nav{display:flex;gap:8px;flex-wrap:wrap}.ds-nav a{display:inline-flex;align-items:center;min-height:44px;padding:10px 14px;border:1px solid var(--meal-ui-border);border-radius:8px;background:var(--meal-ui-card);color:var(--meal-ui-foreground);font:600 .875rem/1.5 'Noto Sans',sans-serif;text-decoration:none}.ds-nav a[aria-current=page]{background:var(--meal-ui-primary);border-color:var(--meal-ui-primary);color:var(--meal-ui-primary-foreground)}.ds-nav a:hover:not([aria-current]){background:var(--meal-ui-muted)}.ds-nav a:focus-visible{outline:2px solid var(--meal-ui-border);outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "MealForm",
+    "overview": "This is the production-source continuation of the approved MealForm administration and weekly viewer previews in Operate mode. The inherited world uses clear week hierarchy, grouped tools, flat surfaces and Vietnamese labels to help school staff work through menus and registrations. No new visual metaphor or imagery system is introduced.",
+    "keyCharacteristics": [
+      "Actual current, next and archived weeks remain distinct.",
+      "Runtime school branding supplies semantic light/dark colors.",
+      "Self-hosted Vietnamese typography, visible focus and touch-sized primary controls.",
+      "Complete response fields and the original permission and confirmation flows."
+    ],
+    "rules": [
+      { "name": "The Runtime Branding Rule", "body": "Bind interface colors to the existing semantic runtime variables, including default-brand light mode and portaled surfaces.", "section": "colors" },
+      { "name": "The Flat Content Rule", "body": "Use tonal surfaces and borders for ordinary content; reserve temporary-layer depth for the existing popovers and dialogs.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep runtime branding, Vietnamese labels, visible focus and touch-sized primary controls.",
+      "Do preserve week identity, complete response fields and existing role, confirmation and verified-read guards.",
+      "Do update the canonical token JSON and compile generated CSS through the shared compiler.",
+      "Do verify both surfaces at desktop, intermediate and mobile widths, including large text and dark mode."
+    ],
+    "donts": [
+      "Don't promote sampled preview colors into production defaults or introduce a new visual world.",
+      "Don't duplicate preference state, shorten response fields or bypass existing callbacks and permission gates.",
+      "Don't claim an imported official Figma kit, automatic two-way token sync, pixel-perfect Figma parity or a cloud Chromatic baseline.",
+      "Don't treat local visual approval as user staging approval or evidence that production has been merged or promoted."
+    ]
+  }
+}

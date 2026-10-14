@@ -8,6 +8,7 @@ import BrandingProvider from './BrandingProvider.jsx';
 import './branding.css';
 import ComfortProvider from './ComfortProvider.jsx';
 import AppearanceProvider from './AppearanceProvider.jsx';
+import './production-ui.css';
 
 const redirect = rootRedirectTarget(window.location.pathname, window.location.search);
 if (window.location.pathname === '/newform') window.location.replace('/dashboard?tab=create');

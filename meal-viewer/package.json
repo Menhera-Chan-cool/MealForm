@@ -4,15 +4,24 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "test": "npm run build && node import-appearance.test.mjs && node import-native.test.mjs && node navigation-comfort.test.mjs && node notice-native.test.mjs && node build-version.test.mjs && node review-scale.test.mjs && node review-native.test.mjs && node interaction-qol.test.mjs && node editor-qol.test.mjs && node dashboard-qol.test.mjs && node admin-upgrades.test.mjs && node branding.test.mjs && node session.test.mjs && node session-client.test.mjs && node navigation.test.mjs && node permissions.test.mjs && node history.test.mjs && node ocr-draft.test.mjs && node setup.test.mjs && node qol.test.mjs && node calendar-weeks.test.mjs && node advanced.test.mjs && node viewer-ui.test.mjs && node dashboard-model.test.mjs && node ../MealPermissions.test.js && node ../MealForm.test.js"
+    "build": "node scripts/build-tokens.mjs && vite build",
+    "test": "npm run build && node production-ui.test.mjs && node import-appearance.test.mjs && node import-native.test.mjs && node navigation-comfort.test.mjs && node notice-native.test.mjs && node build-version.test.mjs && node review-scale.test.mjs && node review-native.test.mjs && node interaction-qol.test.mjs && node editor-qol.test.mjs && node dashboard-qol.test.mjs && node admin-upgrades.test.mjs && node branding.test.mjs && node session.test.mjs && node session-client.test.mjs && node navigation.test.mjs && node permissions.test.mjs && node history.test.mjs && node ocr-draft.test.mjs && node setup.test.mjs && node qol.test.mjs && node calendar-weeks.test.mjs && node advanced.test.mjs && node viewer-ui.test.mjs && node dashboard-model.test.mjs && node ../MealPermissions.test.js && node ../MealForm.test.js"
   },
   "dependencies": {
+    "@fontsource/noto-sans": "5.3.0",
+    "@radix-ui/react-slot": "1.5.0",
+    "class-variance-authority": "0.7.1",
+    "cn": "0.4.0",
     "google-auth-library": "11.0.2",
+    "lucide-react": "1.56.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@tokens-studio/sd-transforms": "2.0.3",
+    "style-dictionary": "5.6.1",
+    "tailwindcss": "4.3.3",
     "vite": "8.3.0"
   }
 }

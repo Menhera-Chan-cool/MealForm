@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import * as dashboard from './src/dashboard-model.mjs';
+import * as branding from './src/branding.mjs';
+
+assert.equal(typeof dashboard.groupDashboardWeeks, 'function', 'overview needs Vietnam-calendar grouping instead of first/newest array item');
+const weeks = ['2026-10-19', '2026-10-05', '2026-10-12', '2026-10-26'].map(start => ({ weekKey: start + '_2026-10-16', name: start }));
+const groups = dashboard.groupDashboardWeeks(weeks, Date.parse('2026-10-13T03:00:00Z'));
+assert.equal(groups.current.weekKey, '2026-10-12_2026-10-16');
+assert.equal(groups.next.weekKey, '2026-10-19_2026-10-16');
+assert.deepEqual(groups.past.map(week => week.name), ['2026-10-05']);
+assert.deepEqual(groups.other.map(week => week.name), ['2026-10-26']);
+assert.equal(dashboard.groupDashboardWeeks([weeks[0]], Date.parse('2026-10-13T03:00:00Z')).current, null);
+assert.equal(dashboard.groupDashboardWeeks(weeks, Date.parse('2026-10-18T17:00:00Z')).current.name, '2026-10-19');
+assert.equal(dashboard.groupDashboardWeeks([{weekKey:'broken'}], 0).other.length, 1);
+assert.equal(typeof branding.uiThemeVariables, 'function', 'new UI must use current Settings, not fixed sample branding');
+assert.equal(branding.uiThemeVariables('#ffffff', 'light')['--meal-ui-primary'], '#ffffff');
+assert.equal(branding.uiThemeVariables('#ffffff', 'light')['--meal-ui-primary-foreground'], '#000000');
+const blue = branding.uiThemeVariables('#357185', 'dark');
+const red = branding.uiThemeVariables('#b91c1c', 'dark');
+assert.notEqual(blue['--meal-ui-background'], red['--meal-ui-background']);
+assert.notEqual(blue['--meal-ui-card'], red['--meal-ui-card']);
+assert.equal(branding.uiThemeVariables('invalid', 'light')['--meal-ui-primary'], '#087f5b');
+console.log('Calendar-safe overview grouping and live-brand UI variables passed');

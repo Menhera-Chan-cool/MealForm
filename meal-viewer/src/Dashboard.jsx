@@ -5,7 +5,8 @@ import ImageInput from './ImageInput.jsx';
 import MultiImageReview from './MultiImageReview.jsx';
 import {buildImageMerge} from './image-import.mjs';
 import './import-appearance.css';
-import {useQuickCommands} from './ComfortProvider.jsx';
+import {useQuickCommands,DisplayPreferencesSlot} from './ComfortProvider.jsx';
+import {DashboardLayout,DashboardOverview} from './DashboardLayout.jsx';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
 import WeekNoticeEditor from './WeekNoticeEditor.jsx';
 import WeekNotice from './WeekNotice.jsx';
@@ -530,46 +531,33 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     return <DashboardWeekPicker weeks={overview.weeks || []} value={weekKey} disabled={busy || healthBusy} onChange={selectWeek} />;
   }
 
-  return <main className="dashboard-shell" data-density={viewState.view.density}>
+  async function signOut(){
+          setSigningOut(true);
+          weekRequest.current++; setWeekVerified(false); setWeekLoading(false); clearDashboardCache();
+          try { await onSignOut(); }
+          catch (error) { setMessage(errorMessage(error, 'Chưa đăng xuất được. Hãy thử lại.')); }
+          finally { setSigningOut(false); }
+
+  }
+  return <DashboardLayout tab={tab} onNavigate={setTab} role={overview.role} permissions={permissions} email={overview.email} schoolName={branding.schoolName} busy={busy||signingOut} onSignOut={signOut} onAuthorize={()=>void authorizeScript()}><main id="dashboard-content" className="dashboard-shell meal-ui" data-density={viewState.view.density}>
     <header className="dashboard-header">
       <div><h1>Dashboard quản trị</h1><p className="sub">Quản lý tuần thực đơn, tạo Form từ ảnh và xử lý lượt gửi.</p></div>
       <div className="dashboard-header-actions">
         {overview.role === 'owner' && <button className="secondary" type="button" disabled={busy} onClick={() => void authorizeScript()}>Cấp quyền Apps Script</button>}
         <a className="form-link" href="/newest">Mở trang xem</a>
         <a className="action-link" href="/setup">Cài đặt</a>
-        <button className="secondary" type="button" disabled={busy || signingOut} onClick={async () => {
-          setSigningOut(true);
-          weekRequest.current++; setWeekVerified(false); setWeekLoading(false); clearDashboardCache();
-          try { await onSignOut(); }
-          catch (error) { setMessage(errorMessage(error, 'Chưa đăng xuất được. Hãy thử lại.')); }
-          finally { setSigningOut(false); }
-        }}>{signingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</button>
+        <button className="secondary" type="button" disabled={busy || signingOut} onClick={signOut}>{signingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</button>
       </div>
+      <DisplayPreferencesSlot/>
     </header>
     <div className="dashboard-account" aria-label="Tài khoản đang đăng nhập"><strong>{overview.email || 'Đang xác minh Gmail…'}</strong><span>{accountRoleLabel({ ...overview, permissions })}</span><small>{permissions.create ? 'OCR/tạo tuần' : 'Không tạo tuần'} · {permissions.manageResponses ? 'Xóa/khôi phục' : 'Không xóa lượt gửi'}</small></div>
     <VersionNotice disabled={busy || signingOut || Boolean(regionBase) || Boolean(mergeBase) || Boolean(confirmation)} beforeReload={async()=>{viewState.save();await draft.flush();}} />
-    <nav className="dashboard-tabs" aria-label="Chức năng quản trị">
-      <button className={tab === 'overview' ? 'active' : 'secondary'} onClick={() => setTab('overview')}>Tổng quan</button>
-      {permissions.create && <button className={tab === 'create' ? 'active' : 'secondary'} onClick={() => setTab('create')}>Tạo tuần bằng OCR</button>}
-      <button className={tab === 'delete' ? 'active' : 'secondary'} onClick={() => setTab('delete')}>Lượt gửi &amp; lịch sử</button>
-      {overview.role === 'owner' && <button className={tab === 'form' ? 'active' : 'secondary'} onClick={() => setTab('form')}>Điều khiển Form</button>}
-      {overview.role === 'owner' && <button className={tab === 'notice' ? 'active' : 'secondary'} disabled={busy} onClick={() => setTab('notice')}>Thông báo tuần</button>}
-      <button className={tab === 'reconcile' ? 'active' : 'secondary'} onClick={() => setTab('reconcile')}>Đối soát</button>
-      {overview.role === 'owner' && <button className={tab === 'branding' ? 'active' : 'secondary'} onClick={() => setTab('branding')}>Thương hiệu</button>}
-      {overview.role === 'owner' && <button className={tab === 'health' ? 'active' : 'secondary'} onClick={() => setTab('health')}>Hệ thống</button>}
-      {overview.role === 'owner' && <button className={tab === 'access' ? 'active' : 'secondary'} onClick={() => setTab('access')}>Quyền Gmail</button>}
-    </nav>
     {message && <p className={`dashboard-message ${/không|lỗi|chưa/i.test(message) ? 'error' : ''}`} role="status" aria-live="polite">{message}{authorizationUrl && <> <a className="action-link" href={authorizationUrl} target="_blank" rel="noopener noreferrer">Mở trang cấp quyền Google</a></>}</p>}
 
     <ErrorReportButton report={failure || draft.failure} />
     {readPending>0&&<div className="read-wait"><button type="button" className="secondary" disabled={busy} onClick={stopWaiting}>Dừng chờ dữ liệu</button><small>Chỉ dừng chờ trên trình duyệt; không hủy thao tác máy chủ.</small></div>}
     {tab==='notice'&&overview.role==='owner'&&<section className="dashboard-panel"><h2>Thông báo tuần</h2>{weekPicker()}<WeekNoticeEditor key={weekKey} weekKey={weekKey} request={request} busy={busy} onBusy={setBusy} onMessage={setMessage}/></section>}
-    {tab === 'overview' && <section className="dashboard-panel">
-      <div className="dashboard-section-title"><h2>Sổ tuần</h2><button className="secondary" disabled={busy} onClick={() => void refreshOverview()}>Tải lại</button></div>
-      {(overview.weeks || []).length ? <div className="table-wrap"><table className="dashboard-table"><thead><tr><th>Tuần</th><th>Lượt gửi</th><th>Form</th><th>Liên kết</th></tr></thead><tbody>
-        {overview.weeks.map(week => <tr key={week.weekKey}><td>{week.name}</td><td>{week.responseCount ?? '—'}</td><td>{week.formStatus === 'open' ? 'Đang mở' : week.formStatus === 'closed' ? 'Đã khóa' : 'Chưa xác định'}</td><td className="dashboard-links"><a href={week.formUrl} target="_blank" rel="noreferrer">Form</a><a href={week.spreadsheetUrl} target="_blank" rel="noreferrer">Sheet</a>{week.folderUrl && <a href={week.folderUrl} target="_blank" rel="noreferrer">Thư mục</a>}</td></tr>)}
-      </tbody></table></div> : <p>Chưa có tuần nào trong sổ.</p>}
-    </section>}
+    {tab === 'overview' && <DashboardOverview weeks={overview.weeks||[]} busy={busy} owner={overview.role==='owner'} onRefresh={()=>void refreshOverview()} onView={key=>{selectWeek(key);setTab('delete');}} onControl={key=>{selectWeek(key);setTab('form');}}/>}
 
     {tab === 'health' && <section className="dashboard-panel">
       <div className="dashboard-section-title"><h2>Kiểm tra hệ thống</h2>{weekPicker()}</div>
@@ -704,7 +692,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     }} />}
     {quickResponse && <ResponseQuickView response={currentQuickResponse || quickResponse} week={displayedWeek?.week} verified={weekReady && Boolean(currentQuickResponse)} onClose={() => setQuickResponse(null)} />}
     {confirmation && <ActionConfirmation message={confirmation.message} onCancel={() => setConfirmation(null)} onConfirm={reason => { const action = confirmation.run; setConfirmation(null); void action(reason); }} />}
-  </main>;
+  </main></DashboardLayout>;
 }
 
 export default Dashboard;

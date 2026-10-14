@@ -1,0 +1,8 @@
+node_modules/
+dist/
+storybook-static/
+.env*
+!.env.example
+review/
+test-results/
+playwright-report/
