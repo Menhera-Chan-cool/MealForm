@@ -5,12 +5,15 @@ import VersionNotice from './VersionNotice.jsx';
 import ContentSkeleton from './ContentSkeleton.jsx';
 import ArchiveCalendar from './ArchiveCalendar.jsx';
 import {archiveMonths,weekMonths} from './ui-model.mjs';
+import {archiveWeekHref} from './ui-clarity.mjs';
+import {ArchiveBreadcrumbs,ArchiveWeekMetadata} from './WeekContext.jsx';
+import usePageTitle from './usePageTitle.js';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
 
 export default function HistoryArchive({ onUnauthorized }) {
   const [weeks, setWeeks] = useState([]);
-  const [month, setMonth] = useState(ALL);
-  const [view,setView]=useState('list');
+  const [month, setMonth] = useState(()=>{const value=new URLSearchParams(window.location.search).get('month')||'';return /^\d{4}-(0[1-9]|1[0-2])$/.test(value)?value.slice(5)+'/'+value.slice(0,4):ALL;});
+  const [view,setView]=useState(()=>new URLSearchParams(window.location.search).get('layout')==='calendar'?'calendar':'list');
   const [message, setMessage] = useState('Đang tải kho tuần cũ…');
   const [busy, setBusy] = useState(true);
   const {gate:reads,pending}=useReadWait();
@@ -31,8 +34,10 @@ export default function HistoryArchive({ onUnauthorized }) {
   const monthKeys=archiveMonths(weeks),months=monthKeys.map(key=>key.slice(5)+'/'+key.slice(0,4));
   const selectedMonth=month.split('/').reverse().join('-');
   const visible = weeks.filter(week => month === ALL || weekMonths(week).includes(selectedMonth));
+  usePageTitle(month===ALL?'Kho tuần cũ':`Kho tuần · Tháng ${month}`);
   return <section className="archive-panel">
     <VersionNotice disabled={busy} />
+    <ArchiveBreadcrumbs month={selectedMonth} view={view}/>
     <div className="section-heading"><h2>Kho tuần cũ</h2><button className="secondary" disabled={busy} onClick={() => void load()}>Tải lại</button></div>
     {pending>0&&<button className="secondary" type="button" onClick={()=>{reads.cancel();setBusy(false);setMessage(STOP_WAIT_MESSAGE);}}>Dừng chờ dữ liệu</button>}
     <p>Chỉ hiện tuần đã đăng ký trước tuần này. Cần đăng nhập Google để xem.</p>
@@ -42,6 +47,6 @@ export default function HistoryArchive({ onUnauthorized }) {
     {message && <p role="status">{message}</p>}
     {busy && !weeks.length && <ContentSkeleton label="Đang tải kho tuần cũ…" />}
     {!busy && !message && !visible.length && <p>Chưa có tuần cũ trong tháng đã chọn.</p>}
-    {view==='calendar'?<><ArchiveCalendar month={selectedMonth} weeks={visible}/>{weeks.some(week=>!weekMonths(week).length)&&<p>Có tuần chưa rõ ngày; chuyển Danh sách và chọn Tất cả để xem.</p>}</>:<ul className="archive-weeks">{visible.map(week => <li key={week.weekKey}><a href={`/history?week=${encodeURIComponent(week.weekKey)}`}><strong>{week.name}</strong><span>Xem tuần →</span></a></li>)}</ul>}
+    {view==='calendar'?<><ArchiveCalendar month={selectedMonth} weeks={visible}/>{weeks.some(week=>!weekMonths(week).length)&&<p>Có tuần chưa rõ ngày; chuyển Danh sách và chọn Tất cả để xem.</p>}</>:<ul className="archive-weeks">{visible.map(week => <li key={week.weekKey}><a href={archiveWeekHref(week.weekKey,selectedMonth,view)}><strong>{week.name}</strong><ArchiveWeekMetadata week={week}/><span>Xem tuần →</span></a></li>)}</ul>}
   </section>;
 }

@@ -21,7 +21,9 @@ test('mobile expands secondary filters, keeps controls and full meal cards withi
   await expect(page.getByRole('combobox', { name: 'Ngày', exact: true })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Món', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Áp dụng', exact: true })).toHaveCount(0);
+  await page.getByRole('button',{name:'Đóng bộ lọc',exact:true}).click();
   await page.getByRole('combobox', { name: 'Họ tên', exact: true }).fill('truong');
+  await page.getByRole('combobox', { name: 'Họ tên', exact: true }).press('Escape');
   await page.getByRole('button', { name: 'Hôm nay', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Họ tên', exact: true })).toHaveValue('');
   await expect(page.locator('.viewer-summary')).toContainText('13/10/2026');

@@ -8,6 +8,7 @@ import { Badge } from './components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from './components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './components/ui/sheet';
 import './viewer-preview.css';
+import '../../meal-viewer/src/ui-clarity.css';
 
 type Week = 'current' | 'next' | 'history' | 'old';
 type State = 'ready' | 'empty' | 'loading' | 'error' | 'login';

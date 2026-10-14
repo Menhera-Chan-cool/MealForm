@@ -17,7 +17,7 @@ export default function VersionNotice({ beforeReload, disabled=false }) {
   if(!available)return null;
   return <section className="version-notice" aria-label="Phiên bản website"><strong>Có bản cập nhật</strong><span>Không tự tải lại trang khi bạn đang làm việc.</span><button type="button" className="secondary" disabled={disabled||updating} onClick={async()=>{
     setUpdating(true);setError('');
-    try{await beforeReload?.();window.location.reload();}
+    try{if(await beforeReload?.()===false){setUpdating(false);return;}window.location.reload();}
     catch{setError('Chưa lưu nháp được; trang chưa tải lại. Hãy kiểm tra quyền/dung lượng lưu trên thiết bị rồi thử lại.');setUpdating(false);}
   }}>{updating?'Đang lưu trước khi cập nhật…':'Cập nhật trang'}</button>{error&&<p role="alert">{error}</p>}</section>;
 }

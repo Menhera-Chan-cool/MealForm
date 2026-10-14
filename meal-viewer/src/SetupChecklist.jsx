@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import ExternalLink from './ExternalLink.jsx';
+import usePageTitle from './usePageTitle.js';
 import { errorMessage } from './viewer-model.mjs';
 import { safeErrorReport } from './safe-error-report.mjs';
 import ErrorReportButton from './ErrorReportButton.jsx';
@@ -16,10 +18,11 @@ const STEPS = [
 ];
 
 export function SetupInstructions() {
-  return <section className="setup-instructions"><h2>Hướng dẫn cài đặt</h2><ol className="setup-steps">{STEPS.map(([title, text, url]) => <li key={title}><h3>{title}</h3><p>{text}</p>{url && <a className="action-link" href={url} target="_blank" rel="noopener noreferrer">Mở hướng dẫn / dịch vụ →</a>}</li>)}</ol></section>;
+  return <section className="setup-instructions"><h2>Hướng dẫn cài đặt</h2><ol className="setup-steps">{STEPS.map(([title, text, url]) => <li key={title}><h3>{title}</h3><p>{text}</p>{url && <ExternalLink className="action-link" href={url}>Mở hướng dẫn / dịch vụ</ExternalLink>}</li>)}</ol></section>;
 }
 
 export default function SetupChecklist({ authenticated }) {
+  usePageTitle('Cài đặt & kiểm tra');
   const [role, setRole] = useState('');
   const [report, setReport] = useState(null);
   const [message, setMessage] = useState('');

@@ -1,5 +1,6 @@
+import ExternalLink from './ExternalLink.jsx';
 export default function MealFormLink({ formUrl, status, label = 'Chọn món', dates = '' }) {
   return formUrl
-    ? <a className={`form-link meal-form-link ${status}`} href={formUrl} target="_blank" rel="noopener noreferrer"><span>{label}</span>{dates && <small>{dates}</small>}</a>
+    ? <ExternalLink className={`form-link meal-form-link ${status}`} href={formUrl}><span>{label}</span>{dates && <small>{dates}</small>}</ExternalLink>
     : <span className="form-link meal-form-link disabled" aria-disabled="true">Form chưa sẵn sàng</span>;
 }

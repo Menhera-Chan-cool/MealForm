@@ -78,7 +78,7 @@ try {
   const loadingStatus = renderToStaticMarkup(createElement(FormStatus, { status: 'unknown' }));
   const openStatus = renderToStaticMarkup(createElement(FormStatus, { status: 'open' }));
   const closedStatus = renderToStaticMarkup(createElement(FormStatus, { status: 'closed' }));
-  assert.match(loadingStatus, /aria-label="Loading form"/);
+  assert.match(loadingStatus, /aria-label="Đang kiểm tra Form"/);
   assert.match(loadingStatus, /form-status-spinner/);
   assert.doesNotMatch(loadingStatus, /Chưa xác định trạng thái Form/);
   assert.match(openStatus, /aria-label="Form đang mở"/);

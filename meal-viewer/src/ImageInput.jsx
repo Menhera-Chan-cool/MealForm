@@ -13,7 +13,7 @@ export default function ImageInput({images,activeImage,disabled,onImages,onChoos
   }
   useEffect(()=>{
     const paste=event=>{
-      if(disabled||document.querySelector('dialog[open]')||event.target.closest?.('input,textarea,[contenteditable="true"]'))return;
+      if(disabled||document.querySelector('dialog:modal')||event.target.closest?.('input,textarea,[contenteditable="true"]'))return;
       const files=Array.from(event.clipboardData?.items||[]).filter(item=>item.kind==='file'&&item.type.startsWith('image/')).map(item=>item.getAsFile()).filter(Boolean);
       if(files.length){event.preventDefault();void ingest(files,true);}
     };

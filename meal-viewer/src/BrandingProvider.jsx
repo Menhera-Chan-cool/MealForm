@@ -28,7 +28,6 @@ export default function BrandingProvider({ children }) {
   }, []);
   useEffect(() => {
     const root = document.documentElement;
-    const originalTitle = document.title;
     const custom = branding.schoolName || branding.logoUrl || branding.primaryColor !== DEFAULT_BRANDING.primaryColor;
     const theme = custom || appearance.scheme === 'dark' ? brandingTheme(branding.primaryColor, appearance.scheme) : {};
     const ui = uiThemeVariables(branding.primaryColor, appearance.scheme);
@@ -36,9 +35,8 @@ export default function BrandingProvider({ children }) {
     Object.entries(theme).forEach(([name, value]) => root.style.setProperty(`--brand-${name}`, value));
     if (custom) {
       root.dataset.branding = 'true';
-      if (branding.schoolName) document.title = `${branding.schoolName} - Menu bán trú`;
     }
-    return () => { delete root.dataset.branding; Object.keys(ui).forEach(name => root.style.removeProperty(name)); Object.keys(theme).forEach(name => root.style.removeProperty(`--brand-${name}`)); document.title = originalTitle; };
+    return () => { delete root.dataset.branding; Object.keys(ui).forEach(name => root.style.removeProperty(name)); Object.keys(theme).forEach(name => root.style.removeProperty(`--brand-${name}`)); };
   }, [branding,appearance.scheme]);
   const dashboard = typeof window !== 'undefined' && /^\/dashboard\/?$/.test(window.location.pathname);
   return <BrandingContext.Provider value={branding}>{!dashboard && <SchoolBrand branding={branding} />}{children}</BrandingContext.Provider>;

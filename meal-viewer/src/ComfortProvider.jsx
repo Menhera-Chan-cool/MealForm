@@ -4,6 +4,8 @@ import {readTextSize,writeTextSize} from './dashboard-model.mjs';
 import {foldSearchText} from './viewer-model.mjs';
 import './comfort.css';
 import {useAppearance} from './AppearanceProvider.jsx';
+import SearchInput from './SearchInput.jsx';
+import SearchHighlight from './SearchHighlight.jsx';
 
 const Comfort=createContext(()=>()=>{});
 const PreferencesSlot=createContext(()=>{});
@@ -27,7 +29,7 @@ export default function ComfortProvider({children}) {
   const commands=useMemo(()=>[...(registered?.commands||[]),...pages].filter(command=>foldSearchText(command.label).includes(foldSearchText(query))),[registered,query]);
   const blocked=registered?.blocked||navigating;
   useEffect(()=>{document.documentElement.dataset.textSize=size;writeTextSize(size);},[size]);
-  function show(){if(blocked||document.querySelector('dialog[open]'))return;returnFocus.current=settings.current?.matches(':popover-open')?settingsTrigger.current:document.activeElement;settings.current?.hidePopover();setQuery('');setIndex(0);setError('');setOpen(true);}
+  function show(){if(blocked||document.querySelector('dialog:modal'))return;returnFocus.current=settings.current?.matches(':popover-open')?settingsTrigger.current:document.activeElement;settings.current?.hidePopover();setQuery('');setIndex(0);setError('');setOpen(true);}
   function positionSettings(event){
     event.currentTarget.inert=event.newState!=='open';
     if(event.newState!=='open')return;
@@ -62,8 +64,8 @@ export default function ComfortProvider({children}) {
     if(!command||blocked)return;
     setNavigating(true);setError('');
     try{
-      if(command.kind==='page'){await registered?.beforeNavigate?.();window.location.assign(command.href);}
-      else {await registered?.run(command);setOpen(false);}
+      if(command.kind==='page'){if(await registered?.beforeNavigate?.()===false)return;window.location.assign(command.href);}
+      else {if(await registered?.run(command)===false)return;setOpen(false);}
     }catch{setError('Chưa lưu nháp/vị trí được; trang chưa chuyển. Hãy thử lại.');}
     finally{setNavigating(false);}
   }
@@ -83,11 +85,11 @@ export default function ComfortProvider({children}) {
     {children}
     {open&&<dialog ref={dialog} className="quick-dialog" aria-labelledby="quick-title" onCancel={event=>{event.preventDefault();if(!navigating)setOpen(false);}}>
       <h2 id="quick-title">Lệnh nhanh</h2><p>Chỉ mở trang, tuần hoặc tab; không xóa hay thay đổi dữ liệu.</p>
-      <input ref={input} role="combobox" aria-label="Tìm lệnh hoặc tuần" aria-autocomplete="list" aria-expanded="true" aria-controls="quick-results" aria-activedescendant={commands[index]?`quick-result-${index}`:undefined} value={query} disabled={navigating} onChange={event=>{setQuery(event.target.value);setIndex(0);}} onKeyDown={event=>{
+      <SearchInput ref={input} label="Tìm lệnh hoặc tuần" onClear={()=>{setQuery('');setIndex(0);}} role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="quick-results" aria-activedescendant={commands[index]?`quick-result-${index}`:undefined} value={query} disabled={navigating} onChange={event=>{setQuery(event.target.value);setIndex(0);}} onKeyDown={event=>{
         if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();setIndex(value=>commands.length?(value+(event.key==='ArrowDown'?1:-1)+commands.length)%commands.length:0);}
         if(event.key==='Enter'){event.preventDefault();void choose(commands[index]);}
       }} placeholder="Tìm tuần, ngày, Dashboard…" />
-      <div id="quick-results" role="listbox" aria-label="Kết quả lệnh">{commands.map((command,i)=><button key={command.id} id={`quick-result-${i}`} type="button" role="option" aria-selected={index===i} disabled={navigating} className="secondary" onClick={()=>void choose(command)}>{command.label}</button>)}</div>
+      <div id="quick-results" role="listbox" aria-label="Kết quả lệnh">{commands.map((command,i)=><button key={command.id} id={`quick-result-${i}`} type="button" role="option" aria-selected={index===i} disabled={navigating} className="secondary" onClick={()=>void choose(command)}><SearchHighlight text={command.label} query={query}/></button>)}</div>
       {!commands.length&&<p role="status">Không có lệnh phù hợp.</p>}{error&&<p role="alert">{error}</p>}
       <button type="button" className="secondary" disabled={navigating} onClick={()=>setOpen(false)}>Đóng</button>
     </dialog>}

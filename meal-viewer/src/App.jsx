@@ -20,6 +20,10 @@ import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
 import WeekNotice from './WeekNotice.jsx';
 import ViewerSummary from './ViewerSummary.jsx';
 import ViewerTabs from './ViewerTabs.jsx';
+import usePageTitle from './usePageTitle.js';
+import {ArchiveBreadcrumbs} from './WeekContext.jsx';
+import {viewerPageTitle,archiveBackHref} from './ui-clarity.mjs';
+import TableWorkspace from './TableWorkspace.jsx';
 import WeekNavigation from './WeekNavigation.jsx';
 import {DisplayPreferencesSlot} from './ComfortProvider.jsx';
 
@@ -296,6 +300,7 @@ function App() {
   const weekDates = (data?.calendarDays || days).map(day => typeof day === 'string' ? day : String(day?.day || ''))
     .map(label => label.match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0]).filter(Boolean);
   const pageTitle = isNewestPage ? 'Thực đơn tuần này' : isNextPage ? 'Thực đơn tuần sau' : isHistory ? 'Kho thực đơn tuần cũ' : 'Thực đơn bán trú';
+  usePageTitle(isDashboard?(auth==='authenticated'?'':'Dashboard'):isSetup?'':isHistoryList?(auth==='authenticated'?'':'Kho tuần cũ'):viewerPageTitle(data,pageTitle));
   const nameOptions = useMemo(() => [...new Set((data?.rows || []).map(row => String(row?.[1] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')), [data]);
   const mealOptions = useMemo(() => [...new Set(days.flatMap(day => Array.isArray(day.meals) ? day.meals : []))].sort((a, b) => a.localeCompare(b, 'vi')), [days]);
   useEffect(() => {
@@ -356,7 +361,8 @@ function App() {
       </div>
       <DisplayPreferencesSlot/>
     </header>
-    <WeekNavigation current={isNewestPage?'current':isNextPage?'next':isHistory?'history':''} selected={isHistory}/>
+    <WeekNavigation current={isNewestPage?'current':isNextPage?'next':isHistory?'history':''} selected={isHistory} backHref={archiveBackHref(new URLSearchParams(viewerSearch).get('week')||'',viewerSearch)}/>
+    {isHistory&&<ArchiveBreadcrumbs weekKey={new URLSearchParams(viewerSearch).get('week')||''}/>}
     <WeekNotice notice={data?.weekNotice} serverNow={data?.serverNow}/>
     {readPending>0&&<div className="read-wait"><button className="secondary" type="button" onClick={stopWaiting}>Dừng chờ dữ liệu</button><small>Không hủy tác vụ máy chủ.</small></div>}
     {stoppedReading&&<p className="dashboard-cache-status" role="status">{message}</p>}
@@ -439,6 +445,7 @@ function App() {
       </section>
 
       <section className="data-section viewer-reading-panel" id="viewer-detail" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-detail':undefined} hidden={mobileViewer&&viewerTab!=='detail'}>
+        <TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết">
         <div className="section-heading detail-heading">
           <div className="section-heading-title"><PeopleIcon /><h2>Chi tiết lựa chọn</h2></div>
           <div className="detail-sort">
@@ -448,7 +455,8 @@ function App() {
               onChange={label => setResponseSort(RESPONSE_SORT_OPTIONS.find(option => option.label === label)?.value || 'newest')} />
           </div>
         </div>
-        <div key={JSON.stringify([filters, responseSort])} className="detail-results"><DetailTable model={model} /></div>
+        <div key={JSON.stringify([filters, responseSort])} className="detail-results"><DetailTable model={model} filters={filters}/></div>
+        </TableWorkspace>
       </section>
     </>}
   </main>;

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { sheetRowUrl } from './dashboard-model.mjs';
+import ExternalLink from './ExternalLink.jsx';
+import {ArrowUpRight} from 'lucide-react';
 
 export default function SheetRowButton({ weekKey, source, response, request, disabled }) {
   const [loading, setLoading] = useState(false);
@@ -27,8 +29,8 @@ export default function SheetRowButton({ weekKey, source, response, request, dis
     } catch (error) { popup?.close(); if (active.current) setMessage(error.message); }
     finally { if (active.current) setLoading(false); }
   }
-  return <div className="dashboard-row-location"><button type="button" className="secondary" disabled={disabled || loading} aria-busy={loading} onClick={() => void locate()}>{loading ? 'Đang tìm hàng…' : 'Mở hàng trong Sheet'}</button>
+  return <div className="dashboard-row-location"><button type="button" className="secondary" title="Tìm hàng hiện tại và mở tab Sheet mới" disabled={disabled || loading} aria-busy={loading} onClick={() => void locate()}>{loading ? 'Đang tìm hàng…' : 'Mở hàng trong Sheet'}<ArrowUpRight className="external-link-icon" size={15} aria-hidden="true"/></button>
     {message && <small role="status">{message}</small>}
-    {rows.length > 0 && <div className="dashboard-row-links">{rows.map(({ row, href }) => <a key={row} href={href} target="_blank" rel="noreferrer">Hàng {row}</a>)}</div>}
+    {rows.length > 0 && <div className="dashboard-row-links">{rows.map(({ row, href }) => <ExternalLink key={row} href={href}>Hàng {row}</ExternalLink>)}</div>}
   </div>;
 }
