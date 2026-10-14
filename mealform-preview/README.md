@@ -20,7 +20,7 @@ Mở terminal thứ hai:
 npm run storybook
 ```
 
-Storybook: http://127.0.0.1:6006. Chọn **MealForm → Viewer**, **Dashboard** hoặc **Components**. Có 42 stories: 19 viewer,12 admin/component và11 dùng component production thật. Stories mobile mở viewport390×960; toolbar viewport có thêm PC1440×960. Toolbar giao diện đổi sáng/tối, hoặc dùng nút “…” trong preview.
+Storybook: http://127.0.0.1:6006. Chọn **MealForm → Viewer**, **Dashboard** hoặc **Components**. Có 45 stories: 19 viewer,12 admin/component và14 dùng component production thật. Stories mobile mở viewport390×960; toolbar viewport có thêm PC1440×960. Toolbar giao diện đổi sáng/tối, hoặc dùng nút “…” trong preview.
 
 Tổng quan, Thêm, Lượt gửi và nhập ảnh là các bố cục có thể thử. Tìm/sắp xếp tên giả và Xem nhanh chạy cục bộ. Các công cụ còn lại chỉ mở trang ghi rõ “Bản xem bố cục”; các nút liên kết/thao tác báo mô phỏng thay vì truy cập dữ liệu thật. Chọn/kéo ảnh chỉ hiện tên file, không OCR hay upload.
 
@@ -87,5 +87,7 @@ Source mới nằm trong `src/ViewerPreview.tsx`, `src/viewer-preview.css`, `src
 ## Component production — 14/10/2026
 
 Nhóm **MealForm → Production UI** dùng component từ frontend thật: đủ9 mục Dashboard và bảng/thẻ viewer. API được thay bằng fixture development, không gọi dịch vụ thật; thao tác ghi trong Storybook bị từ chối. Preview mẫu cũ vẫn giữ để đối chiếu thiết kế. Token JSON và compiler nay có một nguồn chung trong `../meal-viewer/design/tokens.json` và `../meal-viewer/scripts/build-tokens.mjs`.
+
+Bản cải tiến UI đang chờ duyệt staging bổ sung tab Tổng hợp/Chi tiết mobile, thẻ có tên ở đầu, ghim cột Họ tên PC, tìm tuần phân nhóm, kho Lịch tháng/Danh sách, tiến trình OCR, menu thao tác từng lượt, xem trước thương hiệu và khung chờ lần đầu. Chủ dự án đã bỏ ý tưởng thanh chọn ngày; bộ lọc Ngày và nút Hôm nay cũ vẫn giữ. Có thêm stories Archive, Initial Loading và OCR Review. Khung thương hiệu là minh họa read-only theo ngữ cảnh/thiết bị/sáng-tối, không nhúng controller có quyền và không phải bản mô phỏng đúng từng pixel.
 
 Kiểm tra frontend thật bằng `npx playwright test --config playwright.production.config.ts`. Bộ kiểm tra tự mở Vite frontend tại5175 và chặn API bằng dữ liệu giả, không dùng controller mô phỏng. Chưa được xem là kiểm thử ghi dữ liệu thật hoặc phát hành production.

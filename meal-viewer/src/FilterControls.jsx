@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { ALL, matchOptions } from './viewer-model.mjs';
 import ChevronIcon from './ChevronIcon.jsx';
 import useDisclosureAnimation from './useDisclosureAnimation.js';
 
-export function ComboSelect({ id, label, value, values, onChange, onSelect, disabled = false, placeholder, searchable = true, includeAll = true, className = '' }) {
+export function ComboSelect({ id, label, value, values, onChange, onSelect, disabled = false, placeholder, searchable = true, includeAll = true, className = '',optionGroups={} }) {
   const root = useRef(null);
   const { open, closing, active, show, hide, toggle } = useDisclosureAnimation();
   const [query, setQuery] = useState('');
@@ -56,10 +56,10 @@ export function ComboSelect({ id, label, value, values, onChange, onSelect, disa
       }}><ChevronIcon expanded={active} /></button>
       <div id={`${id}-options`} className={`combo-menu ${open ? 'open' : closing ? 'closing' : ''}`} role="listbox" aria-hidden={!open} inert={!open} style={{ '--dropdown-items': visibleItems }}>
         {includeAll && <button className="combo-option" type="button" role="option" aria-selected={value === ALL} onMouseDown={event => event.preventDefault()} onClick={() => choose(ALL)}>{ALL}</button>}
-        {matches.length ? matches.map(option => <button
+        {matches.length ? matches.map((option,index) => <Fragment key={option}>{optionGroups[option]&&optionGroups[option]!==optionGroups[matches[index-1]]&&<div className="combo-group" role="presentation">{optionGroups[option]}</div>}<button
           key={option} className="combo-option" type="button" role="option"
           aria-selected={option === (onSelect ? value : inputValue)} onMouseDown={event => event.preventDefault()}
-          onClick={() => choose(option)}>{option}</button>) : <div className="combo-empty">Không tìm thấy</div>}
+          onClick={() => choose(option)}>{option}</button></Fragment>) : <div className="combo-empty">Không tìm thấy</div>}
       </div>
   </div>;
 }

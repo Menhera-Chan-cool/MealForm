@@ -7,6 +7,10 @@ import ComfortProvider from '../../meal-viewer/src/ComfortProvider.jsx';
 import ViewerSummary from '../../meal-viewer/src/ViewerSummary.jsx';
 import DetailTable from '../../meal-viewer/src/DetailTable.jsx';
 import FilterControls from '../../meal-viewer/src/FilterControls.jsx';
+import ViewerTabs from '../../meal-viewer/src/ViewerTabs.jsx';
+import HistoryArchive from '../../meal-viewer/src/HistoryArchive.jsx';
+import ContentSkeleton from '../../meal-viewer/src/ContentSkeleton.jsx';
+import OcrProgress from '../../meal-viewer/src/OcrProgress.jsx';
 import {buildDetailModel,readViewerFilters} from '../../meal-viewer/src/viewer-model.mjs';
 import {sampleDays,sampleOverview,sampleViewer,installProductionFixtures} from './production-fixtures.mjs';
 import '../../meal-viewer/src/styles.css';
@@ -14,11 +18,14 @@ import '../../meal-viewer/src/mobile-cards.css';
 import '../../meal-viewer/src/branding.css';
 import '../../meal-viewer/src/production-ui.css';
 import '../../meal-viewer/src/motion.css';
+import '../../meal-viewer/src/ui-ten.css';
 
 function ProductionSurface({section='Tổng quan',viewer=false}:{section?:string;viewer?:boolean}){
   const root=useRef<HTMLDivElement>(null),[filters,setFilters]=useState(readViewerFilters(''));
+  const [viewerTab,setViewerTab]=useState('detail'),[mobile,setMobile]=useState(()=>matchMedia('(max-width:700px)').matches);
+  useEffect(()=>{const media=matchMedia('(max-width:700px)'),update=()=>setMobile(media.matches);media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
   useEffect(()=>{const frame=requestAnimationFrame(()=>{[...root.current!.querySelectorAll<HTMLButtonElement>('.ui-sidebar nav button')].find(button=>button.textContent===section)?.click();});return()=>cancelAnimationFrame(frame);},[section]);
-  return <div ref={root}><p style={{padding:16}}>Dữ liệu minh họa · Không kết nối production</p><AppearanceProvider><BrandingProvider><ComfortProvider>{viewer?<main className="meal-ui ui-viewer"><h1>Thực đơn tuần này</h1><p>12/10/2026 – 16/10/2026</p><FilterControls days={sampleDays} nameOptions={['Trường An','Minh Anh']} mealOptions={sampleDays[0].meals} filters={filters} onChange={(key:string,value:string)=>setFilters(old=>({...old,[key]:value}))}/><h2>Tổng hợp lựa chọn</h2><ViewerSummary days={sampleDays} filters={filters} model={buildDetailModel(sampleViewer,filters)}/><h2>Chi tiết lựa chọn</h2><DetailTable model={buildDetailModel(sampleViewer,filters)}/></main>:<Dashboard initialData={sampleOverview} onSignOut={async()=>{}} onUnauthorized={()=>{}}/>}</ComfortProvider></BrandingProvider></AppearanceProvider></div>;
+  return <div ref={root}><p style={{padding:16}}>Dữ liệu minh họa · Không kết nối production</p><AppearanceProvider><BrandingProvider><ComfortProvider>{viewer?<main className="meal-ui ui-viewer"><h1>Thực đơn tuần này</h1><p>12/10/2026 – 16/10/2026</p><FilterControls days={sampleDays} nameOptions={['Trường An','Minh Anh']} mealOptions={sampleDays[0].meals} filters={filters} onChange={(key:string,value:string)=>setFilters(old=>({...old,[key]:value}))}/><ViewerTabs value={viewerTab} onChange={setViewerTab}/><section id="viewer-summary" className="viewer-reading-panel" role={mobile?'tabpanel':undefined} aria-labelledby={mobile?'viewer-tab-summary':undefined} hidden={mobile&&viewerTab!=='summary'}><h2>Tổng hợp lựa chọn</h2><ViewerSummary days={sampleDays} filters={filters} model={buildDetailModel(sampleViewer,filters)}/></section><section id="viewer-detail" className="viewer-reading-panel" role={mobile?'tabpanel':undefined} aria-labelledby={mobile?'viewer-tab-detail':undefined} hidden={mobile&&viewerTab!=='detail'}><h2>Chi tiết lựa chọn</h2><DetailTable model={buildDetailModel(sampleViewer,filters)}/></section></main>:<Dashboard initialData={sampleOverview} onSignOut={async()=>{}} onUnauthorized={()=>{}}/>}</ComfortProvider></BrandingProvider></AppearanceProvider></div>;
 }
 
 const meta={title:'MealForm/Production UI',component:ProductionSurface,beforeEach:async({globals})=>{localStorage.setItem('meal-appearance',JSON.stringify({theme:globals.theme==='dark'?'dark':'light',motion:'off'}));localStorage.removeItem('meal-dashboard-cache-v1:storybook-owner:last');return installProductionFixtures();},render:(args,context)=><ProductionSurface key={`${context.globals.theme}-${args.section}`} {...args}/>,parameters:{chromatic:{viewports:[390,1440]},design:{type:'link',name:'Viewer Figma',url:'https://www.figma.com/design/W0eib9OIk99Ia0fweyf09e?node-id=12-2345'}}} satisfies Meta<typeof ProductionSurface>;
@@ -34,4 +41,7 @@ export const Branding:Story={args:{section:'Thương hiệu'}};
 export const System:Story={args:{section:'Hệ thống'}};
 export const Access:Story={args:{section:'Quyền Gmail'}};
 export const Viewer:Story={args:{viewer:true}};
+export const Archive:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Kho thực đơn tuần cũ</h1><HistoryArchive onUnauthorized={()=>{}}/></main></BrandingProvider></AppearanceProvider>};
+export const InitialLoading:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><ContentSkeleton label="Đang tải thực đơn…"/></main></BrandingProvider></AppearanceProvider>};
+export const OCRReview:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Tạo tuần từ ảnh</h1><OcrProgress menu={{days:sampleDays}} state="idle"/><p>Rà soát ngày và món trước khi tạo Form.</p></main></BrandingProvider></AppearanceProvider>};
 export const MobileDark:Story={globals:{theme:'dark',viewport:{value:'phone',isRotated:false}}};

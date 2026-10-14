@@ -1,0 +1,74 @@
+.content-skeleton { margin:20px 0; color:var(--meal-ui-muted-foreground); }
+.skeleton-shapes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.skeleton-table .skeleton-shapes { grid-template-columns:1fr; }
+.skeleton-block { display:grid; gap:10px; padding:20px; border:1px solid var(--meal-ui-border); border-radius:14px; background:var(--meal-ui-card); }
+.skeleton-block span { display:block; height:12px; max-width:100%; width:85%; border-radius:4px; background:var(--meal-ui-muted); }
+.skeleton-block span:first-child { width:45%; height:18px; }
+.skeleton-block span:last-child { width:65%; }
+@media(max-width:700px){ .skeleton-shapes { grid-template-columns:1fr; } }
+:root .meal-ui .combo-group { padding:10px 8px 4px; color:var(--meal-ui-muted-foreground); font-size:.75rem; font-weight:600; }
+.archive-view-options { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+:root .meal-ui button[aria-pressed=true] { border-color:var(--meal-ui-primary); }
+:root .meal-ui .archive-calendar { margin-top:20px; overflow:auto; border:1px solid var(--meal-ui-border); border-radius:14px; }
+:root .meal-ui .archive-calendar table { min-width:0; width:100%; table-layout:fixed; }
+:root .meal-ui .archive-calendar caption { padding:16px; text-align:left; font-weight:600; }
+:root .meal-ui .archive-calendar th { position:static; text-align:center; }
+:root .meal-ui .archive-calendar td { padding:10px 4px; text-align:center; background:var(--meal-ui-card); color:var(--meal-ui-foreground); }
+:root .meal-ui .archive-calendar td[data-registered=true] { background:var(--meal-ui-muted); }
+:root .meal-ui .archive-calendar .outside-month { color:var(--meal-ui-muted-foreground); }
+.calendar-week-links { display:grid; gap:8px; }
+.viewer-tabs { display:none; }
+:root .meal-ui .combo-menu.open:has(.combo-group) { height:auto; }
+.ocr-progress { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; list-style:none; padding:0; margin:20px 0; }
+.ocr-progress li { display:flex; align-items:center; gap:10px; padding:12px; border-bottom:2px solid var(--meal-ui-border); color:var(--meal-ui-muted-foreground); font-size:.875rem; }
+.ocr-progress li>span { display:grid; place-items:center; width:28px; height:28px; flex-shrink:0; border:1px solid var(--meal-ui-border); border-radius:50%; }
+.ocr-progress li[aria-current=step] { color:var(--meal-ui-foreground); border-bottom-color:var(--meal-ui-primary); font-weight:600; }
+.ocr-progress li:is([aria-current=step],[data-complete=true])>span { background:var(--meal-ui-primary); color:var(--meal-ui-primary-foreground); border-color:var(--meal-ui-primary); }
+.ocr-progress small { display:block; font-weight:400; }
+:root .meal-ui .row-action-menu { margin:0; position:fixed; left:auto; bottom:auto; width:280px; max-width:calc(100vw - 24px); max-height:calc(100dvh - 32px); overflow:auto; padding:12px; border:1px solid var(--meal-ui-border); border-radius:14px; background:var(--meal-ui-card); color:var(--meal-ui-foreground); box-shadow:0 8px 24px #0002; }
+.row-action-menu:popover-open { display:grid; gap:8px; }
+:root .meal-ui .row-action-menu button { width:100%; text-align:left; }
+:root .meal-ui .row-menu-trigger { display:inline-flex; align-items:center; justify-content:center; width:44px; flex:0 0 44px; padding:10px; }
+.branding-context-preview { min-width:0; }
+.branding-preview-controls { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+.branding-preview-controls label { flex:1 1 150px; }
+.branding-preview-viewport { padding:16px; border:1px solid var(--meal-ui-border); border-radius:14px; background:var(--meal-ui-background); overflow:hidden; }
+:root .meal-ui .branding-preview-canvas { margin:auto; width:100%; padding:16px; border:1px solid var(--meal-ui-border); border-radius:14px; background:var(--meal-ui-background); color:var(--meal-ui-foreground); font-size:.875rem; }
+.branding-preview-canvas[data-device=phone] { max-width:390px; }
+:root .meal-ui .branding-preview-canvas h3 { color:var(--meal-ui-foreground); }
+.branding-preview-header { display:flex; align-items:center; gap:8px; overflow-wrap:anywhere; padding-bottom:16px; }
+.branding-preview-header img { width:32px; height:32px; object-fit:contain; }
+.branding-sample-layout { display:flex; gap:16px; }
+.branding-sample-layout aside { display:flex; flex-direction:column; width:160px; flex-shrink:0; gap:12px; border-right:1px solid var(--meal-ui-border); padding-right:16px; }
+.branding-sample-content { min-width:0; flex:1; }
+.branding-sample-tools { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:12px 0; }
+.branding-sample-field,.branding-sample-card { border:1px solid var(--meal-ui-border); border-radius:8px; padding:12px; margin:12px 0; background:var(--meal-ui-card); }
+.branding-sample-field { background:var(--meal-ui-field); color:var(--meal-ui-muted-foreground); }
+.branding-sample-action { display:inline-block; padding:10px; border-radius:8px; background:var(--meal-ui-primary); color:var(--meal-ui-primary-foreground); }
+@media(max-width:700px){
+ .ocr-progress { gap:4px; }
+ .ocr-progress li { display:block; padding:8px 4px; font-size:.75rem; }
+ .ocr-progress li>span { margin-bottom:8px; }
+ .branding-preview-viewport { padding:8px; }
+ .branding-sample-layout aside { width:100px; padding-right:8px; }
+}
+.viewer-reading-panel[hidden] { display:none!important; }
+.projected-time { display:none; }
+@media(min-width:701px){
+  :root .meal-ui .detail-wrap table { min-width:var(--detail-table-min); }
+  :root .meal-ui .detail-wrap [data-kind=name] { position:sticky; left:0; z-index:1; background:var(--meal-ui-card); border-right:1px solid var(--meal-ui-border); }
+  :root .meal-ui .detail-wrap th[data-kind=name] { z-index:3; background:var(--meal-ui-primary); color:var(--meal-ui-primary-foreground); }
+}
+@media(max-width:700px){
+  .viewer-tabs { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 20px; }
+  #viewer-summary .section-toggle { display:none; }
+  :root .meal-ui .detail-wrap tbody tr { display:grid; grid-template-columns:1fr; }
+  :root .meal-ui .detail-wrap td[data-kind=name] { order:0; border-top:0; padding-top:0; }
+  :root .meal-ui .detail-wrap td[data-kind=time] { order:1; border-top:0; padding-top:0; }
+  :root .meal-ui .detail-wrap td[data-kind=value] { order:2; }
+  :root .meal-ui .detail-wrap td:is([data-kind=name],[data-kind=time]) .mobile-cell-label { display:none; }
+  :root .meal-ui .detail-wrap .response-card-name { font-size:1.125rem; font-weight:600; }
+  :root .meal-ui .detail-wrap .response-card-time { font-size:.875rem; font-weight:400; color:var(--meal-ui-muted-foreground); }
+  :root .meal-ui .detail-wrap .projected-time { display:block; margin-top:4px; }
+}
+:root .meal-ui .calendar-week-links a { display:flex; min-height:44px; align-items:center; padding:8px; border-radius:8px; background:var(--meal-ui-muted); color:var(--meal-ui-foreground); text-align:left; overflow-wrap:anywhere; }

@@ -1,5 +1,19 @@
 # Admin upgrades
 
+## Ten UI improvements approved 2026-10-14
+
+- [x] loading-states: shared accessible skeleton; delayed initial reads/error/stop and retained-cache tests.
+- [x] week-discovery: validated month/group helpers with RED/GREEN boundary cases.
+- [x] week-discovery: all grouped week searches and List/Calendar archive links.
+- [x] viewer-reading: projection metadata, name/time cards and pinned PC column.
+- [x] viewer-reading: mobile tabs, retaining all filters/sort; day strip removed by user before staging.
+- [x] dashboard-workflow: truthful three-step OCR state with no automatic calls.
+- [x] dashboard-workflow: row popovers reuse exact guarded delete/restore/Sheet actions.
+- [x] dashboard-workflow: contextual draft-brand preview across surface/device/theme.
+- [x] Integration: native/API + 25 actual-frontend browser + 11 preview browser + 5 token/guard tests; Storybook/preview builds and bounded PC/mobile light/dark QA. Day strip removed and verified absent.
+- [x] GitHub PR #5 + exact READY staged artifact dpl_EiNwPZLLD1sZdrEYNZfyTHcMKR9x; four synthetic review tabs opened and verified. Main domain remains unchanged.
+- [ ] User visual approval, then exact-head merge/promotion only when explicitly authorized. No production release yet.
+
 ## Import and appearance QoL approved 2026-10-12
 
 - [x] Whole-week Form fingerprints and manual reload comparisons, native/helper/API/cache tests.
