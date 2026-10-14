@@ -43,10 +43,20 @@ Root `PRODUCT.md` began with preview-only scope and Noto/dependency isolation; t
 5. Only after approval, merge/sync GitHub and promote that exact artifact; record the merged commit and serving deployment, then perform deployed read-only smoke/log checks.
 6. If a critical regression appears, restore the recorded serving artifact and revert the UI release commit without altering data.
 
-Staged URL/artifact: pending integration owner record.
+Staged URL/artifact: https://menutaythanh-bp4fmmq70-anh-tun.vercel.app — `dpl_DvF1xpniLG8AUVU2jg62JrYiySQ3`, READY, production environment with `--skip-domain`. Build version `83c4d096-03eb-44e0-997d-f9f1dc166f7a`; entry asset `/assets/index-Ce33QV0b.js` and CSS `/assets/index-GtbmNmS3.css`.
 
-Source commit/PR: pending integration owner record.
+UI source commit: `ac94b2a468b354f760510fb35bd024747840c3a2` on `codex/ui-remake-2026-10-14`. PR: https://github.com/Menhera-Chan-cool/MealForm/pull/1 — OPEN, not merged.
 
-User staging approval: pending.
+User staging approval: explicitly approved in this thread on14/10/2026 — merge GitHub and put the approved artifact on production.
 
 Merge/promotion and deployed smoke evidence: pending.
+
+## Staging inspection and review handoff
+
+- CLI independently confirmed the intended `anh-tun/menutaythanh` project/team. Dry-run upload contained no credentials, `.env`, build output or prior screenshot files; canonical token JSON/compiler were included. Clean checkout `npm ci` and all27Node/native/API scripts passed.25changed frontend source files had identical hashes between canonical workspace and Git checkout before commit. No API or Apps Script path was staged.
+- Remote build completed with Node24/Vite8.3, `npm ci`, zero dependency audit vulnerabilities and valid output. Non-failing vendor `use client` and transitive deprecation warnings remain documented, not app failures.
+- The main user-facing domain `menutaythanh.vercel.app` still resolved to the prior serving `dpl_7uarNkV1ZoixaYZCVAmb9qHotsDJ` after staging. Its build version `d02f3489-b81a-47b4-afa7-6d064375a224` differs from the staged version. Do not interpret the CLI's production-environment label as approval or main-domain promotion.
+- Staged `/newest` and `/version.json` returned200. Read-only live service checks returned `authenticated:false`, branding primary `#357185`, and expected401 for unauthenticated Dashboard access/history. No real records, Forms/Sheets, access lists or paid OCR were changed by these checks.
+- Headed Playwright session `mealform-staging` opens actual staged Dashboard/viewer assets with synthetic GET service responses and rejects every write request. The injected banner explicitly labels this mode. Existing Google OAuth origins were not expanded for the staged hostname; these views are UI review, not a real owner-login/backend end-to-end certificate. One deliberately aborted Google SDK request is expected in that isolated review browser.
+- PR attachment to the Codex panel was attempted but the app tool returned Invalid app tool request; the real GitHub PR URL is valid and remains the handoff reference.
+- The owner has now explicitly approved the displayed staging UI and authorized merge/main-domain promotion. A bounded staged-deployment error-level log query over15minutes returned no entries; this is not ongoing monitoring. Physical device checks, Chromatic cloud, live mutation tests and pixel-perfect Figma certification remain out of scope/unverified.
