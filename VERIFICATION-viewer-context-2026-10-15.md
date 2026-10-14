@@ -2,7 +2,7 @@
 
 ## Scope and status
 
-Implemented the selected ideas 2, 3, 7 and 10. Local implementation only; no GitHub push/PR, Vercel deployment/promotion, Apps Script edit or live-data mutation has been performed for this update. Publication awaits the user's release choice. Baseline: `08008f070caf1ee58f38f8087c832e38a89f1c73`; local branch: `ui/viewer-context-2026-10-15`.
+Implemented the selected ideas 2, 3, 7 and 10. The user authorized GitHub publication on 15/10/2026: push feature branch `ui/viewer-context-2026-10-15` and open a PR, without merging `main` or deploying/promoting Vercel. No Apps Script edit or live-data mutation has been performed. Baseline: `08008f070caf1ee58f38f8087c832e38a89f1c73`; runtime implementation commit: `d9a1ed617ed1910e3ed7e5603b4d831309a5ab67`.
 
 The UI continues using the existing model, Form target allowlist, source labels, permissions and record identity. No new dependency, API request, secret or persistence key. Impeccable guided the flat registration groups, shared theme colors, 44px mobile controls and bounded inline release notes rather than another modal. No day strip was reintroduced.
 
