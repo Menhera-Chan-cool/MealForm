@@ -1,6 +1,6 @@
 # MealForm UI fixes — 14/10/2026
 
-Source verification and a staged production-environment deployment support the two requested fixes. PR #2 is open; merge and promotion still require the user's visual approval under `SPEC-production-ui.md`.
+RELEASED after the user's explicit staging approval on 14/10/2026. PR #2 is merged; the exact staged artifact now serves the main domain. Scope and verification limits remain below.
 
 ## Scope and source evidence
 
@@ -32,7 +32,7 @@ These test executions were reported by the integration owner; this documentation
 
 ## Release status and limits
 
-Source commit `dbe22e5d7b11b763ac5b28bf4de5781bf03d7f20` is pushed on `codex/fix-detail-week-picker-2026-10-14`. PR: https://github.com/Menhera-Chan-cool/MealForm/pull/2 (open, not merged). The exact `anh-tun/menutaythanh` project/team, Node 24 and existing build commands were inspected before deployment. Dry run included 73 files and excluded credentials, environment files, screenshots and test tooling; all five changed production files matched the committed source by SHA256.
+Source commit `dbe22e5d7b11b763ac5b28bf4de5781bf03d7f20` was pushed on `codex/fix-detail-week-picker-2026-10-14`. PR: https://github.com/Menhera-Chan-cool/MealForm/pull/2, merged at `2026-10-14T11:34:53Z` as `155b0a4fb5b8a20d24a575982946502514097fee`. Fetching `origin/main` independently confirmed this merge; only this verification document differs from the approved runtime source. The exact `anh-tun/menutaythanh` project/team, Node 24 and existing build commands were inspected before deployment. Dry run included 73 files and excluded credentials, environment files, screenshots and test tooling; all five changed production files matched the committed source by SHA256.
 
 Staged artifact: `dpl_D1teyKEdiPBD4gcYMXdJYuJN1tEg`, READY, https://menutaythanh-6ool3knin-anh-tun.vercel.app . Built with production environment and `--skip-domain`; no OAuth/configuration change. Build version `8971178a-2d6c-48af-9d53-5ae3fce06850`, JS `/assets/index-uqc8uB9h.js`, CSS `/assets/index-aUXrVoTm.css`. Remote clean install/build succeeded with zero audit vulnerabilities; existing non-failing vendor directive/deprecation warnings remain.
 
@@ -40,6 +40,10 @@ Main domain https://menutaythanh.vercel.app/version.json still returned the prev
 
 Headed Chrome session `mealform-ui-fixes` opens staged Dashboard and mobile viewer tabs. Actual deployed assets use synthetic GET services with every write rejected. Dashboard visibly selects `Tuần 28/09/2026 - 02/10/2026` inside the input; the viewer is day-filtered to 14/10/2026. A banner explicitly labels the synthetic mode and pending main-domain release. Google SDK is intentionally aborted in this isolated review context; its single failed request is expected, not an application exception. This is not a real owner-authenticated backend certificate. PR attachment to the Codex panel was attempted but the app returned Invalid app tool request; the GitHub URL itself is valid.
 
-Pending: obtain the user's visual approval, then merge/promote this exact approved artifact and perform the required live read-only smoke check. Source verification and reviewer SHIP do not substitute for this release gate.
+Release gate completed: the user explicitly approved merge and production, then the recorded PR head was merged and `dpl_D1teyKEdiPBD4gcYMXdJYuJN1tEg` was promoted successfully without rebuilding. Fresh main-domain checks returned build version `8971178a-2d6c-48af-9d53-5ae3fce06850` and the same staged JS/CSS assets. Rollback remains the preceding serving deployment `dpl_DvF1xpniLG8AUVU2jg62JrYiySQ3`; no data rollback is in scope.
 
-Browser checks used intercepted synthetic services. No paid OCR, live Forms/Sheets writes, backend/API/Apps Script/OAuth/HMAC changes or production promotion were performed by this documentation pass. Live staging behavior, animation trajectories and cloud Chromatic baselines are not certified here.
+Post-promotion read-only smoke used the separate genuine `mealform-production` browser with no service mocks or review scripts. After waiting for actual loaded rows and clearing its local display filters, the real guest viewer rendered 22 records with seven full-week fields; filtering a day retained 22 records with two fields. Both dark/mobile states had one uniform card surface, transparent cell fills, regular values, no document overflow and no browser page errors. Only counts and computed styles were logged, not names or meal records. The real Dashboard login guard remained visible, and anonymous Dashboard/history APIs returned 401.
+
+A bounded error-level Vercel log query over 15 minutes returned one Node `DEP0169` deprecation warning about `url.parse()` during `/api/viewer`; it was not an application exception or failed read. This dependency/runtime warning and all backend code remain unchanged, not marked fixed. No ongoing monitoring certificate is claimed.
+
+Local and staged authenticated UI checks used intercepted synthetic services; the post-release guest smoke above used real read-only services. Real owner-authenticated week switching was not separately repeated on the main domain, and no paid OCR or live Forms/Sheets writes were tested. Backend/API/Apps Script/OAuth/HMAC and environment configuration are unchanged. Physical devices, animation trajectories and cloud Chromatic baselines are not certified here. The documentation subagent did not deploy; merge/promotion and the added smoke evidence were performed and recorded by the integration owner.
