@@ -29,6 +29,7 @@ export default function ComfortProvider({children}) {
   useEffect(()=>{document.documentElement.dataset.textSize=size;writeTextSize(size);},[size]);
   function show(){if(blocked||document.querySelector('dialog[open]'))return;returnFocus.current=settings.current?.matches(':popover-open')?settingsTrigger.current:document.activeElement;settings.current?.hidePopover();setQuery('');setIndex(0);setError('');setOpen(true);}
   function positionSettings(event){
+    event.currentTarget.inert=event.newState!=='open';
     if(event.newState!=='open')return;
     const rect=settingsTrigger.current.getBoundingClientRect();
     settings.current.style.setProperty('--settings-top',`${Math.min(rect.bottom+8,window.innerHeight-100)}px`);

@@ -1,0 +1,34 @@
+# Interaction motion verification — 14/10/2026
+
+Status: implemented and locally verified; final staging approval, GitHub merge and production promotion pending. `SPEC-motion-2026-10-14.md` records the scoped motion thesis. Existing visual identity, application controllers, API/auth contracts, data and configuration are unchanged.
+
+## Implemented motion
+
+- `meal-viewer/src/motion.css` supplies full-mode anchored native menu transitions (220ms entry/160ms exit), bounded dropdown clip/opacity reveal, short confirmation focus, selected-chip reveal, already-visible content acknowledgement, press feedback and brand-border card focus. It does not add scroll reveals, per-record staggering, dependencies, permanent will-change or decorative loops.
+- A busy indicator runs only while an existing operation exposes `aria-busy=true`. Dashboard week reload and health reads now expose their actual pending state; existing deletion/restoration and viewer busy attributes are reused. Cancellation and all request/record identity rules are unchanged.
+- The disclosure hook reads the CSS exit duration, retaining its old fallback if the new stylesheet is unavailable. Native popovers become inert immediately on exit, even while their closing transition is painted. No confirmation action or focus restoration waits for a cosmetic animation.
+- Light mode retains opacity/color feedback without spatial motion. Off mode remains immediate, using the existing global off rules. Automatic OS reduction and explicit user full-motion override retain their original preference semantics. Existing authored Form-status sequences are deliberately unchanged.
+- The new stylesheet is imported by both the actual frontend and its actual-component Storybook surface. The incumbent `DESIGN.md` and design sidecar are preserved: this is a scoped interaction extension, not a palette/type/layout-system rewrite. Motion variables and timings live in the dedicated stylesheet and this feature brief, not in a second token JSON.
+
+## Evidence
+
+- Three new browser regressions initially failed against the original runtime: native menu entry had no transition, light mode had no menu feedback and confirmation had no focus acknowledgement. They passed after the motion layer. A fourth case verifies mobile More navigation, immediate inert exit, rapid reopening and the explicit full-motion preference under OS reduction.
+- Final production-entrypoint suite: **17 passed in 36.4s**, including all previous role, selection, mobile layout, Google widget, permission-error and cancellation/request-payload checks. The new tests inspect real running animation effects, durations and transition properties, pause effects for controlled time samples, and test rapid interruption and full/light/off preferences. Only external services are synthetic.
+- Production build and all **27 native/API regression scripts passed**, including in the clean Git checkout. Storybook build passed. Existing vendor directive and Storybook chunk/timing warnings remain non-failing, not suppressed.
+- The existing preview browser suite also passed **11 tests in 23.2s**; five local token/Chromatic guards passed. No cloud Chromatic run was made.
+- Time samples under `mealform-preview/review/motion/`: desktop menu at 0/100/240ms on a fixed viewport, mobile More at 100ms, confirmation at 90ms and a pending-read indicator. The 0ms menu is intentionally transparent; it is not a missing capture. Those samples and real-animation metadata were inspected in one bounded builder polish pass, not an independent reviewer certificate or an FPS benchmark.
+- An initial detector invocation from the not-yet-synchronized checkout could not access the new CSS and was invalid for that target. The completed scan against the actual changed canonical files returned `[]`. No second cosmetic hunt was performed.
+
+## Limits and release gate
+
+No live Form/Sheet writes, paid OCR, permission grant or actual sign-in was used. Physical phones, Safari/Firefox timing and performance on low-end hardware remain unverified. Static time samples do not establish smooth frame delivery. CSS `@starting-style` and discrete top-layer transitions enhance modern browsers; unsupported browsers retain usable native open/close behavior. Reference consulted: [MDN starting styles and native popover transitions](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@starting-style).
+
+Feature branch: `codex/interaction-motion-2026-10-14`; runtime source `af9230b8201199ce4a734fd839f7bf75207bc052`. PR: https://github.com/Menhera-Chan-cool/MealForm/pull/4 (open, not merged). All six changed runtime files matched the clean committed source by SHA-256 before staging. The explicit project/team inspection confirmed the existing `anh-tun/menutaythanh`, Node 24/Vite configuration. Dry run included 74 runtime/compiler/token source files and excluded private environment files, credentials, tests, screenshots and Storybook output.
+
+Final staged artifact: **READY**, `dpl_4WqD8AxQhaxoTEn6bkUFVQaqe1Rr`, https://menutaythanh-4nwt8debc-anh-tun.vercel.app . Built with production environment and `--skip-domain`, no configuration change. `/version.json` returns `22d5121a-5e27-4223-bbc8-d3ffca680313`; HTML references `/assets/index-Bq1jkMNQ.js` and `/assets/index-B-hyFqp4.css`. Remote clean install/build succeeded, zero audit vulnerabilities. Existing non-failing vendor directive/deprecation warnings remain.
+
+Fresh main-domain version remained `aefaf0b6-92d2-430d-9a43-559b2b67410c`, confirming that `menutaythanh.vercel.app` has not been promoted. Its serving/rollback reference remains `dpl_GLsSK4iasorZGHGpSxq51RPULnzh`. CLI's generic project alias is not evidence of a main-domain switch.
+
+Headed Chrome session `mealform-motion-staging` opens actual deployed Dashboard PC, viewer mobile and Dashboard mobile assets. A banner identifies synthetic GET data, full motion and blocked writes. All non-GET API requests are rejected in that browser context; the fake delete button can display its real confirmation but cannot write to the real backend. Mock refresh reads wait 650ms solely to demonstrate the pending indicator; this is not a backend latency measurement. The Google SDK request is deliberately aborted in this isolated review context. No credentials/browser auth state were saved. The PR app attachment was attempted but returned Invalid app tool request; the GitHub PR exists.
+
+User visual approval and merge/promotion remain pending. Present the staged controls for live interaction, then promote this exact artifact only after approval; perform genuine main-domain read-only smoke afterward. Do not claim a production release at this handoff.
