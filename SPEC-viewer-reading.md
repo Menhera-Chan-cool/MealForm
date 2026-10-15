@@ -23,4 +23,4 @@ Hidden panels are noninteractive; original data remains complete. No day strip i
 
 ### Delivery boundary
 
-Implement and verify locally first. On 15/10/2026 the user authorized pushing this four-item update to GitHub. Publish the feature branch and a PR only; merging `main` or promoting production is not included in that request. The previous thirteen-item release is not evidence that this version is deployed. No API, Apps Script, permissions, secrets or real Form/Sheet data changes.
+Implement and verify locally first. On 15/10/2026 the user first authorized GitHub publication, then explicitly requested merging `main` and releasing production. PR #7 is merged; the exact tested production-environment artifact has been promoted and genuine readonly smoke checks passed. This authorization covers the selected four-item update, not unrelated changes. No API, Apps Script, permissions, secrets or real Form/Sheet data changes.
