@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ALL, buildDetailModel, detailResultCounts, errorMessage, readViewerFilters, spreadsheetIdFromUrl, viewerApiUrl, weekNavigation, shouldDeferViewerUpdate, millisecondsUntilMealWeekRollover, todayDayLabel, mealRegistrationTarget } from './viewer-model.mjs';
+import { ALL, buildDetailModel, detailResultCounts, errorMessage, readViewerFilters, spreadsheetIdFromUrl, viewerApiUrl, weekNavigation, shouldDeferViewerUpdate, millisecondsUntilMealWeekRollover, todayDayLabel, mealRegistrationTarget,formatFilterSummary } from './viewer-model.mjs';
 import Dashboard from './Dashboard.jsx';
 import ContentSkeleton from './ContentSkeleton.jsx';
 import {useAppearance} from './AppearanceProvider.jsx';
@@ -436,7 +436,7 @@ function App() {
           {advancedError && <p className="advanced-error" role="alert">{advancedError}</p>}
         </div>}
         <div className="form-access" aria-label="Trạng thái Form">
-          <RegistrationContext dates={weekDates.length?`${weekDates[0]} – ${weekDates.at(-1)}`:''} status={formStatus} registration={registration}/>
+          <RegistrationContext dates={weekDates.length?`${weekDates[0]} – ${weekDates.at(-1)}`:''} status={formStatus} registration={registration} lockAt={data?.lockAt} serverNow={data?.serverNow}/>
           {data?.nextFormUnavailable && <small>Chưa kiểm tra được Form tuần sau. Hãy thử tải lại dữ liệu.</small>}
         </div>
       </div>
@@ -469,7 +469,7 @@ function App() {
       </section>
 
       <section className="data-section viewer-reading-panel" id="viewer-detail" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-detail':undefined} hidden={mobileViewer&&viewerTab!=='detail'}>
-        <TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết" preferenceKey="viewer-detail" headers={model.headers} requiredColumns={[model.nameIndex,...(model.headers.indexOf('Ngày')>=0?[model.headers.indexOf('Ngày')]:[])]}>
+        <TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết" preferenceKey="viewer-detail" context={{week:weekDates.length?`Tuần ${weekDates[0]} – ${weekDates.at(-1)}`:'Chưa đọc được ngày của tuần',filters:formatFilterSummary(filters),sort:RESPONSE_SORT_OPTIONS.find(option=>option.value===responseSort)?.label}} headers={model.headers} requiredColumns={[model.nameIndex,...(model.headers.indexOf('Ngày')>=0?[model.headers.indexOf('Ngày')]:[])]}>
         <div className="section-heading detail-heading">
           <div className="section-heading-title"><PeopleIcon /><h2 id="viewer-detail-title" tabIndex={-1}>Chi tiết lựa chọn</h2></div>
           <div className="detail-sort">

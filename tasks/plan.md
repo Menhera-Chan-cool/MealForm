@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Reading context — selected 4, 5, 6; publication authorized via PR #12
+
+Map: CAPABILITY-MAP-reading-context.md and its three module specs. Publish the tested runtime through PR #12 after owner-authenticated Apps Script metadata deployment, promote the existing verified Vercel artifact and check genuine readonly responses. Existing local/API/GAS and built-asset checks have passed. Preserve all filter/scroll/focus/data/auth/trigger behavior; no new dependency or service reads. No live Form/Sheet writes.
+
 ## Reading tools — selected 1, 2, 10, 5, 6; 2026-10-15
 
 Map: CAPABILITY-MAP-reading-tools.md. Five independently testable modules reuse TableWorkspace/ColumnChooser, readonly ResponseQuickView, actual preview image events, existing audit validation/pagination and archive metadata/URL helpers. Each slice starts with failing pure/browser tests. No new dependency/backend/permission or live mutation. Preserve current native controls, required columns, mobile complete data, dirty confirmations and fresh-record guards. Run fixed-source full regressions, TS/Vite/Storybook and bounded PC/mobile/light-dark inspection. External GitHub/main/production delivery follows only current user confirmation, using exact-source comparison, immutable staged artifact, pinned merge, same-artifact promotion and genuine readonly smoke.

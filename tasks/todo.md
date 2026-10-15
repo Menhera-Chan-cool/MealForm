@@ -1,5 +1,13 @@
 # Admin upgrades
 
+## Reading context — selected 4, 5, 6; publication authorized 2026-10-15
+
+- [x] expanded-table-context: all three callers, live applied filters/week/sort, scroll/close unchanged.
+- [x] registration-deadline: configured-only GAS/API fields, current/next isolation, invalid/missing and server-clock/expiry tests; no Form writes.
+- [x] quick-view-pinned-controls: long-content PC/mobile, navigation/bounds/focus unchanged.
+- [x] Full browser/API/Apps Script and built-artifact checks; staged dpl_7tYqsR2iWFfCxvvaGagaDrwBzXiB verified for all three features using synthetic service fixtures.
+- [ ] Finish owner-authenticated Apps Script metadata deployment, merge PR #12 and promote the same artifact; genuine readonly smoke and final release record.
+
 ## Reading tools — selected 1, 2, 10, 5, 6; 2026-10-15
 
 - [x] table-layout-memory: validated numeric-only bounded device preferences; commit/cancel/reset/schema/storage-failure tests.
