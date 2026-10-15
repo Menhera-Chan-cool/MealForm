@@ -8,6 +8,7 @@ import {archiveMonths,weekMonths} from './ui-model.mjs';
 import {archiveWeekHref,filterConditions} from './ui-clarity.mjs';
 import FilterEmptyState from './FilterEmptyState.jsx';
 import ElapsedWait from './ElapsedWait.jsx';
+import ExplainedButton from './ExplainedButton.jsx';
 import {ArchiveBreadcrumbs,ArchiveWeekMetadata} from './WeekContext.jsx';
 import usePageTitle from './usePageTitle.js';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
@@ -41,10 +42,10 @@ export default function HistoryArchive({ onUnauthorized }) {
     <VersionNotice disabled={busy} />
     <ElapsedWait active={busy} label="Đang tải kho tuần"/>
     <ArchiveBreadcrumbs month={selectedMonth} view={view}/>
-    <div className="section-heading"><h2>Kho tuần cũ</h2><button className="secondary" disabled={busy} onClick={() => void load()}>Tải lại</button></div>
+    <div className="section-heading"><h2>Kho tuần cũ</h2><ExplainedButton className="secondary" disabled={busy} reason="Đang tải kho tuần; hãy chờ hoặc dùng Dừng chờ dữ liệu." onClick={() => void load()}>Tải lại</ExplainedButton></div>
     {pending>0&&<button className="secondary" type="button" onClick={()=>{reads.cancel();setBusy(false);setMessage(STOP_WAIT_MESSAGE);}}>Dừng chờ dữ liệu</button>}
     <p>Chỉ hiện tuần đã đăng ký trước tuần này. Cần đăng nhập Google để xem.</p>
-    <div className="archive-view-options" role="group" aria-label="Cách xem kho tuần"><button type="button" className="secondary" aria-pressed={view==='list'} onClick={()=>setView('list')}>Danh sách</button><button type="button" className="secondary" aria-pressed={view==='calendar'} disabled={!months.length} onClick={()=>{if(month===ALL)setMonth(months[0]);setView('calendar');}}>Lịch tháng</button></div>
+    <div className="archive-view-options" role="group" aria-label="Cách xem kho tuần"><button type="button" className="secondary" aria-pressed={view==='list'} onClick={()=>setView('list')}>Danh sách</button><ExplainedButton type="button" className="secondary" aria-pressed={view==='calendar'} disabled={!months.length} reason={busy?'Đang đọc danh sách tuần; chưa có tháng để hiển thị.':'Chưa có tuần cũ với ngày hợp lệ để đưa lên lịch; có thể xem Danh sách.'} onClick={()=>{if(month===ALL)setMonth(months[0]);setView('calendar');}}>Lịch tháng</ExplainedButton></div>
     <label htmlFor="archive-month">Tháng có thực đơn</label>
     <ComboSelect id="archive-month" label="Tháng" value={month} values={months} searchable={false} includeAll={view==='list'} onChange={setMonth} />
     {message && <p role="status">{message}</p>}

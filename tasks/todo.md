@@ -1,5 +1,14 @@
 # Admin upgrades
 
+## Direct UI — selected 1, 3 (shadow only), 4, 8; production authorized 2026-10-15
+
+- [x] summary-drilldown: exact real day/meal, mobile details, preserved filters/sort and return focus/state, no writes.
+- [x] table-edge-shadows: remaining-content geometry only, no copy/arrows, all table workspaces and fit/mobile/expansion/resize cleanup.
+- [x] ocr-error-jump: current validation only, exact editable target, corrections/Undo/busy/holidays, no automatic fix or create.
+- [x] disabled-reasons: manual keyboard/touch explanation, unchanged native guards/callbacks across scoped business actions.
+- [x] Full native/API/frontend/compatibility/Storybook/build and bounded responsive visual verification: 77 frontend, 29 native/API scripts on both copies, 11 compatibility, five token/guard and 50 stories.
+- [ ] Exact-head PR/main merge, same-artifact promotion, genuine readonly smoke, README/release evidence.
+
 ## Clarity controls — selected 4, 5, 8, 9, 10; production authorized 2026-10-15
 
 - [x] save-diff: original payload/revision/reason, no-write cancel, snapshots and failed-save retention.

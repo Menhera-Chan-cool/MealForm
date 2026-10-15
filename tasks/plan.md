@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Direct UI — selected 1, 3 (shadow only), 4, 8; production authorized 2026-10-15
+
+Map: CAPABILITY-MAP-direct-ui.md. User approved the four boundaries and main/production explicitly. Reuse exact existing day/meal filters and summary cards, table workspace measurements, inspectMenu validation and FieldHelp popovers. Each slice starts with a focused failing real-entrypoint test. Preserve all data/auth/cancel/dirty/delete/restore guards; no new dependency/API/backend. Finish source-fixed full regression, compatibility/Storybook/build, one bounded responsive visual batch, clean clone synchronization and PR. Stage a production-environment artifact without switching the main domain; verify exact built assets with synthetic services, merge pinned head and promote the same artifact. Genuine readonly smoke and README/release evidence follow.
+
 ## Clarity controls — selected 4, 5, 8, 9, 10; production authorized 2026-10-15
 
 Map: CAPABILITY-MAP-clarity-controls.md. Reuse shared confirmation for save diffs, shared table workspace for accessible PC resizing, manual display-menu help, elapsed client wait and server-evidence-based link problems. Keep slices focused and start with failing browser/pure tests. Update old tests only where native Save confirmation intentionally becomes custom; preserve discard/unload/restore and all actual payload/revision checks. Verify native/API, real frontend, compatibility and Storybook; bounded PC/mobile/light-dark inspection. Push exact source/PR, stage production without main-domain switch, smoke built artifact, pin merge and promote same artifact. Genuine readonly checks and documentation-only release record follow; no new dependency/backend/secret/real data QA write.

@@ -130,7 +130,7 @@ export function spreadsheetIdFromUrl(value) {
   return /^[A-Za-z0-9_-]{20,}$/.test(text) ? text : '';
 }
 
-export function buildDetailModel(data, filters, sortMode = 'newest') {
+export function buildDetailModel(data, filters, sortMode = 'newest', exactMeal = false) {
   const headers = Array.isArray(data?.headers) ? data.headers : [];
   const rows = sortResponses(Array.isArray(data?.rows) ? data.rows : [], sortMode);
   const days = Array.isArray(data?.days) ? data.days : [];
@@ -139,6 +139,7 @@ export function buildDetailModel(data, filters, sortMode = 'newest') {
   const mealQuery = clean(filters?.meal);
   const wantedName = nameQuery !== ALL ? foldSearchText(nameQuery) : '';
   const wantedMeal = mealQuery !== ALL ? mealQuery.toLocaleLowerCase() : '';
+  const matchesMeal=choice=>exactMeal?choice===mealQuery:choice.toLocaleLowerCase().includes(wantedMeal);
   const dayIndex = selectedDay === ALL ? -1 : days.findIndex(day => dayName(day) === selectedDay);
   const sourceRows = [];
   const mealRows = [];
@@ -150,7 +151,7 @@ export function buildDetailModel(data, filters, sortMode = 'newest') {
     if (selectedDay !== ALL && dayIndex < 0) return;
     if (dayIndex >= 0) {
       const choice = clean(row?.[2 + dayIndex]);
-      if (!choice || (wantedMeal && !choice.toLocaleLowerCase().includes(wantedMeal))) return;
+      if (!choice || (wantedMeal && !matchesMeal(choice))) return;
       sourceRows.push(row);
       return;
     }
@@ -158,7 +159,7 @@ export function buildDetailModel(data, filters, sortMode = 'newest') {
       let matched = false;
       days.forEach((day, index) => {
         const choice = clean(row?.[2 + index]);
-        if (choice && choice.toLocaleLowerCase().includes(wantedMeal)) {
+        if (choice && matchesMeal(choice)) {
           matched = true;
           mealRows.push([name, dayName(day), choice]);
           mealTimes.push(clean(row[0]));

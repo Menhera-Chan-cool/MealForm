@@ -97,3 +97,16 @@ export function viewerProblemKind(status,message='') {
   if(status===502&&/^Chỉ xem tuần cũ/.test(message))return 'archive-only';
   return ({400:'invalid',403:'forbidden',404:'missing'})[status]||'connection';
 }
+
+export function ocrReviewLinks(menu,validation,allowMissing){
+  const links=[];
+  (menu?.days||[]).forEach((day,index)=>{
+    const issue=validation.dayIssues[index],label=day?.day||`Thứ ${index+2}`;
+    if(issue.dateError)links.push({id:`ocr-date-${index}`,label:`${label} · Ngày`,message:issue.dateError,blocking:true});
+    issue.missingMealSlots.forEach(slot=>links.push({id:`ocr-meal-${index}-${slot}`,label:`${label} · Món ${slot+1}`,message:issue.mealError||'Chưa có món. Đối chiếu ảnh hoặc xác nhận ngày có ít hơn 3 món ở cuối bảng.',blocking:Boolean(issue.mealError)||!allowMissing}));
+    if(issue.mealError&&!issue.missingMealSlots.length)links.push({id:`ocr-meal-${index}-0`,label:`${label} · Món`,message:issue.mealError,blocking:true});
+  });
+  if(validation.dateError&&menu?.days?.length!==5)links.push({id:'ocr-monday',label:'Ngày của tuần',message:validation.dateError,blocking:true});
+  if(validation.servingError)links.push({id:'ocr-closed-0',label:'Ngày phục vụ',message:validation.servingError,blocking:true});
+  return links;
+}

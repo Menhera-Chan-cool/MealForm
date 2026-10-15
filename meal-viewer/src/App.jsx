@@ -24,6 +24,7 @@ import {ArchiveBreadcrumbs} from './WeekContext.jsx';
 import {viewerPageTitle,archiveBackHref,filterConditions,viewerLinkIssue,viewerProblemKind} from './ui-clarity.mjs';
 import ViewerLinkProblem from './ViewerLinkProblem.jsx';
 import ElapsedWait from './ElapsedWait.jsx';
+import ExplainedButton from './ExplainedButton.jsx';
 import FilterEmptyState from './FilterEmptyState.jsx';
 import TableWorkspace from './TableWorkspace.jsx';
 import WeekNavigation from './WeekNavigation.jsx';
@@ -86,6 +87,7 @@ function App() {
   const [auth, setAuth] = useState('loading');
   const [data, setData] = useState(null);
   const [filters, setFilters] = useState(initialFilters);
+  const [drilldown,setDrilldown]=useState(null);
   const [responseSort, setResponseSort] = useState('newest');
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -322,7 +324,9 @@ function App() {
       return day === current.day && meal === current.meal ? current : { ...current, day, meal };
     });
   }, [data, days, mealOptions]);
-  const model = useMemo(() => buildDetailModel(data, filters, responseSort), [data, filters, responseSort]);
+  const activeDrilldown=Boolean(drilldown&&drilldown.data===data&&JSON.stringify(drilldown.selected)===JSON.stringify(filters));
+  useEffect(()=>{if(drilldown&&!activeDrilldown)setDrilldown(null);},[drilldown,activeDrilldown]);
+  const model = useMemo(() => buildDetailModel(data, filters, responseSort,activeDrilldown), [data, filters, responseSort,activeDrilldown]);
   const resultCounts = detailResultCounts(model);
   const emptyResults=Boolean(data&&model.sourceRows.length===0);
   const formStatus = busy || !data ? 'loading' : data.formStatus || 'loading';
@@ -330,6 +334,14 @@ function App() {
   const todayLabel = todayDayLabel(days, Date.now() + serverClockOffset);
 
   function setFilter(key, value) { setFilters(current => ({ ...current, [key]: value })); }
+  function selectSummaryMeal(day,meal){
+    const selected={...filters,day,meal};setDrilldown({data,filters:{...filters},selected,origin:document.activeElement,x:window.scrollX,y:window.scrollY});setFilters(selected);setViewerTab('detail');
+    requestAnimationFrame(()=>{const heading=document.getElementById('viewer-detail-title'),target=heading?.getClientRects().length?heading:document.getElementById('viewer-result-count');target?.scrollIntoView({block:'start'});target?.focus({preventScroll:true});});
+  }
+  function returnToSummary(){
+    const previous=drilldown;setDrilldown(null);setFilters(previous.filters);setViewerTab('summary');if(!summaryOpen)toggleSummary();
+    requestAnimationFrame(()=>{window.scrollTo(previous.x,previous.y);const target=previous.origin?.isConnected?previous.origin:document.getElementById('viewer-summary-title');target?.focus({preventScroll:true});});
+  }
   function openSpreadsheet() {
     const sheetId = spreadsheetIdFromUrl(spreadsheetUrl);
     if (!sheetId) {
@@ -393,7 +405,7 @@ function App() {
       <h2>{weekUnavailable?loadError:'Chưa tải được dữ liệu tuần này.'}</h2>
       <div className="actions">
         {weekLink.map(link => <a key={link.href} className="form-link week-link" href={link.href}>{link.label}</a>)}
-        <button className="secondary" type="button" disabled={busy || checking} onClick={() => void loadData(true, auth === 'guest')}>Tải lại dữ liệu</button>
+        <ExplainedButton className="secondary" type="button" disabled={busy || checking} reason="Đang đọc dữ liệu; hãy chờ hoặc dùng Dừng chờ dữ liệu." onClick={() => void loadData(true, auth === 'guest')}>Tải lại dữ liệu</ExplainedButton>
       </div>
     </section> : !data&&(loadProblem||auth==='forbidden')?<ViewerLinkProblem kind={auth==='forbidden'?'forbidden':loadProblem} message={loadError} archiveHref={isHistory?archiveBackHref(new URLSearchParams(viewerSearch).get('week')||'',viewerSearch):'/history'} onRetry={()=>void loadData(true,auth==='guest')} onChangeAccount={()=>void signOutDashboard().catch(error=>setLoadError(error.message))}/>: <>
       <FilterControls days={days} nameOptions={nameOptions} mealOptions={mealOptions} filters={filters} onChange={setFilter} />
@@ -401,11 +413,11 @@ function App() {
       <div className="toolbar">
         <div className="actions">
           <button type="button" onClick={() => setFilters(readViewerFilters(null))}>Xóa bộ lọc</button>
-          <button className={`secondary ${pendingUpdate ? 'update-available' : ''}`} type="button" disabled={busy || checking} aria-busy={busy || checking} onClick={() => void loadData(true, auth === 'guest')}>
+          <ExplainedButton label="Tải lại dữ liệu" className={`secondary ${pendingUpdate ? 'update-available' : ''}`} type="button" disabled={busy || checking} reason="Đang đọc dữ liệu; hãy chờ hoặc dùng Dừng chờ dữ liệu." aria-busy={busy || checking} onClick={() => void loadData(true, auth === 'guest')}>
             {busy ? 'Đang tải…' : pendingUpdate ? 'Có dữ liệu mới · Cập nhật' : 'Tải lại dữ liệu'}
-          </button>
+          </ExplainedButton>
           <button className="secondary" type="button" aria-expanded={advancedOpen} onClick={() => { setAdvancedOpen(open => !open); setAdvancedError(''); }}>Nâng cao</button>
-          <button className="secondary today-button" type="button" disabled={busy || !todayLabel} aria-pressed={Boolean(todayLabel && filters.day === todayLabel)} title={todayLabel || 'Tuần đang xem không có thực đơn cho hôm nay'} onClick={() => setFilters({ name: ALL, meal: ALL, day: todayLabel })}>Hôm nay</button>
+          <ExplainedButton className="secondary today-button" type="button" disabled={busy || !todayLabel} reason={busy?'Đang tải thực đơn.':'Tuần đang xem không có ngày phục vụ trùng với hôm nay theo giờ Việt Nam.'} aria-pressed={Boolean(todayLabel && filters.day === todayLabel)} title={todayLabel || 'Tuần đang xem không có thực đơn cho hôm nay'} onClick={() => setFilters({ name: ALL, meal: ALL, day: todayLabel })}>Hôm nay</ExplainedButton>
         </div>
         {advancedOpen && <div className="advanced-panel" aria-label="Lấy dữ liệu từ Spreadsheet">
           <label htmlFor="spreadsheet-url">URL Spreadsheet</label>
@@ -431,26 +443,27 @@ function App() {
 
       {loadError && <div className="viewer-error" role="alert">
         <span>{loadError}</span>
-        <button className="secondary" type="button" disabled={busy || checking} onClick={() => void loadData(true, auth === 'guest')}>
+        <ExplainedButton label="Thử lại" className="secondary" type="button" disabled={busy || checking} reason="Đang đọc dữ liệu; hãy chờ hoặc dùng Dừng chờ dữ liệu." onClick={() => void loadData(true, auth === 'guest')}>
           {busy ? 'Đang thử lại…' : 'Thử lại'}
-        </button>
+        </ExplainedButton>
       </div>}
 
       <ErrorReportButton report={failure} />
       {data?.closedDays?.length > 0 && <p className="closed-days-note">Ngày không phục vụ: {data.closedDays.join(' · ')}</p>}
-      {data&&<p className="viewer-result-count" role="status" aria-label="Kết quả lọc"><span>Theo bộ lọc hiện tại:</span><strong>{resultCounts.responses} lượt gửi</strong><span>·</span><strong>{resultCounts.choices} lựa chọn món</strong></p>}
+      {activeDrilldown&&<div className="summary-return"><button type="button" className="secondary" onClick={returnToSummary}>Quay lại Tổng hợp</button><span>Đang xem đúng món đã chọn: {filters.meal} · {filters.day}</span></div>}
+      {data&&<p id="viewer-result-count" tabIndex={-1} className="viewer-result-count" role="status" aria-label="Kết quả lọc"><span>Theo bộ lọc hiện tại:</span><strong>{resultCounts.responses} lượt gửi</strong><span>·</span><strong>{resultCounts.choices} lựa chọn món</strong></p>}
       {emptyResults&&<FilterEmptyState title={data.rows?.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={data.rows?.length?filterConditions(filters):[]} onClear={key=>{setFilter(key,ALL);document.getElementById('name')?.focus();}}/>}
       <div hidden={emptyResults}>
       <ViewerTabs value={viewerTab} onChange={setViewerTab}/>
       <section className="data-section viewer-reading-panel" id="viewer-summary" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-summary':undefined} hidden={mobileViewer&&viewerTab!=='summary'}>
-        <div className="section-heading"><div className="section-heading-title"><SummaryIcon /><h2>Tổng hợp lựa chọn</h2></div><button
+        <div className="section-heading"><div className="section-heading-title"><SummaryIcon /><h2 id="viewer-summary-title" tabIndex={-1}>Tổng hợp lựa chọn</h2></div><button
           className="section-toggle" type="button" aria-expanded={summaryOpen} data-active={summaryActive}
           aria-controls="summary-panel" aria-label={summaryOpen ? 'Đóng tổng hợp' : 'Mở tổng hợp'}
           title={summaryOpen ? 'Đóng tổng hợp' : 'Mở tổng hợp'} onClick={toggleSummary}
         ><ChevronIcon expanded={summaryActive} className="summary-chevron" /></button></div>
         <div id="summary-panel" className={`collapse-panel ${summaryVisible ? 'expanded' : !mobileViewer&&summaryClosing ? 'closing' : 'collapsed'}`} aria-hidden={!summaryVisible} inert={!summaryVisible}>
           <div className="summary-content">
-            <ViewerSummary days={days} filters={filters} model={model}/>
+            <ViewerSummary days={days} filters={filters} model={model} onMealSelect={selectSummaryMeal}/>
           </div>
         </div>
       </section>
@@ -458,7 +471,7 @@ function App() {
       <section className="data-section viewer-reading-panel" id="viewer-detail" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-detail':undefined} hidden={mobileViewer&&viewerTab!=='detail'}>
         <TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết" headers={model.headers} requiredColumns={[model.nameIndex,...(model.headers.indexOf('Ngày')>=0?[model.headers.indexOf('Ngày')]:[])]}>
         <div className="section-heading detail-heading">
-          <div className="section-heading-title"><PeopleIcon /><h2>Chi tiết lựa chọn</h2></div>
+          <div className="section-heading-title"><PeopleIcon /><h2 id="viewer-detail-title" tabIndex={-1}>Chi tiết lựa chọn</h2></div>
           <div className="detail-sort">
             <label htmlFor="response-sort">Sắp xếp</label>
             <ComboSelect id="response-sort" label="Sắp xếp" value={RESPONSE_SORT_OPTIONS.find(option => option.value === responseSort)?.label || RESPONSE_SORT_OPTIONS[0].label}
