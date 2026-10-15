@@ -80,3 +80,47 @@
   .viewer-result-count>span:first-child { flex-basis:100%; }
 }
 @media(max-width:360px){ .form-context-actions { grid-template-columns:1fr; } }
+.field-label-row { display:flex; align-items:center; gap:8px; min-width:0; }
+.field-label-row>label,.field-label-row>h2 { flex:1; min-width:0; }
+:root .meal-ui .field-help-trigger { display:inline-grid; place-items:center; width:44px; height:44px; flex-shrink:0; padding:10px; border-color:transparent; background:transparent; color:var(--meal-ui-muted-foreground); }
+:root .meal-ui .field-help-trigger:hover { background:var(--meal-ui-muted); color:var(--meal-ui-foreground); }
+.ui-anchored-popover { position:fixed; inset:auto; width:320px; max-width:calc(100vw - 24px); max-height:min(420px,calc(100dvh - 24px)); overflow:auto; margin:0; padding:16px; border:1px solid var(--meal-ui-border); border-radius:12px; background:var(--meal-ui-card); color:var(--meal-ui-foreground); box-shadow:0 8px 24px #0002; font-size:.875rem; line-height:1.6; overflow-wrap:anywhere; }
+.field-help-note { white-space:normal; font-weight:400; }
+.column-chooser:popover-open { display:grid; gap:10px; }
+.column-chooser p { margin:0; }
+.column-chooser label { display:flex; align-items:center; gap:10px; min-height:44px; }
+.column-chooser label span { min-width:0; }
+.column-chooser small { display:block; color:var(--meal-ui-muted-foreground); }
+.column-chooser-trigger { display:inline-flex; align-items:center; gap:8px; }
+.ui-sidebar-heading { display:flex; align-items:flex-start; gap:4px; }
+.ui-sidebar-heading>.ui-sidebar-brand { flex:1; min-width:0; padding-inline:4px; }
+:root .meal-ui .ui-sidebar-heading>button { width:44px; padding:10px; flex-shrink:0; }
+.sidebar-tooltip { width:max-content; max-width:min(280px,calc(100vw - 24px)); padding:8px 12px; }
+.ui-sidebar-account>button { display:flex; align-items:center; gap:10px; }
+.filter-empty-state { padding:20px 0; text-align:left; }
+:root .meal-ui .filter-empty-state h3 { margin:0 0 8px; }
+.filter-empty-state p { max-width:70ch; margin:0 0 12px; color:var(--meal-ui-muted-foreground); }
+.filter-empty-state ul { margin:0; padding:0; list-style:none; display:grid; gap:8px; }
+.filter-empty-state li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--meal-ui-border); }
+.filter-empty-state li>span { min-width:0; overflow-wrap:anywhere; }
+.filter-empty-state li>button { flex-shrink:0; }
+.notice-preview>section[hidden] { display:none!important; }
+.notice-preview>section { padding-top:16px; }
+.notice-preview-controls { display:flex; flex-wrap:wrap; gap:12px; margin:16px 0; }
+.notice-preview-controls label { display:grid; flex:1 1 180px; gap:6px; }
+:root .meal-ui .notice-preview-canvas { width:100%; margin:auto; padding:16px; border:1px solid var(--meal-ui-border); border-radius:14px; background:var(--meal-ui-background); color:var(--meal-ui-foreground); overflow-wrap:anywhere; }
+.notice-preview-canvas[data-device=phone] { max-width:390px; }
+:root .meal-ui .notice-preview-canvas .week-notice { background:var(--meal-ui-muted); color:var(--meal-ui-foreground); border:1px solid var(--meal-ui-border); }
+:root .meal-ui .notice-preview-canvas .week-notice .secondary { background:var(--meal-ui-card); color:var(--meal-ui-foreground); border-color:var(--meal-ui-border); }
+@media(min-width:701px){
+  .ui-dashboard-layout[data-sidebar-collapsed=true] { grid-template-columns:80px minmax(0,1fr); }
+  .ui-dashboard-layout[data-sidebar-collapsed=true] .ui-sidebar-heading { justify-content:center; }
+  .ui-dashboard-layout[data-sidebar-collapsed=true] .ui-sidebar :is(.ui-sidebar-brand,.ui-nav-group,.ui-nav-label,.ui-sidebar-account>strong,.ui-sidebar-account>span) { display:none; }
+  :root .ui-dashboard-layout[data-sidebar-collapsed=true] .ui-sidebar :is(.ui-nav-item,.ui-sidebar-account>button) { justify-content:center; padding:12px; }
+  .ui-dashboard-layout[data-sidebar-collapsed=true] .ui-sidebar-account { padding:16px 0 0; }
+  :root .meal-ui .table-workspace table { min-width:var(--workspace-table-min,620px); }
+}
+@media(max-width:700px){
+  .filter-empty-state li { align-items:flex-start; flex-wrap:wrap; }
+  .notice-preview .branding-preview-viewport { padding:8px; }
+}

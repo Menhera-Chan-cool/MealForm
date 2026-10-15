@@ -1,6 +1,9 @@
-import {useEffect,useImperativeHandle,useRef,useState} from 'react';
+import {useEffect,useId,useImperativeHandle,useRef,useState} from 'react';
+import FieldHelp from './FieldHelp.jsx';
+import NoticePreview from './NoticePreview.jsx';
 
-export default function WeekNoticeEditor({weekKey,request,busy,onBusy,onMessage,onDirtyChange,ref}){
+export default function WeekNoticeEditor({weekKey,weekName,request,busy,onBusy,onMessage,onDirtyChange,ref}){
+  const textId=useId(),expiryId=useId();
   const [saved,setSaved]=useState(null),[text,setText]=useState(''),[endsOn,setEndsOn]=useState(''),[loading,setLoading]=useState(false);
   const [needsReload,setNeedsReload]=useState(false);
   const dirty=Boolean(saved&&(text!==saved.text||endsOn!==saved.endsOn));
@@ -28,9 +31,10 @@ export default function WeekNoticeEditor({weekKey,request,busy,onBusy,onMessage,
     {dirty&&<p className="unsaved-state" role="status" aria-label="Chưa lưu thông báo">Chưa lưu · Chưa có xác nhận lưu thành công cho thay đổi đang sửa.</p>}
     {needsReload&&<p role="alert">Thông báo trên máy chủ đã đổi. Nháp được giữ; hãy sao chép phần cần giữ trước khi tải lại để đối chiếu.</p>}
     <button type="button" className="secondary" disabled={busy||loading||!weekKey} onClick={()=>{if(!dirty||window.confirm('Bỏ thay đổi chưa lưu và tải lại thông báo?'))void load();}}>{loading?'Đang đọc thông báo…':'Tải lại thông báo'}</button>
-    <label>Nội dung thông báo<textarea rows={4} maxLength={500} required disabled={busy||loading||!saved} value={text} onChange={event=>setText(event.target.value)} /></label>
+    <div className="field-label-row"><label htmlFor={textId}>Nội dung thông báo</label><FieldHelp label="Thông báo công khai">Nội dung này sẽ xuất hiện trên trang xem của tuần đã chọn sau khi bạn xác nhận Lưu. Không nhập tên học sinh, mật khẩu hoặc khóa API.</FieldHelp></div><textarea id={textId} rows={4} maxLength={500} required disabled={busy||loading||!saved} value={text} onChange={event=>setText(event.target.value)} />
     <small>{text.length}/500 ký tự{saved?.text&&saved.expiresAt<=Date.now()?' · Thông báo đã hết hạn':''}</small>
-    <label>Hiển thị hết ngày<input type="date" required disabled={busy||loading||!saved} value={endsOn} onChange={event=>setEndsOn(event.target.value)} /></label>
+    <div className="field-label-row"><label htmlFor={expiryId}>Hiển thị hết ngày</label><FieldHelp label="Ngày hết hạn thông báo">Thông báo hiển thị hết ngày đã chọn theo giờ Việt Nam. Qua ngày đó, nội dung tự ẩn; bản xem trước không lưu hoặc gia hạn thông báo.</FieldHelp></div><input id={expiryId} type="date" required disabled={busy||loading||!saved} value={endsOn} onChange={event=>setEndsOn(event.target.value)} />
+    <NoticePreview text={text} endsOn={endsOn} weekName={weekName} dirty={dirty}/>
     <div className="actions"><button disabled={busy||loading||needsReload||!saved||!text.trim()}>Lưu thông báo</button><button type="button" className="secondary" disabled={busy||loading||needsReload||!saved?.text} onClick={()=>void save(true)}>Xóa thông báo</button></div>
   </form>;
 }

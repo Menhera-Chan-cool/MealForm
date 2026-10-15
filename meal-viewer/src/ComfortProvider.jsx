@@ -82,7 +82,7 @@ export default function ComfortProvider({children}) {
         <button type="button" className="secondary comfort-command" aria-expanded={updatesOpen} aria-controls={updatesId} onClick={()=>setUpdatesOpen(value=>!value)}>Có gì mới?<ChevronIcon expanded={updatesOpen}/></button>
         <section className="release-notes" id={updatesId} aria-label="Điểm mới của giao diện" hidden={!updatesOpen}>
           <h3>Cập nhật giao diện · 15/10/2026</h3>
-          <ul><li>Đếm riêng lượt gửi và lựa chọn món theo bộ lọc.</li><li>Phân biệt Form tuần đang xem với Form đăng ký tuần sau.</li><li>Nhãn ngày gọn trên điện thoại; chạm để xem ngày đầy đủ.</li><li>Xem điểm mới tại đây khi cần, không có cửa sổ tự bật.</li></ul>
+          <ul><li>Thu gọn thanh bên Dashboard trên PC; giữ nhãn khi rê chuột hoặc dùng bàn phím.</li><li>Chọn cột bảng PC; điện thoại vẫn hiện đủ thông tin.</li><li>Kết quả lọc trống có thể bỏ riêng từng điều kiện.</li><li>Xem trước nháp thông báo theo thiết bị và giao diện trước khi lưu.</li><li>Trợ giúp ngay cạnh các trường quan trọng, chỉ mở khi yêu cầu.</li><li>Đếm riêng lượt gửi và lựa chọn món theo bộ lọc.</li><li>Phân biệt Form tuần đang xem với Form đăng ký tuần sau.</li><li>Nhãn ngày gọn trên điện thoại; chạm để xem ngày đầy đủ.</li></ul>
         </section>
       </div>
     </div>

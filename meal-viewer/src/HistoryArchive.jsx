@@ -5,7 +5,8 @@ import VersionNotice from './VersionNotice.jsx';
 import ContentSkeleton from './ContentSkeleton.jsx';
 import ArchiveCalendar from './ArchiveCalendar.jsx';
 import {archiveMonths,weekMonths} from './ui-model.mjs';
-import {archiveWeekHref} from './ui-clarity.mjs';
+import {archiveWeekHref,filterConditions} from './ui-clarity.mjs';
+import FilterEmptyState from './FilterEmptyState.jsx';
 import {ArchiveBreadcrumbs,ArchiveWeekMetadata} from './WeekContext.jsx';
 import usePageTitle from './usePageTitle.js';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
@@ -46,7 +47,7 @@ export default function HistoryArchive({ onUnauthorized }) {
     <ComboSelect id="archive-month" label="Tháng" value={month} values={months} searchable={false} includeAll={view==='list'} onChange={setMonth} />
     {message && <p role="status">{message}</p>}
     {busy && !weeks.length && <ContentSkeleton label="Đang tải kho tuần cũ…" />}
-    {!busy && !message && !visible.length && <p>Chưa có tuần cũ trong tháng đã chọn.</p>}
+    {!busy && !message && !visible.length && <FilterEmptyState title={weeks.length?'Không có tuần trong tháng đã chọn':'Chưa có tuần cũ'} conditions={weeks.length?filterConditions({month},{month:'Tháng'}):[]} onClear={()=>{setMonth(ALL);setView('list');document.getElementById('archive-month')?.focus();}}/>}
     {view==='calendar'?<><ArchiveCalendar month={selectedMonth} weeks={visible}/>{weeks.some(week=>!weekMonths(week).length)&&<p>Có tuần chưa rõ ngày; chuyển Danh sách và chọn Tất cả để xem.</p>}</>:<ul className="archive-weeks">{visible.map(week => <li key={week.weekKey}><a href={archiveWeekHref(week.weekKey,selectedMonth,view)}><strong>{week.name}</strong><ArchiveWeekMetadata week={week}/><span>Xem tuần →</span></a></li>)}</ul>}
   </section>;
 }

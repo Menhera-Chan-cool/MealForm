@@ -1,0 +1,3 @@
+export default function FilterEmptyState({conditions=[],onClear,title='Không có kết quả phù hợp',message}) {
+  return <div className="filter-empty-state" role="status" aria-label={title}><h3>{title}</h3><p>{message||(conditions.length?'Không có bản ghi khớp đồng thời các điều kiện dưới đây. Bạn có thể bỏ riêng một điều kiện.':'Hãy thử tải lại dữ liệu; không có bộ lọc nào cần xóa.')}</p>{conditions.length>0&&<ul>{conditions.map(condition=><li key={condition.key}><span><strong>{condition.label}:</strong> {condition.value}</span><button type="button" className="secondary" aria-label={`Bỏ điều kiện ${condition.label}`} onClick={()=>onClear(condition.key)}>Bỏ điều kiện</button></li>)}</ul>}</div>;
+}

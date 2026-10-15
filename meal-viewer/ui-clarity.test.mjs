@@ -50,3 +50,18 @@ for(const [full,want] of [
   ['Thứ Năm · 29/02/2024','T5 · 29/02'],['Thứ 2 (31/02/2026)','Thứ 2 (31/02/2026)'],
   ['Thứ 2 (12/13/2026)','Thứ 2 (12/13/2026)'],['Thứ 2','Thứ 2'],['Ngày tùy chỉnh','Ngày tùy chỉnh']
 ])assert.equal(ui.compactDayLabel(full),want);
+
+assert.equal(typeof ui.filterConditions,'function','empty-state recovery needs concrete independent criteria');
+assert.deepEqual(ui.filterConditions({name:'Trường',day:'Tất cả',meal:'  '}),[{key:'name',label:'Họ tên',value:'Trường'}]);
+assert.deepEqual(ui.filterConditions({actor:'a@example.com',errorsOnly:true,from:'',unexpected:'ignore'},{actor:'Người quản trị',errorsOnly:'Chỉ lỗi/chưa hoàn tất',from:'Từ ngày'}),[{key:'actor',label:'Người quản trị',value:'a@example.com'},{key:'errorsOnly',label:'Chỉ lỗi/chưa hoàn tất',value:'Đang bật'}]);
+assert.deepEqual(ui.filterConditions({name:null,day:false,meal:{unsafe:true}}),[]);
+assert.equal(typeof ui.noticePreview,'function','draft notice preview must validate calendar dates and Vietnam expiry');
+const previewNow=Date.parse('2026-10-15T01:00:00Z');
+assert.deepEqual(ui.noticePreview('Thứ Tư nghỉ\n<b>Không phải HTML</b>','2026-10-15',previewNow),{notice:{text:'Thứ Tư nghỉ\n<b>Không phải HTML</b>',expiresAt:Date.parse('2026-10-15T16:59:59.999Z')},message:''});
+for(const [text,date,now,want] of [
+  ['  ','2026-10-18',previewNow,'Chưa có nội dung để xem trước.'],
+  ['Nghỉ','2026-02-31',previewNow,'Chọn ngày hết hạn hợp lệ để xem trước.'],
+  ['Nghỉ','2026-10-14',previewNow,'Thông báo đã hết hạn; sẽ không hiện trên trang xem.'],
+  ['x'.repeat(501),'2026-10-18',previewNow,'Nội dung vượt quá 500 ký tự.'],
+  ['Nghỉ','2024-02-29',Date.parse('2024-02-29T17:00:00Z'),'Thông báo đã hết hạn; sẽ không hiện trên trang xem.']
+])assert.deepEqual(ui.noticePreview(text,date,now),{notice:null,message:want});
