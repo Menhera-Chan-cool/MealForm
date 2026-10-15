@@ -8,7 +8,7 @@
 - [x] filter-recovery: honest empty states and independent criterion clear across viewer/submissions/audit/archive.
 - [x] notice-preview: real notice presenter, theme/device preview, Vietnam expiry, preserved draft/revision and no writes.
 - [x] Full native/API/browser and preview/Storybook checks; 56 actual-frontend tests, 29 native/API scripts, 11 compatibility tests, 5 token/guard tests and 47-story build; bounded PC/mobile/light-dark review.
-- [ ] Exact-source PR, tested production artifact, pinned merge/main and promotion; genuine readonly smoke and documentation.
+- [x] Exact-source PR #8 (41d7b7e) merged; promoted READY dpl_B67DEPdEYFvpQeVfHtqoQWfofG4q without rebuild. Genuine readonly main-domain checks passed; README/release evidence updated, no live Form/Sheet/settings mutation.
 
 ## UI clarity — 13 items, production authorized 2026-10-14
 

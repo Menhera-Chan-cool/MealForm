@@ -1,6 +1,6 @@
 # MealForm
 
-## Năm cải tiến UI vận hành — bản chuẩn bị phát hành 15/10/2026
+## Năm cải tiến UI vận hành — đã phát hành 15/10/2026
 
 - Sidebar Dashboard PC thu gọn thành thanh biểu tượng; vẫn có nhãn khi rê chuột/dùng bàn phím và giữ nguyên các mục theo quyền.
 - Chọn cột hiển thị trên PC cho bảng Chi tiết viewer, Lượt gửi và Lịch sử. Cột nhận diện/thao tác bắt buộc vẫn hiện; điện thoại luôn đủ nội dung. Ẩn cột không đổi bộ lọc, tổng số hay dữ liệu. Lựa chọn chỉ tạm thời cho bảng đang mở.
@@ -8,7 +8,7 @@
 - Xem trước nội dung thông báo đang sửa theo PC/điện thoại và Sáng/Tối bằng màu thương hiệu. Ngày hết hạn theo giờ Việt Nam; xem trước không lưu/đăng công khai và không thay cảnh báo Chưa lưu.
 - Trợ giúp cạnh OCR, thông báo, hạn đăng ký, đối soát và quyền quản trị; chỉ mở khi yêu cầu. Không tự đổi Form, cấp quyền hay gửi thao tác.
 
-Người dùng đã cho phép merge `main` và production cho các mục 1, 2, 4, 6, 7. Hiện hồ sơ kiểm thử được ghi trong `VERIFICATION-operate-ui-2026-10-15.md`; trạng thái phát hành sẽ được cập nhật sau khi kiểm tra đúng artifact. API, Apps Script, phân quyền, secrets và dependency giữ nguyên; RAR cũ không tự cập nhật.
+Đã merge [PR #8](https://github.com/Menhera-Chan-cool/MealForm/pull/8) vào `main` và chuyển đúng artifact đã kiểm tra lên [production](https://menutaythanh.vercel.app), không build lại. 56 kiểm thử giao diện, 29 bộ kiểm thử ứng dụng/API, build preview/Storybook và kiểm tra chỉ đọc trên website thật đều đạt. Hồ sơ: `VERIFICATION-operate-ui-2026-10-15.md`. API, Apps Script, phân quyền, secrets và dependency giữ nguyên; RAR cũ không tự cập nhật.
 
 ## Bốn cải tiến UI — đã phát hành 15/10/2026
 
