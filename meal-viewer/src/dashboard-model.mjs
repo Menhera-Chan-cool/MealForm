@@ -1,4 +1,5 @@
 import { foldSearchText } from './viewer-model.mjs';
+import {mealCellLabel,isClosedDay,sameDisplayDay,calendarDayChoices} from './reading-ui.mjs';
 const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
 
 export function isAppsScriptPermissionError(message) {
@@ -155,10 +156,10 @@ export function fillMenuMonday(menu, value) {
 }
 
 export function responseMealDetails(response, week) {
-  return (Array.isArray(response?.meals) ? response.meals : []).map((meal, i) => ({
-    day: typeof week?.dayLabels?.[i] === 'string' && week.dayLabels[i] ? week.dayLabels[i] : `Lựa chọn ${i + 1} — chưa có nhãn ngày`,
-    meal: String(meal || '') || 'Chưa chọn'
-  }));
+  const meals=Array.isArray(response?.meals)?response.meals:[],labels=Array.isArray(week?.dayLabels)?week.dayLabels:[],closed=Array.isArray(week?.closedDays)?week.closedDays:[];
+  const result=Array.from({length:Math.max(meals.length,labels.length)},(_,i)=>{const day=typeof labels[i]==='string'&&labels[i]?labels[i]:`Lựa chọn ${i+1} — chưa có nhãn ngày`;return {day,meal:mealCellLabel(meals[i],isClosedDay(day,closed))||String(meals[i])};});
+  for(const day of closed)if(typeof day==='string'&&day.trim()&&!result.some(item=>sameDisplayDay(item.day,day)))result.push({day,meal:'Không phục vụ'});
+  const order=calendarDayChoices(result.map(item=>item.day),closed);return result.sort((a,b)=>order.indexOf(a.day)-order.indexOf(b.day));
 }
 
 export function nearestViewAnchor(ids, anchor, index) {

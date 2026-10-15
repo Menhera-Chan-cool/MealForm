@@ -1,5 +1,9 @@
 # MealForm
 
+## Sáu cải tiến đọc và đối chiếu — 15/10/2026
+
+Nhãn ô trống phân biệt Chưa chọn / Không phục vụ / Chưa đọc được theo dữ liệu thực; ngày nghỉ vẫn hiện trong bộ lọc nhưng không chọn được. Thương hiệu có so sánh Đã lưu–Đang sửa và khôi phục riêng tên/logo/màu. Ảnh OCR phóng to có bản đồ nhỏ điều hướng bằng kéo hoặc bàn phím. Trang đăng nhập cho biết trang/tuần sẽ tiếp tục và giữ nguyên liên kết hiện tại. Không tự lưu thương hiệu, chạy OCR hay sửa dữ liệu Form/Sheet. Xem phạm vi và bằng chứng tại `SPEC-reading-polish.md`, `VERIFICATION-reading-polish-2026-10-15.md`; bản ghi phát hành sẽ được bổ sung sau khi kiểm tra production.
+
 ## Ngữ cảnh đọc — các mục 4, 5, 6 đã phát hành 15/10/2026
 
 - Bảng phóng rộng giữ tuần, bộ lọc và thứ tự ngay trên vùng đọc ở Chi tiết, Lượt gửi, Lịch sử.

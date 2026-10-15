@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import ImageMinimap from './ImageMinimap.jsx';
 
 export default function MenuImagePreview({ src, name, onRegion, regionDisabled }) {
   const [zoom, setZoom] = useState(100);
@@ -31,9 +32,10 @@ export default function MenuImagePreview({ src, name, onRegion, regionDisabled }
   }
 
   function canvas(fullscreen = false) {
-    return <div className="menu-image-viewport" ref={fullscreen ? fullViewport : inlineViewport} role="region" tabIndex="0" aria-label="Ảnh thực đơn, dùng thanh cuộn để di chuyển khi phóng to">
+    const viewport=fullscreen?fullViewport:inlineViewport;
+    return <div className="menu-image-stage"><div className="menu-image-viewport" ref={viewport} role="region" tabIndex="0" aria-label="Ảnh thực đơn, dùng thanh cuộn để di chuyển khi phóng to">
       <img src={src} alt="Ảnh gốc thực đơn để đối chiếu món và ngày" draggable="false" style={{ width: `${zoom}%` }} />
-    </div>;
+    </div><ImageMinimap src={src} zoom={zoom} viewport={viewport}/></div>;
   }
 
   return <aside className="menu-image-pane" aria-label="Đối chiếu ảnh thực đơn">

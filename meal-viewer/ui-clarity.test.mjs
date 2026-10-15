@@ -53,7 +53,7 @@ const countData={headers:['Timestamp','Họ tên','Thứ 2 (12/10/2026)','Thứ 
 for(const [filters,want] of [
   [{},{responses:3,choices:8}],
   [{meal:'Cơm'},{responses:3,choices:4}],
-  [{day:'Thứ 4 (14/10/2026)'},{responses:2,choices:2}],
+  [{day:'Thứ 4 (14/10/2026)'},{responses:3,choices:2}],
   [{day:'Thứ 4 (14/10/2026)',meal:'Cơm'},{responses:1,choices:1}],
   [{name:'An'},{responses:2,choices:5}],
   [{name:'Không có'},{responses:0,choices:0}]

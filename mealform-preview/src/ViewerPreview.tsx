@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLab
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './components/ui/sheet';
 import './viewer-preview.css';
 import '../../meal-viewer/src/ui-clarity.css';
+import '../../meal-viewer/src/reading-polish.css';
 
 type Week = 'current' | 'next' | 'history' | 'old';
 type State = 'ready' | 'empty' | 'loading' | 'error' | 'login';

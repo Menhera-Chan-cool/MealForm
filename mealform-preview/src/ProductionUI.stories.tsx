@@ -25,6 +25,7 @@ import '../../meal-viewer/src/production-ui.css';
 import '../../meal-viewer/src/motion.css';
 import '../../meal-viewer/src/ui-ten.css';
 import '../../meal-viewer/src/ui-clarity.css';
+import '../../meal-viewer/src/reading-polish.css';
 
 function ProductionSurface({section='Tổng quan',viewer=false}:{section?:string;viewer?:boolean}){
   const root=useRef<HTMLDivElement>(null),[filters,setFilters]=useState(readViewerFilters(''));
