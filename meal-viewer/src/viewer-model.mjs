@@ -168,7 +168,7 @@ export function buildDetailModel(data, filters, sortMode = 'newest', exactMeal =
     if (selectedDay !== ALL && dayIndex < 0) return;
     if (dayIndex >= 0) {
       const choice = clean(row?.[2 + dayIndex]);
-      if (!choice || (wantedMeal && !matchesMeal(choice))) return;
+      if (wantedMeal && !matchesMeal(choice)) return;
       sourceRows.push(row);
       return;
     }
@@ -191,7 +191,7 @@ export function buildDetailModel(data, filters, sortMode = 'newest', exactMeal =
   if (dayIndex >= 0) {
     return {
       headers: [headers[1] || 'Họ và tên', headers[2 + dayIndex] || selectedDay],
-      rows: sourceRows.map(row => [clean(row[1]), clean(row[2 + dayIndex])]), sourceRows,
+      rows: sourceRows.map(row => [clean(row[1]), row[2 + dayIndex]]), sourceRows,
       nameIndex: 0, timeIndex: -1, mealIndexes:[1], rowTimes: sourceRows.map(row => clean(row[0]))
     };
   }

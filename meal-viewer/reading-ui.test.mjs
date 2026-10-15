@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import * as ui from './src/reading-ui.mjs';
+import {buildDetailModel,readViewerFilters,detailResultCounts} from './src/viewer-model.mjs';
+import {responseMealDetails} from './src/dashboard-model.mjs';
+import {createViewerHandler} from './api/security.mjs';
+assert.equal(typeof ui.mealCellLabel,'function');
+for(const [value,closed,want]of [['',false,'Chưa chọn'],['  ',false,'Chưa chọn'],[null,false,'Chưa đọc được'],[undefined,false,'Chưa đọc được'],[{},false,'Chưa đọc được'],['',true,'Không phục vụ'],['Cơm',false,''],[0,false,'']])assert.equal(ui.mealCellLabel(value,closed),want);
+const mon='Thứ 2 (12/10/2026)',wed='Thứ 4 (14/10/2026)',fri='Thứ 6 (16/10/2026)';
+assert.equal(ui.isClosedDay('14/10/2026',[wed]),true);assert.equal(ui.isClosedDay('Thứ 4 (21/10/2026)',[wed]),false);
+assert.deepEqual(ui.calendarDayChoices([{day:mon},{day:fri}],[wed],[mon,wed,fri]),[mon,wed,fri]);assert.deepEqual(ui.calendarDayChoices([{day:mon},{day:fri}],[wed],[]),[mon,wed,fri]);
+const data={headers:['Timestamp','Họ tên',mon,fri],days:[{day:mon},{day:fri}],rows:[['time','A','',null]]};const filtered=buildDetailModel(data,{...readViewerFilters(''),day:mon});assert.equal(filtered.rows.length,1);assert.equal(filtered.rows[0][1],'');assert.deepEqual(detailResultCounts(filtered),{responses:1,choices:0});
+assert.deepEqual(responseMealDetails({meals:['']},{dayLabels:[mon,fri],closedDays:[wed]}),[{day:mon,meal:'Chưa chọn'},{day:wed,meal:'Không phục vụ'},{day:fri,meal:'Chưa đọc được'}]);
+const rect=ui.minimapViewport({scrollWidth:1000,scrollHeight:2000,clientWidth:250,clientHeight:500,scrollLeft:500,scrollTop:1000});assert.deepEqual(rect,{x:.5,y:.5,width:.25,height:.25});assert.deepEqual(ui.minimapScroll(1,1,{scrollWidth:1000,scrollHeight:2000,clientWidth:250,clientHeight:500}),{left:750,top:1500});assert.deepEqual(ui.minimapScroll(-1,-1,{scrollWidth:1000,scrollHeight:2000,clientWidth:250,clientHeight:500}),{left:0,top:0});assert.equal(ui.minimapViewport({scrollWidth:0,scrollHeight:0,clientWidth:0,clientHeight:0}),null);
+assert.equal(ui.loginTargetLabel('/history','?week=2026-10-05_2026-10-09&month=2026-10'),'Tuần 05/10/2026 – 09/10/2026 · Kho tuần cũ');assert.equal(ui.loginTargetLabel('/history','?week=2026-02-30_2026-03-01'),'Kho tuần cũ');assert.equal(ui.loginTargetLabel('/dashboard','?tab=create&next=https://outside.invalid'),'Tạo tuần bằng OCR · Dashboard');assert.equal(ui.loginTargetLabel('/history','?month=2026-10&layout=calendar'),'Kho tuần cũ · Tháng 10/2026');
+const response={setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}};await createViewerHandler({secret:'test',readViewerData:async()=>({headers:data.headers,rows:data.rows,formStatus:'open'})})({method:'GET',headers:{},query:{newest:'1'}},response);assert.equal(response.body.rows[0][3],null,'unknown cells must not turn into an explicitly empty answer');
+console.log('Actual empty states, holiday identity, preserved choices, minimap bounds and login context passed');

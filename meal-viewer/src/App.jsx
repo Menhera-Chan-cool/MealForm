@@ -7,6 +7,7 @@ import { clearDashboardCache } from './dashboard-cache.mjs';
 import { safeErrorReport } from './safe-error-report.mjs';
 import ErrorReportButton from './ErrorReportButton.jsx';
 import DetailTable from './DetailTable.jsx';
+import LoginContext from './LoginContext.jsx';
 import FilterControls, { ComboSelect } from './FilterControls.jsx';
 import RegistrationContext from './RegistrationContext.jsx';
 import ChevronIcon from './ChevronIcon.jsx';
@@ -371,7 +372,7 @@ function App() {
   if (isHistoryList && auth === 'authenticated') return <main className="meal-ui ui-viewer"><header className="viewer-header"><h1>Kho thực đơn tuần cũ</h1><DisplayPreferencesSlot/></header><WeekNavigation current="history"/><HistoryArchive onUnauthorized={() => setAuth('anonymous')} /></main>;
   if (isDashboard) {
     if (auth === 'loading') return <main className="meal-ui ui-viewer"><ContentSkeleton label="Đang xác nhận đăng nhập và quyền dashboard…" /><ElapsedWait active label="Đang xác nhận đăng nhập"/></main>;
-    if (auth === 'anonymous') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p><ErrorReportButton report={failure} /></section></main>;
+    if (auth === 'anonymous') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2><LoginContext/>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p><ErrorReportButton report={failure} /></section></main>;
     if (auth === 'forbidden') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đổi tài khoản Google</button><ErrorReportButton report={failure} /></section></main>;
     return <Dashboard key={dashboardData?.accountId} initialData={dashboardData} onSignOut={signOutDashboard} onUnauthorized={(message, status) => { setFailure(safeErrorReport('dashboard', { status })); clearDashboardCache(); authRequest.current++; setDashboardData(null); setAuth(status === 401 ? 'anonymous' : 'forbidden'); setMessage(message); }} />;
   }
@@ -394,6 +395,7 @@ function App() {
 
     {auth === 'anonymous' ? <section className="login-panel">
       <h2>{isWeekPage ? 'Đăng nhập hoặc xem với tư cách khách' : 'Đăng nhập để xem thực đơn'}</h2>
+      <LoginContext/>
       <p>Chỉ xác minh tài khoản Google; trang này không yêu cầu quyền truy cập Drive, Sheets hay Forms.</p>
       {CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}
       {isWeekPage && <div>
@@ -408,7 +410,7 @@ function App() {
         <ExplainedButton className="secondary" type="button" disabled={busy || checking} reason="Đang đọc dữ liệu; hãy chờ hoặc dùng Dừng chờ dữ liệu." onClick={() => void loadData(true, auth === 'guest')}>Tải lại dữ liệu</ExplainedButton>
       </div>
     </section> : !data&&(loadProblem||auth==='forbidden')?<ViewerLinkProblem kind={auth==='forbidden'?'forbidden':loadProblem} message={loadError} archiveHref={isHistory?archiveBackHref(new URLSearchParams(viewerSearch).get('week')||'',viewerSearch):'/history'} onRetry={()=>void loadData(true,auth==='guest')} onChangeAccount={()=>void signOutDashboard().catch(error=>setLoadError(error.message))}/>: <>
-      <FilterControls days={days} nameOptions={nameOptions} mealOptions={mealOptions} filters={filters} onChange={setFilter} />
+      <FilterControls days={days} closedDays={data?.closedDays} calendarDays={data?.calendarDays} nameOptions={nameOptions} mealOptions={mealOptions} filters={filters} onChange={setFilter} />
 
       <div className="toolbar">
         <div className="actions">
@@ -479,7 +481,7 @@ function App() {
               onChange={label => setResponseSort(RESPONSE_SORT_OPTIONS.find(option => option.label === label)?.value || 'newest')} />
           </div>
         </div>
-        <div key={JSON.stringify([filters, responseSort])} className="detail-results"><DetailTable model={model} filters={filters}/></div>
+        <div key={JSON.stringify([filters, responseSort])} className="detail-results"><DetailTable model={model} filters={filters} closedDays={data?.closedDays}/></div>
         </TableWorkspace>
       </section>
       </div>

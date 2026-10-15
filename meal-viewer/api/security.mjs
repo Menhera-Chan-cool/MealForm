@@ -241,7 +241,7 @@ function publicViewerData(data, now) {
     } : {}),
     headers: headers.filter((_, index) => !hidden.includes(index)),
     rows: (Array.isArray(data?.rows) ? data.rows : []).map(row => Array.isArray(row)
-      ? row.filter((_, index) => !hidden.includes(index)).map(value => String(value ?? '')) : []),
+      ? row.filter((_, index) => !hidden.includes(index)).map(value => value == null ? null : String(value)) : []),
     days: Array.isArray(data?.days) ? data.days : [],
     formUrl: String(data?.formUrl || ''),
     lockAt: registrationDeadlineTime(data?.lockAt)===null?null:data.lockAt,

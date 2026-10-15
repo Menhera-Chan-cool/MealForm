@@ -5,8 +5,9 @@ import useDisclosureAnimation from './useDisclosureAnimation.js';
 import SearchHighlight from './SearchHighlight.jsx';
 import {X} from 'lucide-react';
 import useVisualViewport from './useVisualViewport.js';
+import {calendarDayChoices,isClosedDay} from './reading-ui.mjs';
 
-export function ComboSelect({ id, label, value, values, onChange, onSelect, disabled = false, placeholder, searchable = true, includeAll = true, className = '',optionGroups={} }) {
+export function ComboSelect({ id, label, value, values, onChange, onSelect, disabled = false, placeholder, searchable = true, includeAll = true, className = '',optionGroups={},disabledOptions=[] }) {
   const root = useRef(null);
   const { open, closing, active, show, hide, toggle } = useDisclosureAnimation();
   const [query, setQuery] = useState('');
@@ -27,6 +28,7 @@ export function ComboSelect({ id, label, value, values, onChange, onSelect, disa
   }, [open]);
 
   function choose(next) {
+    if(disabledOptions.includes(next))return;
     (onSelect || onChange)(next);
     hide();
   }
@@ -47,7 +49,7 @@ export function ComboSelect({ id, label, value, values, onChange, onSelect, disa
         onKeyDown={event => {
           if (event.key === 'Escape') { event.preventDefault(); hide(); }
           if (event.key === 'ArrowDown' && open) {
-            const first = root.current?.querySelector('.combo-option');
+            const first = root.current?.querySelector('.combo-option:not(:disabled)');
             if (first) { event.preventDefault(); first.focus(); }
           }
         }}
@@ -63,21 +65,22 @@ export function ComboSelect({ id, label, value, values, onChange, onSelect, disa
         {includeAll && <button className="combo-option" type="button" role="option" aria-selected={value === ALL} onMouseDown={event => event.preventDefault()} onClick={() => choose(ALL)}>{ALL}</button>}
         {matches.length ? matches.map((option,index) => <Fragment key={option}>{optionGroups[option]&&optionGroups[option]!==optionGroups[matches[index-1]]&&<div className="combo-group" role="presentation">{optionGroups[option]}</div>}<button
           key={option} className="combo-option" type="button" role="option"
-          aria-selected={option === (onSelect ? value : inputValue)} onMouseDown={event => event.preventDefault()}
-          onClick={() => choose(option)}><SearchHighlight text={option} query={searchable?searchQuery:''}/></button></Fragment>) : <div className="combo-empty">Không tìm thấy</div>}
+          disabled={disabledOptions.includes(option)} aria-disabled={disabledOptions.includes(option)} aria-selected={option === (onSelect ? value : inputValue)} onMouseDown={event => event.preventDefault()}
+          onClick={() => choose(option)}><SearchHighlight text={option} query={searchable?searchQuery:''}/>{disabledOptions.includes(option)&&' · Nghỉ'}</button></Fragment>) : <div className="combo-empty">Không tìm thấy</div>}
       </div>
   </div>;
 }
 
-function SearchSelect({ id, label, value, values, onChange }) {
+function SearchSelect({ id, label, value, values, onChange,disabledOptions=[],commitSelection=false }) {
   return <div className="filter-field">
     <label htmlFor={id}>{label}</label>
-    <ComboSelect id={id} label={label} value={value} values={values} onChange={onChange} />
+    <ComboSelect id={id} label={label} value={value} values={values} onChange={onChange} onSelect={commitSelection?onChange:undefined} disabledOptions={disabledOptions}/>
   </div>;
 }
 
-export default function FilterControls({ days, nameOptions, mealOptions, filters, onChange }) {
-  const dayOptions = days.map(day => typeof day === 'string' ? day : day.day);
+export default function FilterControls({ days, closedDays=[],calendarDays=[],nameOptions, mealOptions, filters, onChange }) {
+  const dayOptions = calendarDayChoices(days,closedDays,calendarDays);
+  const disabledDays=dayOptions.filter(day=>isClosedDay(day,closedDays));
   const [expanded, setExpanded] = useState(() => typeof window === 'undefined' || !window.matchMedia('(max-width: 700px)').matches);
   const [mobile,setMobile]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(max-width:700px)').matches);
   const sheet=useRef(null);useVisualViewport(sheet,mobile);
@@ -98,7 +101,7 @@ export default function FilterControls({ days, nameOptions, mealOptions, filters
     const node=sheet.current,previous=document.activeElement;node.showModal();
     return()=>{node.close();previous?.focus?.({preventScroll:true});};
   },[mobile,expanded]);
-  const fields=<div className="filter-fields"><SearchSelect id="day" label="Ngày" value={filters.day} values={dayOptions} onChange={value=>onChange('day',value)}/><SearchSelect id="meal" label="Món" value={filters.meal} values={mealOptions} onChange={value=>onChange('meal',value)}/></div>;
+  const fields=<div className="filter-fields"><SearchSelect id="day" label="Ngày" value={filters.day} values={dayOptions} disabledOptions={disabledDays} commitSelection onChange={value=>onChange('day',value)}/><SearchSelect id="meal" label="Món" value={filters.meal} values={mealOptions} onChange={value=>onChange('meal',value)}/></div>;
 
   return <div className="filters" aria-label="Bộ lọc">
     <div className="filter-name-search">
