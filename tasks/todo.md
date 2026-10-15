@@ -1,5 +1,15 @@
 # Admin upgrades
 
+## Operate UI — selected 1, 2, 4, 6, 7; production authorized 2026-10-15
+
+- [x] field-help: named manual popovers at scoped callers; keyboard/touch/no-write tests.
+- [x] sidebar-collapse: real PC width gain, labels on focus/hover, original role/navigation/dirty guards, unchanged mobile.
+- [x] table-columns: shared PC choice/reset; three tables, mandatory columns, same-DOM expansion and full mobile content.
+- [x] filter-recovery: honest empty states and independent criterion clear across viewer/submissions/audit/archive.
+- [x] notice-preview: real notice presenter, theme/device preview, Vietnam expiry, preserved draft/revision and no writes.
+- [x] Full native/API/browser and preview/Storybook checks; 56 actual-frontend tests, 29 native/API scripts, 11 compatibility tests, 5 token/guard tests and 47-story build; bounded PC/mobile/light-dark review.
+- [ ] Exact-source PR, tested production artifact, pinned merge/main and promotion; genuine readonly smoke and documentation.
+
 ## UI clarity — 13 items, production authorized 2026-10-14
 
 - [x] Map/specs; safe literal highlights, Vietnamese display headers, clear controls and external affordances with focused RED/GREEN tests.

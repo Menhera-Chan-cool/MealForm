@@ -11,6 +11,8 @@ import ViewerTabs from '../../meal-viewer/src/ViewerTabs.jsx';
 import HistoryArchive from '../../meal-viewer/src/HistoryArchive.jsx';
 import ContentSkeleton from '../../meal-viewer/src/ContentSkeleton.jsx';
 import OcrProgress from '../../meal-viewer/src/OcrProgress.jsx';
+import TableWorkspace from '../../meal-viewer/src/TableWorkspace.jsx';
+import NoticePreview from '../../meal-viewer/src/NoticePreview.jsx';
 import {buildDetailModel,readViewerFilters} from '../../meal-viewer/src/viewer-model.mjs';
 import {sampleDays,sampleOverview,sampleViewer,installProductionFixtures} from './production-fixtures.mjs';
 import '../../meal-viewer/src/styles.css';
@@ -46,3 +48,5 @@ export const Archive:Story={render:()=> <AppearanceProvider><BrandingProvider><m
 export const InitialLoading:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><ContentSkeleton label="Đang tải thực đơn…"/></main></BrandingProvider></AppearanceProvider>};
 export const OCRReview:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Tạo tuần từ ảnh</h1><OcrProgress menu={{days:sampleDays}} state="idle"/><p>Rà soát ngày và món trước khi tạo Form.</p></main></BrandingProvider></AppearanceProvider>};
 export const MobileDark:Story={globals:{theme:'dark',viewport:{value:'phone',isRotated:false}}};
+export const ColumnVisibility:Story={render:()=>{const model=buildDetailModel(sampleViewer,readViewerFilters(''));return <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Cột bảng PC · Dữ liệu minh họa</h1><TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết" headers={model.headers} requiredColumns={[model.nameIndex]}><DetailTable model={model}/></TableWorkspace></main></BrandingProvider></AppearanceProvider>;}};
+export const NoticeDraftPreview:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Nháp thông báo · Chưa đăng công khai</h1><NoticePreview text={'Thứ Tư nghỉ.\nĐã điều chỉnh thực đơn, vui lòng kiểm tra lại.'} endsOn={new Date(Date.now()+7*86400000).toISOString().slice(0,10)} weekName="Tuần minh họa" dirty/></main></BrandingProvider></AppearanceProvider>};

@@ -1,10 +1,11 @@
 import {useEffect,useId,useRef,useState} from 'react';
-import {CalendarDays,LayoutDashboard,ScanLine,Users,SlidersHorizontal,Megaphone,GitCompareArrows,Palette,ShieldCheck,Mail,MoreHorizontal} from 'lucide-react';
+import {CalendarDays,LayoutDashboard,ScanLine,Users,SlidersHorizontal,Megaphone,GitCompareArrows,Palette,ShieldCheck,Mail,MoreHorizontal,PanelLeftClose,PanelLeftOpen,LogOut} from 'lucide-react';
 import ExternalLink from './ExternalLink.jsx';
 import {Button} from './components/ui/button.jsx';
 import {Card} from './components/ui/card.jsx';
 import {Badge} from './components/ui/badge.jsx';
 import {groupDashboardWeeks} from './dashboard-model.mjs';
+import useAnchoredPopover from './useAnchoredPopover.js';
 
 const sections=[
   {id:'overview',label:'Tổng quan',icon:LayoutDashboard},
@@ -18,15 +19,23 @@ const sections=[
   {id:'access',label:'Quyền Gmail',icon:Mail,owner:true}
 ];
 
+function SidebarAction({label,compact,children,...props}) {
+  const hint=useAnchoredPopover('right');
+  useEffect(()=>{hint.hide();},[compact]);
+  function show(){if(compact&&window.matchMedia('(min-width:701px)').matches)hint.show();}
+  return <><Button {...props} ref={hint.trigger} type="button" aria-label={label} onClick={event=>{hint.hide();props.onClick?.(event);}} onFocus={show} onBlur={hint.hide} onPointerEnter={show} onPointerLeave={()=>{if(document.activeElement!==hint.trigger.current)hint.hide();}} onKeyDown={event=>{if(event.key==='Escape')hint.hide();}}>{children}</Button><span ref={hint.panel} id={hint.id} popover="manual" role="tooltip" aria-label={label} className="ui-anchored-popover sidebar-tooltip" {...hint.events}>{label}</span></>;
+}
+
 export function DashboardLayout({tab,onNavigate,role,permissions,email,schoolName,busy,onSignOut,children}) {
   const allowed=sections.filter(item=>(!item.owner||role==='owner')&&(!item.create||permissions.create));
   const menu=useRef(null),menuId=useId();
   const [moreOpen,setMoreOpen]=useState(false);
+  const [compact,setCompact]=useState(false);
   useEffect(()=>{menu.current?.hidePopover();},[tab]);
-  function itemButton(item,short=false){const Icon=item.icon;return <Button key={item.id} type="button" variant="ghost" className={`ui-nav-item ${tab===item.id?'ui-selected':''}`} aria-current={tab===item.id?'page':undefined} disabled={item.id==='notice'&&busy} onClick={()=>onNavigate(item.id)}><Icon aria-hidden="true" size={20}/><span>{short&&item.id==='create'?'Tạo tuần':short&&item.id==='delete'?'Lượt gửi':item.label}</span></Button>;}
-  return <div className="ui-dashboard-layout meal-ui">
+  function itemButton(item,short=false){const Icon=item.icon,label=short&&item.id==='create'?'Tạo tuần':short&&item.id==='delete'?'Lượt gửi':item.label;return <SidebarAction key={item.id} label={label} compact={!short&&compact} variant="ghost" className={`ui-nav-item ${tab===item.id?'ui-selected':''}`} aria-current={tab===item.id?'page':undefined} disabled={item.id==='notice'&&busy} onClick={()=>onNavigate(item.id)}><Icon aria-hidden="true" size={20}/><span className="ui-nav-label">{label}</span></SidebarAction>;}
+  return <div className="ui-dashboard-layout meal-ui" data-sidebar-collapsed={compact}>
     <a className="ui-skip-link" href="#dashboard-content">Đến nội dung chính</a>
-    <aside className="ui-sidebar"><div className="ui-sidebar-brand"><CalendarDays aria-hidden="true"/><div>Quản trị thực đơn{schoolName&&<small>{schoolName}</small>}</div></div><nav aria-label="Quản trị"><p className="ui-nav-group">Thực đơn</p>{allowed.filter(item=>['overview','create','delete','form','notice'].includes(item.id)).map(item=>itemButton(item))}<p className="ui-nav-group">Quản trị</p>{allowed.filter(item=>['reconcile','branding','health','access'].includes(item.id)).map(item=>itemButton(item))}</nav><div className="ui-sidebar-account"><strong>{role==='owner'?'Chủ sở hữu':'Tài khoản quản trị'}</strong><span>{email}</span><Button type="button" variant="ghost" disabled={busy} onClick={onSignOut}>Đăng xuất</Button></div></aside>
+    <aside className="ui-sidebar"><div className="ui-sidebar-heading"><div className="ui-sidebar-brand"><CalendarDays aria-hidden="true"/><div>Quản trị thực đơn{schoolName&&<small>{schoolName}</small>}</div></div><Button type="button" variant="ghost" aria-label={compact?'Mở rộng thanh bên':'Thu gọn thanh bên'} aria-expanded={!compact} onClick={()=>setCompact(value=>!value)}>{compact?<PanelLeftOpen size={20} aria-hidden="true"/>:<PanelLeftClose size={20} aria-hidden="true"/>}</Button></div><nav aria-label="Quản trị"><p className="ui-nav-group">Thực đơn</p>{allowed.filter(item=>['overview','create','delete','form','notice'].includes(item.id)).map(item=>itemButton(item))}<p className="ui-nav-group">Quản trị</p>{allowed.filter(item=>['reconcile','branding','health','access'].includes(item.id)).map(item=>itemButton(item))}</nav><div className="ui-sidebar-account"><strong>{role==='owner'?'Chủ sở hữu':'Tài khoản quản trị'}</strong><span>{email}</span><SidebarAction label="Đăng xuất" compact={compact} variant="ghost" disabled={busy} onClick={onSignOut}><LogOut size={20} aria-hidden="true"/><span className="ui-nav-label">Đăng xuất</span></SidebarAction></div></aside>
     {children}
     <nav className="ui-mobile-nav" aria-label="Điều hướng điện thoại">{allowed.filter(item=>['overview','create','delete'].includes(item.id)).map(item=>itemButton(item,true))}<Button type="button" variant="ghost" className={`ui-nav-item ${!['overview','create','delete'].includes(tab)?'ui-selected':''}`} popoverTarget={menuId} aria-haspopup="dialog" aria-expanded={moreOpen} aria-controls={menuId}><MoreHorizontal aria-hidden="true" size={20}/><span>Thêm</span></Button></nav>
     <div ref={menu} id={menuId} className="ui-more-menu meal-ui" popover="auto" role="dialog" aria-label="Thêm chức năng" onBeforeToggle={event=>{event.currentTarget.inert=event.newState!=='open';}} onToggle={event=>setMoreOpen(event.newState==='open')}><h2>Thêm chức năng</h2>{allowed.filter(item=>!['overview','create','delete'].includes(item.id)).map(item=>itemButton(item))}<div className="ui-more-account"><strong>{email}</strong><Button variant="outline" asChild><a href="/newest">Mở trang xem</a></Button><Button type="button" variant="outline" disabled={busy} onClick={onSignOut}>Đăng xuất</Button></div></div>

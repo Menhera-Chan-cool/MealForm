@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Operate UI — selected 1, 2, 4, 6, 7; production authorized 2026-10-15
+
+Map: CAPABILITY-MAP-operate-ui.md. User approved these five boundaries and direct main/production delivery. Shared help → collapsible sidebar → same-DOM PC column controls → filter recovery → draft notice preview. Keep changes local to frontend presenters; no new dependency, persistence store, API, permission or live-data mutation. Each slice starts with failing behavior tests; verify each caller, then full native/API/browser suites and preview/Storybook compatibility. One bounded PC/mobile/light-dark visual pass and one repair confirmation. Sync exact reviewed source to clean clone, create PR, stage production without main-domain switch, smoke exact built artifact, merge pinned head and promote without rebuild; finish with genuine readonly smoke and README/release evidence.
+
 ## UI clarity — 13 items, production authorized 2026-10-14
 
 Map: CAPABILITY-MAP-ui-clarity.md. User explicitly requests all 13 changes, GitHub and production with no preview approval. Four specs: search-presentation → week-context → responsive-workspaces → editing-safety. Keep slices small and verify RED/GREEN per presenter/model/caller, then full 29 native/API scripts and real-frontend browser regressions plus preview/Storybook compatibility. Bounded light/dark PC/mobile review, one repair confirmation. No API/Apps Script/dependency changes; no new day-strip or real Form writes. Publish feature PR, verify exact source and mapped Vercel project, build tested artifact without switching main domain, smoke, merge and promote that artifact under already-given release authority; record main version and readonly live checks.

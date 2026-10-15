@@ -1,5 +1,15 @@
 # MealForm
 
+## Năm cải tiến UI vận hành — bản chuẩn bị phát hành 15/10/2026
+
+- Sidebar Dashboard PC thu gọn thành thanh biểu tượng; vẫn có nhãn khi rê chuột/dùng bàn phím và giữ nguyên các mục theo quyền.
+- Chọn cột hiển thị trên PC cho bảng Chi tiết viewer, Lượt gửi và Lịch sử. Cột nhận diện/thao tác bắt buộc vẫn hiện; điện thoại luôn đủ nội dung. Ẩn cột không đổi bộ lọc, tổng số hay dữ liệu. Lựa chọn chỉ tạm thời cho bảng đang mở.
+- Khi lọc không có kết quả, xem rõ từng điều kiện và bỏ riêng một điều kiện. Phân biệt với nguồn dữ liệu thật sự trống hoặc chưa đọc được; áp dụng cả tìm lượt gửi, lọc lịch sử và tháng kho tuần.
+- Xem trước nội dung thông báo đang sửa theo PC/điện thoại và Sáng/Tối bằng màu thương hiệu. Ngày hết hạn theo giờ Việt Nam; xem trước không lưu/đăng công khai và không thay cảnh báo Chưa lưu.
+- Trợ giúp cạnh OCR, thông báo, hạn đăng ký, đối soát và quyền quản trị; chỉ mở khi yêu cầu. Không tự đổi Form, cấp quyền hay gửi thao tác.
+
+Người dùng đã cho phép merge `main` và production cho các mục 1, 2, 4, 6, 7. Hiện hồ sơ kiểm thử được ghi trong `VERIFICATION-operate-ui-2026-10-15.md`; trạng thái phát hành sẽ được cập nhật sau khi kiểm tra đúng artifact. API, Apps Script, phân quyền, secrets và dependency giữ nguyên; RAR cũ không tự cập nhật.
+
 ## Bốn cải tiến UI — đã phát hành 15/10/2026
 
 - Bộ đếm phân biệt lượt gửi với lựa chọn món theo bộ lọc hiện tại; không đếm người theo tên và không coi số hàng chiếu theo món là số lượt gửi. Nhãn từng món ghi rõ “lựa chọn”.

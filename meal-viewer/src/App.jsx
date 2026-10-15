@@ -21,7 +21,8 @@ import ViewerSummary from './ViewerSummary.jsx';
 import ViewerTabs from './ViewerTabs.jsx';
 import usePageTitle from './usePageTitle.js';
 import {ArchiveBreadcrumbs} from './WeekContext.jsx';
-import {viewerPageTitle,archiveBackHref} from './ui-clarity.mjs';
+import {viewerPageTitle,archiveBackHref,filterConditions} from './ui-clarity.mjs';
+import FilterEmptyState from './FilterEmptyState.jsx';
 import TableWorkspace from './TableWorkspace.jsx';
 import WeekNavigation from './WeekNavigation.jsx';
 import {DisplayPreferencesSlot} from './ComfortProvider.jsx';
@@ -314,6 +315,7 @@ function App() {
   }, [data, days, mealOptions]);
   const model = useMemo(() => buildDetailModel(data, filters, responseSort), [data, filters, responseSort]);
   const resultCounts = detailResultCounts(model);
+  const emptyResults=Boolean(data&&model.sourceRows.length===0);
   const formStatus = busy || !data ? 'loading' : data.formStatus || 'loading';
   const registration = mealRegistrationTarget(data, isNewestPage);
   const todayLabel = todayDayLabel(days, Date.now() + serverClockOffset);
@@ -426,6 +428,8 @@ function App() {
       <ErrorReportButton report={failure} />
       {data?.closedDays?.length > 0 && <p className="closed-days-note">Ngày không phục vụ: {data.closedDays.join(' · ')}</p>}
       {data&&<p className="viewer-result-count" role="status" aria-label="Kết quả lọc"><span>Theo bộ lọc hiện tại:</span><strong>{resultCounts.responses} lượt gửi</strong><span>·</span><strong>{resultCounts.choices} lựa chọn món</strong></p>}
+      {emptyResults&&<FilterEmptyState title={data.rows?.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={data.rows?.length?filterConditions(filters):[]} onClear={key=>{setFilter(key,ALL);document.getElementById('name')?.focus();}}/>}
+      <div hidden={emptyResults}>
       <ViewerTabs value={viewerTab} onChange={setViewerTab}/>
       <section className="data-section viewer-reading-panel" id="viewer-summary" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-summary':undefined} hidden={mobileViewer&&viewerTab!=='summary'}>
         <div className="section-heading"><div className="section-heading-title"><SummaryIcon /><h2>Tổng hợp lựa chọn</h2></div><button
@@ -441,7 +445,7 @@ function App() {
       </section>
 
       <section className="data-section viewer-reading-panel" id="viewer-detail" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-detail':undefined} hidden={mobileViewer&&viewerTab!=='detail'}>
-        <TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết">
+        <TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết" headers={model.headers} requiredColumns={[model.nameIndex,...(model.headers.indexOf('Ngày')>=0?[model.headers.indexOf('Ngày')]:[])]}>
         <div className="section-heading detail-heading">
           <div className="section-heading-title"><PeopleIcon /><h2>Chi tiết lựa chọn</h2></div>
           <div className="detail-sort">
@@ -454,6 +458,7 @@ function App() {
         <div key={JSON.stringify([filters, responseSort])} className="detail-results"><DetailTable model={model} filters={filters}/></div>
         </TableWorkspace>
       </section>
+      </div>
     </>}
   </main>;
 }

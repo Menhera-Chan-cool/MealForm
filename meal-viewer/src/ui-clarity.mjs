@@ -62,3 +62,20 @@ export function viewerPageTitle(data,fallback) {
 export function brandHasEdits(draft,saved) {
   return ['schoolName','logoUrl','primaryColor'].some(key=>String(draft?.[key]??'')!==String(saved?.[key]??''));
 }
+
+export function filterConditions(filters,labels={name:'Họ tên',day:'Ngày',meal:'Món'}) {
+  return Object.entries(labels).flatMap(([key,label])=>{
+    const value=filters?.[key];
+    return value===true?[{key,label,value:'Đang bật'}]:typeof value==='string'&&value.trim()&&value.trim()!==ALL?[{key,label,value}]:[];
+  });
+}
+
+export function noticePreview(text,endsOn,now=Date.now()) {
+  let message='';
+  if(typeof text!=='string'||!text.trim())message='Chưa có nội dung để xem trước.';
+  else if(text.length>500)message='Nội dung vượt quá 500 ký tự.';
+  else if(!weekRange({startDate:endsOn,endDate:endsOn}))message='Chọn ngày hết hạn hợp lệ để xem trước.';
+  const expiresAt=Date.parse(`${endsOn}T23:59:59.999+07:00`);
+  if(!message&&expiresAt<=now)message='Thông báo đã hết hạn; sẽ không hiện trên trang xem.';
+  return message?{notice:null,message}:{notice:{text,expiresAt},message:''};
+}
