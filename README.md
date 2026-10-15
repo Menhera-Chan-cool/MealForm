@@ -1,6 +1,6 @@
 # MealForm
 
-## Công cụ đọc — 1, 2, 10, 5, 6: hoàn thiện cục bộ, chưa phát hành
+## Công cụ đọc — 1, 2, 10, 5, 6: đã phát hành 15/10/2026
 
 - Nhớ cột ẩn/độ rộng PC trên trình duyệt, có khôi phục bố cục; chỉ lưu cấu hình số, không lưu tên hoặc nội dung lượt gửi. Mobile vẫn đủ trường, không đồng bộ giữa thiết bị.
 - Xem nhanh có Lượt trước/Lượt sau theo đúng ID, bộ lọc, thứ tự và phần đã tải. Không tự tải thêm hay cho thao tác xóa trong hộp này.
@@ -8,7 +8,9 @@
 - Lịch sử nhóm theo ngày Việt Nam, thu gọn được; vẫn hiện số sự kiện đã tải và số cần kiểm tra. Nhóm tự mở lại khi đổi bộ lọc.
 - Kho tuần lọc Form Đang mở/Đã đóng/Chưa xác định, kết hợp tháng và giữ trạng thái trong liên kết quay lại. Không coi thiếu metadata là đã đóng.
 
-89 kiểm thử giao diện và các bộ build/hồi quy đã đạt; không đổi API, Apps Script, phân quyền, secrets hoặc dependency. Đây là bản đang ở nhánh cục bộ, **chưa push/merge/deploy** và RAR cũ không tự cập nhật. Xem `VERIFICATION-reading-tools-2026-10-15.md`.
+Năm công cụ đọc đã phát hành ngày 15/10/2026 qua [PR #11](https://github.com/Menhera-Chan-cool/MealForm/pull/11): nhớ bố cục bảng, điều hướng Xem nhanh theo đúng lượt đã tải, phản hồi/thử lại logo, nhóm lịch sử theo ngày Việt Nam và lọc kho theo trạng thái Form. Production dùng đúng artifact đã kiểm tra, version `2110d09d-83c2-4733-b466-7e48ee01a336`; kiểm tra dữ liệu thật chỉ đọc đã đạt, không có thao tác ghi.
+
+Không đổi API/Apps Script, secrets, phân quyền hoặc dependency. Ba mục mới 4, 5, 6 chưa nằm trong lần duyệt này và vẫn ở bản cục bộ. Mã trong thư mục chia sẻ/RAR cũ không tự cập nhật; xem `VERIFICATION-reading-tools-2026-10-15.md` để biết bằng chứng và giới hạn kiểm thử, bao gồm một ca chụp giao diện cũ phải chạy lại riêng.
 
 ## UI thao tác trực tiếp — các mục 1, 3 (chỉ bóng mép), 4, 8 đã phát hành 15/10/2026
 

@@ -8,7 +8,7 @@
 - [x] audit-day-groups: Vietnam date, loaded counts/attention indicator, collapse/filter reset and original record actions.
 - [x] archive-status-filter: explicit/unknown metadata, month intersection, return context and independent clear.
 - [x] Full native/API/frontend/compatibility/Storybook and bounded visual checks: 89 frontend, 29 native/API scripts on both copies, 11 compatibility, five token/guard, 50 stories.
-- [ ] If authorized: exact-source PR/main, same-artifact promotion, genuine readonly smoke and README/release evidence.
+- [x] Explicitly approved five-feature release: PR #11 merged at exact source 2b41ab4; same-artifact promotion of dpl_5W7qkMhYGNf264nuuFiZ8XPv9D3r and genuine readonly smoke completed. The later three-feature scope remains local.
 
 ## Direct UI — selected 1, 3 (shadow only), 4, 8; production authorized 2026-10-15
 
