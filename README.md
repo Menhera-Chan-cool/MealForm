@@ -1,13 +1,13 @@
 # MealForm
 
-## UI thao tác trực tiếp — các mục 1, 3 (chỉ bóng mép), 4, 8 ngày 15/10/2026
+## UI thao tác trực tiếp — các mục 1, 3 (chỉ bóng mép), 4, 8 đã phát hành 15/10/2026
 
 - Chạm tên món trong Tổng hợp để xem đúng ngày/món ở Chi tiết; giữ tìm tên/sắp xếp và có Quay lại Tổng hợp. Chỉ lượt chọn từ Tổng hợp khớp chính xác món, không lấy nhầm món có tên dài hơn; tìm kiếm gõ tay vẫn như cũ.
 - Bảng PC chỉ hiện bóng mép ở phía còn nội dung ngang, không có chữ hướng dẫn/mũi tên. Áp dụng Chi tiết, Lượt gửi và Lịch sử; không đổi thẻ mobile hoặc cột dữ liệu.
 - Danh sách cảnh báo OCR bấm được để đến ô ngày/món cần đối chiếu, kể cả mở lại ngày đã thu gọn. Không tự sửa nháp hay tạo Form.
 - Các nút nghiệp vụ bị khóa có trợ giúp mở bằng chạm/bàn phím, giải thích theo trạng thái thật; nút gốc vẫn disabled và giữ quyền/xác nhận cũ.
 
-Đang qua cổng kiểm thử/phát hành; chưa tuyên bố đổi production. Hồ sơ: `VERIFICATION-direct-ui-2026-10-15.md`. Không thay API, Apps Script, dữ liệu, phân quyền, secrets hoặc dependency; RAR cũ không tự cập nhật.
+Đã merge [PR #10](https://github.com/Menhera-Chan-cool/MealForm/pull/10) vào `main` và đưa đúng artifact đã kiểm tra lên [production](https://menutaythanh.vercel.app), không build lại khi chuyển tên miền. **77 kiểm thử giao diện**, 29 bộ ứng dụng/API trên cả hai bản mã, 11 kiểm thử tương thích, năm token/guard, build TypeScript/Vite/50-story Storybook và kiểm tra chỉ đọc trên website thật đều đạt. Hồ sơ: `VERIFICATION-direct-ui-2026-10-15.md`. Không thay API, Apps Script, dữ liệu, phân quyền, secrets hoặc dependency; RAR cũ không tự cập nhật.
 
 ## UI rõ thao tác — các mục 4, 5, 8, 9, 10 đã phát hành 15/10/2026
 

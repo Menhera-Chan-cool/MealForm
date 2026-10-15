@@ -7,7 +7,7 @@
 - [x] ocr-error-jump: current validation only, exact editable target, corrections/Undo/busy/holidays, no automatic fix or create.
 - [x] disabled-reasons: manual keyboard/touch explanation, unchanged native guards/callbacks across scoped business actions.
 - [x] Full native/API/frontend/compatibility/Storybook/build and bounded responsive visual verification: 77 frontend, 29 native/API scripts on both copies, 11 compatibility, five token/guard and 50 stories.
-- [ ] Exact-head PR/main merge, same-artifact promotion, genuine readonly smoke, README/release evidence.
+- [x] PR #10 merged at exact source b6aab3e; promoted READY dpl_GZ8PARbMa1yxykt2Mh82UBXCydu4 without rebuild. Genuine readonly smoke and README/release evidence completed; no real business-data mutation.
 
 ## Clarity controls — selected 4, 5, 8, 9, 10; production authorized 2026-10-15
 
