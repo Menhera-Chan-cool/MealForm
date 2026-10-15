@@ -1,6 +1,6 @@
 # MealForm
 
-## UI rõ thao tác — các mục 4, 5, 8, 9, 10 ngày 15/10/2026
+## UI rõ thao tác — các mục 4, 5, 8, 9, 10 đã phát hành 15/10/2026
 
 - Xác nhận lưu hạn/Form, thương hiệu và thông báo tuần có giá trị Trước/Sau. Hủy giữ nguyên nháp; xác nhận giữ payload, phiên bản và lý do thao tác hiện có.
 - Kéo độ rộng cột PC ở Chi tiết viewer, Lượt gửi và Lịch sử; hỗ trợ bàn phím, hủy lần kéo và khôi phục cỡ mặc định. Chỉ đổi cách xem, không ghi vào Sheet; mobile vẫn đủ thông tin.
@@ -8,7 +8,7 @@
 - Hiện số giây trình duyệt đã chờ, không giả phần trăm hay thời gian hoàn thành. Dừng chờ chỉ dừng đọc trên trình duyệt, không hủy tác vụ máy chủ.
 - Liên kết sai/tuần không có/quyền bị từ chối/lỗi kết nối có hướng xử lý riêng theo bằng chứng máy chủ. Lỗi mạng khi tải lại vẫn giữ bản đã đọc; không coi lỗi kết nối là tuần bị xóa.
 
-Phạm vi chỉ frontend, giữ API/Apps Script/phân quyền/secrets/dependency. Phát hành đang qua cổng kiểm thử và kiểm tra artifact; chưa tuyên bố đã đổi production. Hồ sơ: `VERIFICATION-clarity-controls-2026-10-15.md`. RAR cũ không tự cập nhật.
+Đã merge [PR #9](https://github.com/Menhera-Chan-cool/MealForm/pull/9) vào `main` và đưa đúng artifact đã kiểm tra lên [production](https://menutaythanh.vercel.app), không build lại khi chuyển tên miền. **67 kiểm thử giao diện**, 29 bộ ứng dụng/API, 11 tương thích, 5 token/guard, build TypeScript/Vite/49-story Storybook và kiểm tra chỉ đọc trên web thật đều đạt. Trang 404 của host dùng lại UI hiện tại và giữ HTTP 404, không thêm catch-all rewrite. Phạm vi chỉ frontend/build output, giữ API/Apps Script/phân quyền/secrets/dependency. Hồ sơ: `VERIFICATION-clarity-controls-2026-10-15.md`. RAR cũ không tự cập nhật.
 
 ## Năm cải tiến UI vận hành — đã phát hành 15/10/2026
 

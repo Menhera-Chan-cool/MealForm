@@ -8,7 +8,7 @@
 - [x] wait-elapsed: truthful active phase, clock/reset/stop/cleanup and cached-data behavior.
 - [x] viewer-link-errors: honest server classifications, syntax/unknown paths, protected/empty weeks and retained refresh data.
 - [x] Full native/API/frontend/compatibility/Storybook checks and bounded visual review; 67 frontend, 29 native/API scripts, 11 compatibility, 5 token/guard, 49 stories.
-- [ ] Exact-head PR/main, tested artifact promotion, genuine readonly smoke, README/release evidence.
+- [x] Exact-head PR #9 merged at source 3c2edfd; promoted READY dpl_9UMN1DykpieAdMt7sNjXakMhk4by without rebuild. Genuine readonly production smoke, README/release record and host HTTP 404 verification passed. No live business write.
 
 ## Operate UI — selected 1, 2, 4, 6, 7; production authorized 2026-10-15
 
