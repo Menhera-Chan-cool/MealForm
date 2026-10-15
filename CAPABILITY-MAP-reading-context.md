@@ -6,4 +6,4 @@
 | registration-deadline | Actual configured deadline and approximate remaining time | Existing GAS registry, public API |
 | quick-view-pinned-controls | Fixed close and previous/next controls while content scrolls | Existing readonly quick navigation |
 
-Build independently in the order above. User selected the three already-described ideas; preserve their boundaries. Local implementation only; no GitHub or production publication authorized this turn.
+Build independently in the order above. User selected the three already-described ideas, then explicitly authorized main and production publication. Preserve their boundaries and publish the metadata backend with the viewer.
