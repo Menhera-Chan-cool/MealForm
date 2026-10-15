@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ElapsedWait from './ElapsedWait.jsx';
 import ExternalLink from './ExternalLink.jsx';
 import usePageTitle from './usePageTitle.js';
 import { errorMessage } from './viewer-model.mjs';
@@ -52,6 +53,7 @@ export default function SetupChecklist({ authenticated }) {
   }
   return <main className="dashboard-shell">
     <VersionNotice disabled={busy} />
+    <ElapsedWait active={busy} label="Đang kiểm tra hệ thống"/>
     <header><h1>Cài đặt &amp; kiểm tra</h1><p>Hướng dẫn mở được ngay cả khi bản mới chưa cấu hình. Không nhập khóa bí mật vào trang này.</p><div className="dashboard-header-actions"><a className="form-link" href="/dashboard">Mở Dashboard / đăng nhập</a><a className="action-link" href="/newest">Trang xem</a></div></header>
     <SetupInstructions />
     <section className="dashboard-panel"><h2>Kiểm tra kết nối thực tế</h2>

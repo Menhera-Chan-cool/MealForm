@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Clarity controls — selected 4, 5, 8, 9, 10; production authorized 2026-10-15
+
+Map: CAPABILITY-MAP-clarity-controls.md. Reuse shared confirmation for save diffs, shared table workspace for accessible PC resizing, manual display-menu help, elapsed client wait and server-evidence-based link problems. Keep slices focused and start with failing browser/pure tests. Update old tests only where native Save confirmation intentionally becomes custom; preserve discard/unload/restore and all actual payload/revision checks. Verify native/API, real frontend, compatibility and Storybook; bounded PC/mobile/light-dark inspection. Push exact source/PR, stage production without main-domain switch, smoke built artifact, pin merge and promote same artifact. Genuine readonly checks and documentation-only release record follow; no new dependency/backend/secret/real data QA write.
+
 ## Operate UI — selected 1, 2, 4, 6, 7; production authorized 2026-10-15
 
 Map: CAPABILITY-MAP-operate-ui.md. User approved these five boundaries and direct main/production delivery. Shared help → collapsible sidebar → same-DOM PC column controls → filter recovery → draft notice preview. Keep changes local to frontend presenters; no new dependency, persistence store, API, permission or live-data mutation. Each slice starts with failing behavior tests; verify each caller, then full native/API/browser suites and preview/Storybook compatibility. One bounded PC/mobile/light-dark visual pass and one repair confirmation. Sync exact reviewed source to clean clone, create PR, stage production without main-domain switch, smoke exact built artifact, merge pinned head and promote without rebuild; finish with genuine readonly smoke and README/release evidence.

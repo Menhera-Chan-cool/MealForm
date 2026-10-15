@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ElapsedWait from './ElapsedWait.jsx';
 import { cropPixelRect, applyRegionResult } from './dashboard-model.mjs';
 
 export default function RegionOcr({ image, menu, request, onApply, onClose, onBusy }) {
@@ -41,6 +42,7 @@ export default function RegionOcr({ image, menu, request, onApply, onClose, onBu
       <div className="ocr-crop-rect" aria-hidden="true" style={{left:`${rect.x}%`,top:`${rect.y}%`,width:`${rect.width}%`,height:`${rect.height}%`}} />
     </div>
     <fieldset className="crop-coordinates"><legend>Vùng chọn theo phần trăm ảnh — có thể sửa bằng bàn phím</legend>{[['x','Vị trí ngang'],['y','Vị trí dọc'],['width','Chiều rộng'],['height','Chiều cao']].map(([key,label])=><label key={key}>{label}<input type="number" min="0" max="100" step=".1" disabled={busy} value={Math.round(rect[key]*10)/10} onChange={event=>{setRect(value=>({...value,[key]:Number(event.target.value)}));setProposal(null);}} /></label>)}</fieldset>
+    <ElapsedWait active={busy} label="Đang đọc vùng ảnh"/>
     {error&&<p className="dashboard-warning" role="alert">{error}</p>}
     <button type="button" disabled={busy} onClick={()=>void readRegion()}>{busy?'Đang đọc vùng ảnh…':'Đọc vùng đã chọn'}</button>
     <small className="dashboard-hint">Mỗi lần đọc sử dụng thêm lượt API OCR.</small>
