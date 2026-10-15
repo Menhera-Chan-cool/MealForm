@@ -1,5 +1,22 @@
 import assert from 'node:assert/strict';
 const ui=await import('./src/ui-clarity.mjs').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error;});
+const layouts=await import('./src/table-layout.mjs').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error;});
+assert.equal(typeof layouts.tableLayoutSchema,'function','table layout memory needs a stable non-content schema');
+const schema=layouts.tableLayoutSchema(['Timestamp','Họ tên','Thứ 2 (12/10/2026)'],[1]);
+assert.equal(schema,layouts.tableLayoutSchema(['Timestamp','Họ tên','Thứ 2 (19/10/2026)'],[1]));
+assert.notEqual(schema,layouts.tableLayoutSchema(['Timestamp','Họ tên','Thứ 4 (14/10/2026)'],[1]));
+let layoutJson=layouts.updateTableLayouts('',schema,3,[1],{hidden:[0,1,9,-1],widths:[180,320,240],name:'Never persist this'});
+assert.deepEqual(layouts.readTableLayout(layoutJson,schema,3,[1]),{hidden:[0],widths:[180,320,240]});assert.equal(layoutJson.includes('Never persist'),false);assert.equal(layoutJson.includes('Họ tên'),false);
+assert.deepEqual(layouts.readTableLayout('{broken',schema,3,[1]),{hidden:[],widths:null});assert.deepEqual(layouts.readTableLayout(layoutJson,schema,2,[1]),{hidden:[],widths:null});
+assert.deepEqual(layouts.readTableLayout(JSON.stringify({version:1,layouts:{[schema]:{count:3,hidden:[1,0,-1,99],widths:[180,Infinity,240]}}}),schema,3,[1]),{hidden:[0],widths:null});
+for(let i=0;i<12;i++)layoutJson=layouts.updateTableLayouts(layoutJson,'s'+i,3,[1],{hidden:[],widths:[180,320,240]});assert.equal(Object.keys(JSON.parse(layoutJson).layouts).length,8);
+layoutJson=layouts.updateTableLayouts(layoutJson,'s11',3,[1],null);assert.deepEqual(layouts.readTableLayout(layoutJson,'s11',3,[1]),{hidden:[],widths:null});
+assert.equal(typeof ui.groupAuditDays,'function');
+const early={id:'a',at:Date.parse('2026-10-14T16:59:59Z'),action:'deleted'},late={id:'b',at:Date.parse('2026-10-14T17:00:00Z'),action:'delete-review'};
+assert.deepEqual(ui.groupAuditDays([late,early,{id:'c',at:'bad',action:'delete-failed'}]).map(group=>[group.key,group.events.map(event=>event.id),group.attention]),[['2026-10-15',['b'],1],['2026-10-14',['a'],0],['unknown',['c'],1]]);
+assert.equal(ui.groupAuditDays([{at:'',action:'deleted'}])[0].key,'unknown');
+assert.equal(typeof ui.archiveFormStatus,'function');for(const [value,want] of [['open','open'],['closed','closed'],[undefined,'unknown'],['','unknown'],['closed-ish','unknown']])assert.equal(ui.archiveFormStatus({formStatus:value}),want);
+assert.equal(ui.archiveWeekHref('past','2026-10','calendar','unknown'),'/history?week=past&month=2026-10&layout=calendar&status=unknown');assert.equal(ui.archiveBackHref('2026-09-28_2026-10-02','?month=2026-10&layout=calendar&status=closed'),'/history?month=2026-10&layout=calendar&status=closed');
 assert.equal(typeof ui.highlightPieces,'function','literal highlights need original-text ranges');
 for(const [text,query,want] of [
   ['Trường An','truong',['Trường']],['Đặng Đạt','dang',['Đặng']],['a+b [a+b]','a+b',['a+b','a+b']],

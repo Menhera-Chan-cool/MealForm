@@ -1,5 +1,15 @@
 # Admin upgrades
 
+## Reading tools — selected 1, 2, 10, 5, 6; 2026-10-15
+
+- [x] table-layout-memory: validated numeric-only bounded device preferences; commit/cancel/reset/schema/storage-failure tests.
+- [x] quick-view-navigation: exact loaded-list neighbors and bounds, ambiguous/missing-ID guard, same-name identities; no writes.
+- [x] logo-input-feedback: syntax vs image error, actual preview events, retry/stale guards and unchanged manual save.
+- [x] audit-day-groups: Vietnam date, loaded counts/attention indicator, collapse/filter reset and original record actions.
+- [x] archive-status-filter: explicit/unknown metadata, month intersection, return context and independent clear.
+- [x] Full native/API/frontend/compatibility/Storybook and bounded visual checks: 89 frontend, 29 native/API scripts on both copies, 11 compatibility, five token/guard, 50 stories.
+- [ ] If authorized: exact-source PR/main, same-artifact promotion, genuine readonly smoke and README/release evidence.
+
 ## Direct UI — selected 1, 3 (shadow only), 4, 8; production authorized 2026-10-15
 
 - [x] summary-drilldown: exact real day/meal, mobile details, preserved filters/sort and return focus/state, no writes.

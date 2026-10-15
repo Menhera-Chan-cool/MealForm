@@ -1,5 +1,15 @@
 # MealForm
 
+## Công cụ đọc — 1, 2, 10, 5, 6: hoàn thiện cục bộ, chưa phát hành
+
+- Nhớ cột ẩn/độ rộng PC trên trình duyệt, có khôi phục bố cục; chỉ lưu cấu hình số, không lưu tên hoặc nội dung lượt gửi. Mobile vẫn đủ trường, không đồng bộ giữa thiết bị.
+- Xem nhanh có Lượt trước/Lượt sau theo đúng ID, bộ lọc, thứ tự và phần đã tải. Không tự tải thêm hay cho thao tác xóa trong hộp này.
+- Ô logo phân biệt sai URL HTTPS với trình duyệt chưa tải được ảnh; có thử lại cùng URL, không tự lưu hay sửa đường dẫn.
+- Lịch sử nhóm theo ngày Việt Nam, thu gọn được; vẫn hiện số sự kiện đã tải và số cần kiểm tra. Nhóm tự mở lại khi đổi bộ lọc.
+- Kho tuần lọc Form Đang mở/Đã đóng/Chưa xác định, kết hợp tháng và giữ trạng thái trong liên kết quay lại. Không coi thiếu metadata là đã đóng.
+
+89 kiểm thử giao diện và các bộ build/hồi quy đã đạt; không đổi API, Apps Script, phân quyền, secrets hoặc dependency. Đây là bản đang ở nhánh cục bộ, **chưa push/merge/deploy** và RAR cũ không tự cập nhật. Xem `VERIFICATION-reading-tools-2026-10-15.md`.
+
 ## UI thao tác trực tiếp — các mục 1, 3 (chỉ bóng mép), 4, 8 đã phát hành 15/10/2026
 
 - Chạm tên món trong Tổng hợp để xem đúng ngày/món ở Chi tiết; giữ tìm tên/sắp xếp và có Quay lại Tổng hợp. Chỉ lượt chọn từ Tổng hợp khớp chính xác món, không lấy nhầm món có tên dài hơn; tìm kiếm gõ tay vẫn như cũ.

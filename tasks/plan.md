@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Reading tools — selected 1, 2, 10, 5, 6; 2026-10-15
+
+Map: CAPABILITY-MAP-reading-tools.md. Five independently testable modules reuse TableWorkspace/ColumnChooser, readonly ResponseQuickView, actual preview image events, existing audit validation/pagination and archive metadata/URL helpers. Each slice starts with failing pure/browser tests. No new dependency/backend/permission or live mutation. Preserve current native controls, required columns, mobile complete data, dirty confirmations and fresh-record guards. Run fixed-source full regressions, TS/Vite/Storybook and bounded PC/mobile/light-dark inspection. External GitHub/main/production delivery follows only current user confirmation, using exact-source comparison, immutable staged artifact, pinned merge, same-artifact promotion and genuine readonly smoke.
+
 ## Direct UI — selected 1, 3 (shadow only), 4, 8; production authorized 2026-10-15
 
 Map: CAPABILITY-MAP-direct-ui.md. User approved the four boundaries and main/production explicitly. Reuse exact existing day/meal filters and summary cards, table workspace measurements, inspectMenu validation and FieldHelp popovers. Each slice starts with a focused failing real-entrypoint test. Preserve all data/auth/cancel/dirty/delete/restore guards; no new dependency/API/backend. Finish source-fixed full regression, compatibility/Storybook/build, one bounded responsive visual batch, clean clone synchronization and PR. Stage a production-environment artifact without switching the main domain; verify exact built assets with synthetic services, merge pinned head and promote the same artifact. Genuine readonly smoke and README/release evidence follow.

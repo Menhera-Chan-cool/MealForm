@@ -469,7 +469,7 @@ function App() {
       </section>
 
       <section className="data-section viewer-reading-panel" id="viewer-detail" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-detail':undefined} hidden={mobileViewer&&viewerTab!=='detail'}>
-        <TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết" headers={model.headers} requiredColumns={[model.nameIndex,...(model.headers.indexOf('Ngày')>=0?[model.headers.indexOf('Ngày')]:[])]}>
+        <TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết" preferenceKey="viewer-detail" headers={model.headers} requiredColumns={[model.nameIndex,...(model.headers.indexOf('Ngày')>=0?[model.headers.indexOf('Ngày')]:[])]}>
         <div className="section-heading detail-heading">
           <div className="section-heading-title"><PeopleIcon /><h2 id="viewer-detail-title" tabIndex={-1}>Chi tiết lựa chọn</h2></div>
           <div className="detail-sort">
