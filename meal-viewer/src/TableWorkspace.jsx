@@ -15,8 +15,8 @@ export function ColumnResizeHandle({index,label}){
   return <span className="column-resize-handle" role="separator" tabIndex={0} aria-label={`Độ rộng cột ${displayHeader(label)}`} aria-orientation="vertical" aria-valuemin={Math.min(144,width)} aria-valuemax={Math.max(sizing.max,width)} aria-valuenow={width} onFocus={event=>setNatural(event.currentTarget.parentElement.getBoundingClientRect().width)} onPointerDown={event=>sizing.start(event,index)} onPointerMove={sizing.move} onPointerUp={sizing.end} onPointerCancel={sizing.cancel} onLostPointerCapture={sizing.cancel} onKeyDown={event=>sizing.key(event,index)}/>;
 }
 
-/** @param {{label:string,expandLabel:string,headers?:string[],requiredColumns?:number[],preferenceKey?:string,children:import('react').ReactNode}} props */
-export default function TableWorkspace({label,expandLabel,headers=[],requiredColumns=[],preferenceKey='',children}) {
+/** @param {{label:string,expandLabel:string,headers?:string[],requiredColumns?:number[],preferenceKey?:string,context?:{week:string,filters:string,sort?:string},children:import('react').ReactNode}} props */
+export default function TableWorkspace({label,expandLabel,headers=[],requiredColumns=[],preferenceKey='',context,children}) {
   const dialog=useRef(null),trigger=useRef(null),saved=useRef(null);
   const id='workspace-'+useId().replace(/[^a-zA-Z0-9_-]/g,''),signature=JSON.stringify([headers,requiredColumns]);
   const schema=tableLayoutSchema(headers,requiredColumns),storageKey=preferenceKey?'meal-table-layout-v1:'+preferenceKey:'';
@@ -69,6 +69,7 @@ export default function TableWorkspace({label,expandLabel,headers=[],requiredCol
   return <dialog open ref={dialog} id={id} role={expanded?'dialog':'region'} aria-label={label} style={headers.length?{'--workspace-table-min':`${Math.max(320,(headers.length-hidden.length)*144)}px`}:undefined} className={`table-workspace ${expanded?'workspace-expanded':''}`} onCancel={event=>{event.preventDefault();close();}}>
     <style>{`@media(min-width:701px){${hiddenSelectors.length?`${hiddenSelectors.join(',')}{display:none!important}`:''}${widthRules}}`}</style>
     <div className="workspace-toolbar">{expanded&&<strong>{label}</strong>}{headers.length>0&&<ColumnChooser label={label} headers={headers} required={requiredColumns} hidden={hidden} onResetLayout={storageKey?resetLayout:undefined} storageNote={storageKey?(storageFailed||restored.failed?'Không lưu/đọc được bố cục trên thiết bị; thay đổi hiện tại vẫn dùng được trong lần mở này.':'Bố cục được nhớ trên trình duyệt này, không đồng bộ giữa thiết bị.'):'Mở lại bảng sẽ trở về mặc định.'} onChange={next=>{setColumns({signature,hidden:next});persist(next,widths);}}/>}<ExplainedButton type="button" className="secondary column-size-reset" disabled={!widths} reason="Bảng đang dùng cỡ cột mặc định; chưa có độ rộng tùy chỉnh để khôi phục." onClick={()=>{setSizes({signature,values:null,max:720});persist(hidden,null);}}>Cỡ cột mặc định</ExplainedButton><button type="button" className="secondary workspace-toggle" ref={trigger} aria-label={expanded?`Thu nhỏ ${label.toLocaleLowerCase()}`:expandLabel} onClick={expanded?close:expand}>{expanded?<Minimize2 size={16} aria-hidden="true"/>:<Maximize2 size={16} aria-hidden="true"/>}{expanded?'Thu nhỏ':'Phóng rộng bảng'}</button></div>
+    {expanded&&context&&<div className="workspace-context" role="group" aria-label="Ngữ cảnh bảng"><strong>{context.week}</strong><p>{context.filters}{context.sort&&` · Sắp xếp: ${context.sort}`}</p></div>}
     <Sizing.Provider value={{widths,max:Math.max(720,...(widths||[])),visibleColumns:pc?headers.length-hidden.length:headers.length,start,move,end,cancel,key}}><div className="workspace-body">{children}</div></Sizing.Provider>
   </dialog>;
 }

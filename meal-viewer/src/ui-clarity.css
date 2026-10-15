@@ -1,4 +1,14 @@
 .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+.workspace-context { flex-shrink:0; max-height:28dvh; overflow:auto; padding:12px 20px; border-bottom:1px solid var(--meal-ui-border); overflow-wrap:anywhere; }
+.workspace-context p { margin:4px 0 0; color:var(--meal-ui-muted-foreground); }
+.registration-deadline { margin:12px 0 0; color:var(--meal-ui-muted-foreground); font-size:.875rem; overflow-wrap:anywhere; }
+.registration-deadline p { margin:4px 0; }
+.registration-deadline time { font-variant-numeric:tabular-nums; color:var(--meal-ui-foreground); font-weight:600; }
+:root .meal-ui .response-quick-dialog[open] { display:flex; flex-direction:column; max-height:min(90dvh,calc(var(--usable-viewport,100dvh) - 24px)); padding:0; overflow:hidden; background:var(--meal-ui-card); color:var(--meal-ui-foreground); border-color:var(--meal-ui-border); }
+.response-quick-header { flex-shrink:0; padding:16px 20px; border-bottom:1px solid var(--meal-ui-border); }
+.response-quick-header h2 { margin:0; }
+.response-quick-body { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; padding:16px 20px; }
+.response-quick-dialog .quick-view-navigation { flex-shrink:0; margin:0; padding:12px 20px max(12px,env(safe-area-inset-bottom)); border-top:1px solid var(--meal-ui-border); }
 .archive-filter-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
 .archive-filter-grid>div { min-width:0; display:grid; gap:8px; }
 .quick-view-navigation { display:grid; gap:8px; margin:16px 0; }
@@ -89,7 +99,8 @@
 :root .meal-ui .toolbar { flex-wrap:wrap; }
 :root .meal-ui .form-access { display:block; width:100%; min-width:0; }
 .registration-contexts { display:grid; gap:16px; width:100%; }
-.form-context { display:flex; justify-content:space-between; align-items:center; gap:12px 24px; min-width:0; }
+.form-context { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px 24px; min-width:0; }
+.form-context>.registration-deadline { grid-column:1/-1; margin:0; }
 .form-context+.form-context { padding-top:16px; border-top:1px solid var(--meal-ui-border); }
 .form-context-heading { display:grid; gap:4px; font-size:.875rem; min-width:0; }
 .form-context-heading>span { color:var(--meal-ui-muted-foreground); font-variant-numeric:tabular-nums; }
@@ -103,7 +114,7 @@
 .release-notes ul { padding-left:20px; margin:0; }
 .release-notes li+li { margin-top:8px; }
 @media(max-width:700px){
-  .form-context { flex-direction:column; align-items:stretch; gap:8px; }
+  .form-context { grid-template-columns:minmax(0,1fr); align-items:stretch; gap:8px; }
   .form-context-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
   .form-context-actions:has(>.form-status:only-child) { grid-template-columns:1fr; }
   :root .meal-ui .form-context-actions>:is(.meal-form-link,.form-status) { width:100%; min-width:0; height:auto; }

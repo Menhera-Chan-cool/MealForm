@@ -4,6 +4,22 @@ const clean = value => String(value ?? '').trim();
 const dayName = day => typeof day === 'string' ? day : clean(day?.day);
 const dayMeals = day => Array.isArray(day?.meals) ? day.meals.map(clean).filter(Boolean) : [];
 
+export function registrationDeadlineTime(value) {
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(value))return null;
+  const at=Date.parse(value),date=new Date(value.slice(0,10)+'T00:00:00Z');
+  return Number.isFinite(at)&&Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value.slice(0,10)?at:null;
+}
+
+export function registrationRemaining(lockAt,status,now) {
+  const at=registrationDeadlineTime(lockAt);
+  if(at===null||status!=='open'||!Number.isFinite(now))return '';
+  const left=at-now;
+  if(left<=0)return 'Đã đến hạn; trạng thái Form do máy chủ xác nhận.';
+  if(left<60000)return 'Còn dưới 1 phút';
+  const minutes=Math.ceil(left/60000),hours=Math.floor(minutes/60),days=Math.floor(hours/24);
+  return 'Còn khoảng '+(days?`${days} ngày${hours%24?` ${hours%24} giờ`:''}`:hours?`${hours} giờ${minutes%60?` ${minutes%60} phút`:''}`:`${minutes} phút`);
+}
+
 // Search only: never use this fold for record identity or deletion matching.
 export function foldSearchText(value) {
   return String(value ?? '').normalize('NFD').replace(/\p{M}/gu, '').replace(/[đĐ]/g, 'd').toLocaleLowerCase().replace(/\s+/g, ' ').trim();
@@ -24,6 +40,7 @@ export function mealRegistrationTarget(data, allowNext = false) {
   const dates = (target?.calendarDays || target?.days || []).map(day => dayName(day).match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0]).filter(Boolean);
   return {
     formUrl: safeUrl(target?.formUrl), status: target?.formStatus || 'unknown',
+    lockAt: target?.lockAt, serverNow: target?.serverNow,
     isNext: Boolean(next),
     label: next ? 'Đăng ký tuần sau' : 'Chọn món', dates: next && dates.length ? `${dates[0]} – ${dates.at(-1)}` : ''
   };

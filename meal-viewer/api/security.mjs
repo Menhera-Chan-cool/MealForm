@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import {registrationDeadlineTime} from '../src/viewer-model.mjs';
 
 export const SESSION_SECONDS = 30 * 24 * 60 * 60;
 const SHEET_ID = /^[A-Za-z0-9_-]{1,100}$/;
@@ -243,6 +244,7 @@ function publicViewerData(data, now) {
       ? row.filter((_, index) => !hidden.includes(index)).map(value => String(value ?? '')) : []),
     days: Array.isArray(data?.days) ? data.days : [],
     formUrl: String(data?.formUrl || ''),
+    lockAt: registrationDeadlineTime(data?.lockAt)===null?null:data.lockAt,
     formStatus: data?.formStatus === 'open' || data?.formStatus === 'closed' ? data.formStatus : 'unknown'
   };
 }
@@ -267,7 +269,7 @@ export function createViewerHandler({ secret, readViewerData, now = Date.now }) 
       if (isNewest && data.formStatus === 'closed') {
         try {
           const next = publicViewerData(await readViewerData('', req.query?.refresh === '1', 'read-next-viewer'),now());
-          result.nextForm = { formUrl: next.formUrl, formStatus: next.formStatus, days: next.days };
+          result.nextForm = { formUrl: next.formUrl, formStatus: next.formStatus, days: next.days, calendarDays: next.calendarDays, lockAt: next.lockAt, serverNow: next.serverNow };
         } catch (error) {
           if (!/^Chưa có thực đơn cho tuần sau\.$/.test(error?.message || '')) result.nextFormUnavailable = true;
         }

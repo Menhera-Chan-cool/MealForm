@@ -214,17 +214,19 @@ function readViewerData_(spreadsheetId) {
   return {
     title: spreadsheet.getName(), headers: visibleHeaders, rows: visibleRows, days: days,
     ...getMealClosedDaysForViewer_(spreadsheetId),
-    formUrl: formInfo.formUrl, formStatus: formInfo.formStatus
+    formUrl: formInfo.formUrl, formStatus: formInfo.formStatus, lockAt: formInfo.lockAt
   };
 }
 
 function getViewerFormInfo_(spreadsheetId, responseSheet, fallbackUrl) {
   let formUrl = cleanMealText_(fallbackUrl);
   let form = null;
+  let lockAt = '';
   try {
     const weekKey = getMealFormWeekKeyBySpreadsheetId_(spreadsheetId);
     const registry = getMealFormRegistry_();
     const item = weekKey ? registry[weekKey] : null;
+    if (item) lockAt = getMealFormLockDeadline_(weekKey, item);
     if (item && item.formId) {
       form = FormApp.openById(item.formId);
       formUrl = cleanMealText_(item.responseUrl) || formUrl;
@@ -241,7 +243,7 @@ function getViewerFormInfo_(spreadsheetId, responseSheet, fallbackUrl) {
   } catch (error) {
     // The viewer can still use the response link when status lookup fails.
   }
-  return { formUrl: formUrl, formStatus: formStatus };
+  return { formUrl: formUrl, formStatus: formStatus, lockAt: lockAt };
 }
 
 // QUYỀN TRUY CẬP VÀ ĐỌC ẢNH
