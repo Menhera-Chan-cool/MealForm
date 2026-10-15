@@ -2,6 +2,7 @@ import {createContext,useContext,useEffect,useId,useRef,useState} from 'react';
 import {Maximize2,Minimize2} from 'lucide-react';
 import useVisualViewport from './useVisualViewport.js';
 import ColumnChooser from './ColumnChooser.jsx';
+import ExplainedButton from './ExplainedButton.jsx';
 import {displayHeader} from './ui-clarity.mjs';
 
 const Sizing=createContext(null);
@@ -57,7 +58,7 @@ export default function TableWorkspace({label,expandLabel,headers=[],requiredCol
   // Keep one table DOM; the inline region becomes modal only via showModal().
   return <dialog open ref={dialog} id={id} role={expanded?'dialog':'region'} aria-label={label} style={headers.length?{'--workspace-table-min':`${Math.max(320,(headers.length-hidden.length)*144)}px`}:undefined} className={`table-workspace ${expanded?'workspace-expanded':''}`} onCancel={event=>{event.preventDefault();close();}}>
     <style>{`@media(min-width:701px){${hiddenSelectors.length?`${hiddenSelectors.join(',')}{display:none!important}`:''}${widthRules}}`}</style>
-    <div className="workspace-toolbar">{expanded&&<strong>{label}</strong>}{headers.length>0&&<ColumnChooser label={label} headers={headers} required={requiredColumns} hidden={hidden} onChange={next=>setColumns({signature,hidden:next})}/>}<button type="button" className="secondary column-size-reset" disabled={!widths} onClick={()=>setSizes(null)}>Cỡ cột mặc định</button><button type="button" className="secondary workspace-toggle" ref={trigger} aria-label={expanded?`Thu nhỏ ${label.toLocaleLowerCase()}`:expandLabel} onClick={expanded?close:expand}>{expanded?<Minimize2 size={16} aria-hidden="true"/>:<Maximize2 size={16} aria-hidden="true"/>}{expanded?'Thu nhỏ':'Phóng rộng bảng'}</button></div>
+    <div className="workspace-toolbar">{expanded&&<strong>{label}</strong>}{headers.length>0&&<ColumnChooser label={label} headers={headers} required={requiredColumns} hidden={hidden} onChange={next=>setColumns({signature,hidden:next})}/>}<ExplainedButton type="button" className="secondary column-size-reset" disabled={!widths} reason="Bảng đang dùng cỡ cột mặc định; chưa có độ rộng tùy chỉnh để khôi phục." onClick={()=>setSizes(null)}>Cỡ cột mặc định</ExplainedButton><button type="button" className="secondary workspace-toggle" ref={trigger} aria-label={expanded?`Thu nhỏ ${label.toLocaleLowerCase()}`:expandLabel} onClick={expanded?close:expand}>{expanded?<Minimize2 size={16} aria-hidden="true"/>:<Maximize2 size={16} aria-hidden="true"/>}{expanded?'Thu nhỏ':'Phóng rộng bảng'}</button></div>
     <Sizing.Provider value={{widths,max:sizes?.signature===signature?sizes.max:720,start,move,end,cancel,key}}><div className="workspace-body">{children}</div></Sizing.Provider>
   </dialog>;
 }

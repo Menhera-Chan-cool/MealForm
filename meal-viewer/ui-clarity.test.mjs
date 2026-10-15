@@ -74,3 +74,12 @@ for(const [path,search,want] of [
   ['/not-a-page','','route'],['/','?view=','invalid'],['/','?view=bad!','invalid'],['/','?view=synthetic',null],['/history','?week=', 'invalid'],['/history','?week=bad%21','invalid'],['/history','?week=2026-10-12_2026-10-16',null],['/next','',null],['/history','',null]
 ])assert.equal(ui.viewerLinkIssue(path,search),want);
 for(const [status,message,want] of [[400,'','invalid'],[403,'','forbidden'],[404,'','missing'],[502,'Không tìm thấy tuần đã đăng ký.','missing'],[502,'Chỉ xem tuần cũ trong kho.','archive-only'],[502,'Không thể kết nối.','connection'],[0,'offline','connection']])assert.equal(ui.viewerProblemKind(status,message),want);
+const {buildDetailModel,ALL}=await import('./src/viewer-model.mjs');
+const exactData={headers:['Thời điểm','Họ tên','Thứ 2 (12/10/2026)'],days:[{day:'Thứ 2 (12/10/2026)',meals:['CƠM','CƠM GÀ']}],rows:[['08/10/2026','A','CƠM'],['08/10/2026','B','CƠM GÀ']]};
+assert.equal(buildDetailModel(exactData,{name:ALL,day:'Thứ 2 (12/10/2026)',meal:'CƠM'},'newest',true).rows.length,1,'summary drilldown must not include a different prefix-matching meal');
+assert.equal(buildDetailModel(exactData,{name:ALL,day:ALL,meal:'CƠM'}).rows.length,2,'typed substring search retains its current behavior');
+assert.equal(typeof ui.ocrReviewLinks,'function');
+const linkMenu={days:[{day:'Thứ 2',closed:false},{day:'Thứ 3',closed:true}]};
+const linkValidation={dateError:'Cần đủ 5 ngày',servingError:'',dayIssues:[{dateError:'Ngày sai',mealError:'Cần ít nhất 2 món',missingMealSlots:[1,2]},{dateError:'',mealError:'',missingMealSlots:[]}]};
+assert.deepEqual(ui.ocrReviewLinks(linkMenu,linkValidation,false).map(value=>[value.id,value.blocking]),[['ocr-date-0',true],['ocr-meal-0-1',true],['ocr-meal-0-2',true],['ocr-monday',true]]);
+assert.deepEqual(ui.ocrReviewLinks({days:[{day:'Thứ 2'}]},{dateError:'',servingError:'',dayIssues:[{dateError:'',mealError:'',missingMealSlots:[2]}]},true).map(value=>[value.id,value.blocking]),[['ocr-meal-0-2',false]]);

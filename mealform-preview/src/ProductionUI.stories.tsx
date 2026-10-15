@@ -15,6 +15,7 @@ import TableWorkspace from '../../meal-viewer/src/TableWorkspace.jsx';
 import NoticePreview from '../../meal-viewer/src/NoticePreview.jsx';
 import ViewerLinkProblem from '../../meal-viewer/src/ViewerLinkProblem.jsx';
 import ElapsedWait from '../../meal-viewer/src/ElapsedWait.jsx';
+import ExplainedButton from '../../meal-viewer/src/ExplainedButton.jsx';
 import {buildDetailModel,readViewerFilters} from '../../meal-viewer/src/viewer-model.mjs';
 import {sampleDays,sampleOverview,sampleViewer,installProductionFixtures} from './production-fixtures.mjs';
 import '../../meal-viewer/src/styles.css';
@@ -54,3 +55,4 @@ export const ColumnVisibility:Story={render:()=>{const model=buildDetailModel(sa
 export const NoticeDraftPreview:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Nháp thông báo · Chưa đăng công khai</h1><NoticePreview text={'Thứ Tư nghỉ.\nĐã điều chỉnh thực đơn, vui lòng kiểm tra lại.'} endsOn={new Date(Date.now()+7*86400000).toISOString().slice(0,10)} weekName="Tuần minh họa" dirty/></main></BrandingProvider></AppearanceProvider>};
 export const LinkRecovery:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Liên kết thực đơn · Minh họa</h1><ViewerLinkProblem kind="missing"/></main></BrandingProvider></AppearanceProvider>};
 export const PendingRead:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Trạng thái chờ · Minh họa</h1><ElapsedWait active label="Đang tải thực đơn"/><p>Bộ đếm thời gian trình duyệt, không phải tiến độ máy chủ.</p></main></BrandingProvider></AppearanceProvider>};
+export const DisabledActionReason:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Giải thích thao tác bị khóa · Minh họa</h1><ExplainedButton disabled reason="Chọn ảnh thực đơn trước khi đọc OCR.">Đọc thực đơn</ExplainedButton></main></BrandingProvider></AppearanceProvider>};
