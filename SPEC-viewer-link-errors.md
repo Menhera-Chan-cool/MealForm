@@ -1,4 +1,6 @@
 # Spec: viewer-link-errors
+
+Production host also emits `404.html` from the exact built index assets, following [Vercel's output-directory convention](https://vercel.com/kb/guide/custom-404-page). Keep HTTP 404 for unknown paths, no catch-all rewrite or API change. Build assertion and staged/live HTTP+browser checks are required.
 ## Objective
 Explain unknown page, invalid link, explicitly missing/archived-only week, denied access and connectivity distinctly, with appropriate safe return/retry actions. Do not reveal private week existence or replace cached results on refresh failure.
 ## Commands
