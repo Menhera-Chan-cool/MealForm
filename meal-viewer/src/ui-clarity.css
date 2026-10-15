@@ -1,4 +1,15 @@
 .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+.archive-filter-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.archive-filter-grid>div { min-width:0; display:grid; gap:8px; }
+.quick-view-navigation { display:grid; gap:8px; margin:16px 0; }
+.quick-view-navigation p { margin:0; color:var(--meal-ui-muted-foreground); }
+.quick-view-navigation .actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.quick-view-navigation .explained-action { width:100%; }
+@media(max-width:700px){.quick-view-navigation .actions { grid-template-columns:minmax(0,1fr); }}
+.logo-input-feedback p { margin:0 0 8px; overflow-wrap:anywhere; color:var(--meal-ui-muted-foreground); }
+:root .meal-ui .audit-day-heading td { padding:12px 0; border:0; background:var(--meal-ui-card); }
+:root .meal-ui .audit-day-heading button { width:100%; text-align:left; white-space:normal; background:var(--meal-ui-muted); color:var(--meal-ui-foreground); }
+@media(max-width:700px){.archive-filter-grid { grid-template-columns:minmax(0,1fr); }:root .meal-ui .dashboard-history-table tr.audit-day-heading { padding:0; border:0; margin:12px 0; }:root .meal-ui .audit-day-heading td { padding:0; }}
 :root .meal-ui button.summary-meal-button { width:100%; min-height:44px; padding:8px; margin-left:-8px; border:0; background:transparent; color:var(--meal-ui-foreground); text-align:left; white-space:normal; font-size:inherit; font-weight:600; overflow-wrap:anywhere; }
 :root .meal-ui button.summary-meal-button:hover { background:var(--meal-ui-muted); }
 .ui-day-card dt { flex:1; }

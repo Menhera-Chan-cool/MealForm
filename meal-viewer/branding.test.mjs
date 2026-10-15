@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+const logoFeedback=await import('./src/branding.mjs');assert.equal(typeof logoFeedback.logoInputIssue,'function');assert.equal(logoFeedback.logoInputIssue(''),'');assert.equal(logoFeedback.logoInputIssue('https://example.test/logo.png'),'');for(const value of ['http://example.test/logo.png','https://user:password@example.test/x','not a URL'])assert.ok(logoFeedback.logoInputIssue(value));
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const gas=vm.createContext({});

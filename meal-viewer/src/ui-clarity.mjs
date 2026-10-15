@@ -36,10 +36,11 @@ export function compactDayLabel(value) {
   return `${short} · ${day.padStart(2,'0')}/${month.padStart(2,'0')}`;
 }
 
-export function archiveWeekHref(key,month='',view='list') {
+export function archiveWeekHref(key,month='',view='list',status='all') {
   const params=new URLSearchParams({week:key});
   if(/^\d{4}-(0[1-9]|1[0-2])$/.test(month))params.set('month',month);
   if(view==='calendar')params.set('layout','calendar');
+  if(['open','closed','unknown'].includes(status))params.set('status',status);
   return '/history?'+params;
 }
 export function archiveBackHref(key,search) {
@@ -47,10 +48,18 @@ export function archiveBackHref(key,search) {
   const month=months.includes(source.get('month'))?source.get('month'):months[0];
   const params=new URLSearchParams();if(month)params.set('month',month);
   if(source.get('layout')==='calendar')params.set('layout','calendar');
+  if(['open','closed','unknown'].includes(source.get('status')))params.set('status',source.get('status'));
   return '/history'+(params.size?'?'+params:'');
 }
 export function archiveMetadata(week) {
   return {count:Number.isSafeInteger(week.responseCount)&&week.responseCount>=0?`${week.responseCount} lượt gửi`:'Chưa đọc được số lượt',status:week.formStatus==='open'?'Form đang mở':week.formStatus==='closed'?'Form đã đóng':'Chưa xác định Form'};
+}
+export function archiveFormStatus(week){return ['open','closed'].includes(week?.formStatus)?week.formStatus:'unknown';}
+
+export function groupAuditDays(events){
+  const groups=new Map();
+  for(const event of events){const valid=typeof event.at==='number'||typeof event.at==='string'&&event.at.trim()!=='',time=valid?Number(event.at):NaN,date=new Date(time+7*3600000),key=Number.isFinite(date.getTime())?date.toISOString().slice(0,10):'unknown';if(!groups.has(key))groups.set(key,{key,label:key==='unknown'?'Chưa rõ thời gian':key.split('-').reverse().join('/'),events:[],attention:0});const group=groups.get(key);group.events.push(event);if(/(?:-pending|-review|-failed)$|^partial$/.test(event.action))group.attention++;}
+  return [...groups.values()];
 }
 export function viewerPageTitle(data,fallback) {
   const dates=(data?.calendarDays||data?.days||[]).map(day=>String(typeof day==='string'?day:day.day).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)).filter(Boolean).map(match=>`${match[3]}-${match[2].padStart(2,'0')}-${match[1].padStart(2,'0')}`).sort();

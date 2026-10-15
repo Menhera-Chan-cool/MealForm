@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Fragment,useCallback, useEffect,useId, useMemo, useReducer, useRef, useState } from 'react';
 import { errorMessage, mealRegistrationTarget, foldSearchText } from './viewer-model.mjs';
 import { inspectMenu, describeHistoryNote, countNewResponseIds, menuCalendarKey, fillMenuMonday, accountRoleLabel, filterAuditHistory, applyRegionResult, dashboardCommands,compareResponseVersions,isAppsScriptPermissionError } from './dashboard-model.mjs';
 import {SetupInstructions} from './SetupChecklist.jsx';
@@ -11,9 +11,9 @@ import SearchInput from './SearchInput.jsx';
 import SearchHighlight from './SearchHighlight.jsx';
 import ExternalLink from './ExternalLink.jsx';
 import usePageTitle from './usePageTitle.js';
-import TableWorkspace,{ColumnResizeHandle} from './TableWorkspace.jsx';
+import TableWorkspace,{ColumnResizeHandle,TableSpanCell} from './TableWorkspace.jsx';
 import useUnsavedChanges from './useUnsavedChanges.js';
-import {brandHasEdits,filterConditions,reviewChanges,ocrReviewLinks} from './ui-clarity.mjs';
+import {brandHasEdits,filterConditions,reviewChanges,ocrReviewLinks,groupAuditDays} from './ui-clarity.mjs';
 import ExplainedButton from './ExplainedButton.jsx';
 import TableScroll from './TableScroll.jsx';
 import ElapsedWait from './ElapsedWait.jsx';
@@ -44,6 +44,7 @@ import VersionNotice from './VersionNotice.jsx';
 import useOcrDraft from './useOcrDraft.js';
 import ActionToast from './ActionToast.jsx';
 import { useBranding } from './BrandingProvider.jsx';
+import {logoInputIssue} from './branding.mjs';
 import './dashboard.css';
 import './review-scale.css';
 
@@ -155,6 +156,11 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [reconciliation, setReconciliation] = useState(null);
   const [reconciling,setReconciling]=useState(false);
   const [brandDraft, setBrandDraft] = useState(branding);
+  const logoFeedbackId=useId(),[logoAttempt,setLogoAttempt]=useState(0),[logoState,setLogoState]=useState(null),logoRequest=useRef(null);
+  logoRequest.current={url:brandDraft.logoUrl,attempt:logoAttempt};
+  function receiveLogoStatus(value){if(value.url===logoRequest.current.url&&value.attempt===logoRequest.current.attempt)setLogoState(value);}
+  const logoIssue=logoInputIssue(brandDraft.logoUrl),logoPhase=logoState?.url===brandDraft.logoUrl&&logoState.attempt===logoAttempt?logoState.state:'loading';
+  const logoMessage=!brandDraft.logoUrl?'Chưa chọn logo; đây là trường tùy chọn.':logoIssue||({loading:'Đang tải ảnh xem trước…',loaded:'Ảnh đã tải được trên trình duyệt này.',error:'Chưa tải được ảnh trên trình duyệt. Kiểm tra liên kết ảnh công khai hoặc thử tải lại; lỗi này không xác nhận ảnh đã bị xóa.'})[logoPhase];
   const [brandSaved,setBrandSaved]=useState(branding),[noticeDirty,setNoticeDirty]=useState(false);
   const noticeEditor=useRef(null),brandDirty=brandHasEdits(brandDraft,brandSaved);
   const confirmDiscard=useUnsavedChanges(brandDirty||noticeDirty);
@@ -214,8 +220,13 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       const difference = Number(left.timestamp || 0) - Number(right.timestamp || 0);
       return responseSort === 'oldest' ? difference : -difference;
     });
+  const quickMatches=quickResponse?.responseId?visibleResponses.flatMap((response,index)=>response.responseId===quickResponse.responseId?[index]:[]):[];
+  const quickIndex=quickMatches.length===1?quickMatches[0]:-1;
   const restoreAttempts = new Set((displayedWeek?.history || []).filter(event => /^restore-/.test(event.action) || event.action === 'restored').map(event => event.entryId));
   const filteredHistory = filterAuditHistory(displayedWeek?.history || [], auditFilters);
+  const auditScope=JSON.stringify([weekKey,auditFilters]),[foldedAudit,setFoldedAudit]=useState({scope:'',keys:[]});
+  const foldedDays=foldedAudit.scope===auditScope?foldedAudit.keys:[],auditGroups=groupAuditDays(filteredHistory.slice(0,auditLimit));
+  function toggleAuditDay(key){setFoldedAudit({scope:auditScope,keys:foldedDays.includes(key)?foldedDays.filter(value=>value!==key):[...foldedDays,key]});}
   const responseConditions=(displayedWeek?.page?.total??displayedWeek?.responseCount)===0?[]:filterConditions({name:query});
   const auditTotal=displayedWeek?.historyPage?.total??displayedWeek?.history?.length;
   const auditConditions=auditTotal===0?[]:filterConditions({...auditFilters,action:auditFilters.action?historyActionLabel(auditFilters.action):''},{actor:'Người quản trị',action:'Loại thao tác',from:'Từ ngày',to:'Đến ngày',note:'Tìm ghi chú',errorsOnly:'Chỉ lỗi/chưa hoàn tất'});
@@ -659,7 +670,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     </section>}
 
     {tab === 'delete' && <section className="dashboard-panel">
-      <TableWorkspace label="Bảng lượt gửi" expandLabel="Phóng rộng bảng lượt gửi" headers={['Thời điểm','Họ tên','Món đã chọn','Thao tác']} requiredColumns={[1,3]}>
+      <TableWorkspace label="Bảng lượt gửi" expandLabel="Phóng rộng bảng lượt gửi" preferenceKey="dashboard-responses" headers={['Thời điểm','Họ tên','Món đã chọn','Thao tác']} requiredColumns={[1,3]}>
       <div className="dashboard-section-title"><h2>Lượt gửi và lịch sử thao tác</h2></div>
       <WeekNotice notice={displayedWeek?.week?.weekNotice} serverNow={displayedWeek?.week?.serverNow}/>
 <div className="dashboard-sticky-tools" ref={viewState.toolbarRef}>{weekPicker()}<div className="dashboard-refresh-bar"><ExplainedButton label="Tải lại dữ liệu" className="secondary" disabled={busy || weekLoading || !weekKey} reason={busy?'Đang xử lý thao tác; hãy chờ hoàn tất.':weekLoading?'Đang tải lượt gửi; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký để tải lượt gửi.'} aria-busy={weekLoading} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</ExplainedButton>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div><label className="dashboard-search">Tìm theo họ tên<SearchInput id="dashboard-name-search" label="Tìm theo họ tên" maxLength={200} value={query} onClear={()=>setQuery('')} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label></div>
@@ -684,24 +695,24 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       </tbody></table></TableScroll>}
       {displayedWeek?.page && <div className="dashboard-batch-tools"><p role="status">Đã tải {displayedWeek.responses.length} / {displayedWeek.page.matchedCount} lượt phù hợp · tổng {displayedWeek.page.total} lượt. Bản đối chiếu lúc {formatTime(displayedWeek.page.snapshotAt)}.</p>{displayedWeek.page.nextOffset != null && <ExplainedButton label="Tải thêm lượt gửi" type="button" className="secondary" disabled={!weekReady || busy || weekLoading || moreLoading} reason={busy?'Đang xử lý thao tác.':weekLoading||moreLoading?'Đang đọc lượt gửi.':'Bản đang xem chưa được xác minh; hãy tải lại dữ liệu trước.'} onClick={() => void loadMoreResponses()}>{moreLoading ? 'Đang tải thêm…' : 'Tải thêm lượt gửi'}</ExplainedButton>}</div>}
       </TableWorkspace>
-      <TableWorkspace label="Bảng lịch sử thao tác" expandLabel="Phóng rộng bảng lịch sử" headers={['Thao tác','Thời gian','Người thực hiện','Đối tượng','Thao tác bản ghi']} requiredColumns={[0,3,4]}>
+      <TableWorkspace label="Bảng lịch sử thao tác" expandLabel="Phóng rộng bảng lịch sử" preferenceKey="dashboard-history" headers={['Thao tác','Thời gian','Người thực hiện','Đối tượng','Thao tác bản ghi']} requiredColumns={[0,3,4]}>
       <div className="dashboard-section-title dashboard-history-title"><h2>Lịch sử thao tác</h2><span>{displayedWeek?.historyPage ? `${filteredHistory.length} / ${displayedWeek.historyPage.matchedCount} phù hợp · tổng ${displayedWeek.historyPage.total}` : `${filteredHistory.length} / ${displayedWeek?.history?.length || 0}`} sự kiện</span></div>
       <p>Lịch sử lưu tên, món đã chọn, thời điểm và Gmail quản trị; không lưu email người trả lời.</p>
       <div className="audit-filters" aria-label="Bộ lọc lịch sử"><label>Người quản trị<SearchInput label="Người quản trị" maxLength={254} value={auditFilters.actor || ''} onClear={()=>filterHistory('actor','')} onChange={event => filterHistory('actor',event.target.value)} placeholder="Tìm Gmail quản trị" /></label><label>Loại thao tác<select aria-label="Loại thao tác" value={auditFilters.action || ''} onChange={event => filterHistory('action',event.target.value)}><option value="">Tất cả thao tác</option>{(displayedWeek?.historyPage?.actions || [...new Set((displayedWeek?.history || []).map(event => event.action))]).map(action => <option key={action} value={action}>{historyActionLabel(action)}</option>)}</select></label><label>Từ ngày<input type="date" value={auditFilters.from || ''} onChange={event => filterHistory('from',event.target.value)} /></label><label>Đến ngày<input type="date" value={auditFilters.to || ''} onChange={event => filterHistory('to',event.target.value)} /></label><label>Tìm ghi chú<SearchInput label="Tìm ghi chú" maxLength={200} value={auditFilters.note || ''} onClear={()=>filterHistory('note','')} onChange={event => filterHistory('note',event.target.value)} /></label><label className="audit-error-toggle"><input type="checkbox" checked={auditFilters.errorsOnly || false} onChange={event => filterHistory('errorsOnly',event.target.checked)} />Chỉ lỗi/chưa hoàn tất</label><button type="button" className="secondary" onClick={() => { setAuditFilters({}); setAuditLimit(50); }}>Xóa bộ lọc lịch sử</button></div>
       {auditFilters.from && auditFilters.to && auditFilters.from > auditFilters.to && <p className="dashboard-warning" role="alert">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>}
       {filteredHistory.length ? <TableScroll><table className="dashboard-table dashboard-history-table"><thead><tr>{['Thao tác','Thời gian','Người thực hiện','Đối tượng','Thao tác bản ghi'].map((label,index)=><th key={label}>{index<4?label:''}<ColumnResizeHandle index={index} label={label}/></th>)}</tr></thead><tbody>
-        {filteredHistory.slice(0,auditLimit).map(event => {
+        {auditGroups.map(group=><Fragment key={group.key}><tr className="audit-day-heading"><TableSpanCell><button type="button" className="secondary" aria-expanded={!foldedDays.includes(group.key)} onClick={()=>toggleAuditDay(group.key)}>{group.label} · {group.events.length} sự kiện đã tải{group.attention>0&&<strong> · {group.attention} cần kiểm tra</strong>}</button></TableSpanCell></tr>{!foldedDays.includes(group.key)&&group.events.map(event => {
           const alreadyRestored = restoreAttempts.has(event.entryId);
           const restoreEligible = event.action === 'deleted' && event.restorable && !alreadyRestored;
           const canRestore = weekReady && permissions.manageResponses && restoreEligible && displayedWeek?.week?.formStatus === 'open';
-          return <tr key={event.id}>
+          return <tr key={event.id} data-audit-event>
             <td><strong className="dashboard-history-action">{historyActionLabel(event.action)}</strong>{describeHistoryNote(event.note).map((line, index) => <small key={index} className="dashboard-history-note"><SearchHighlight text={line} query={auditFilters.note}/></small>)}</td>
-            <td data-label="Thời gian">{formatTime(event.at)}{event.originalTimestamp > 0 && <small className="dashboard-history-note">Gửi gốc: {formatTime(event.originalTimestamp)}</small>}</td>
+            <td data-label="Thời gian">{group.key==='unknown'?'Chưa có thời điểm':formatTime(event.at)}{event.originalTimestamp > 0 && <small className="dashboard-history-note">Gửi gốc: {formatTime(event.originalTimestamp)}</small>}</td>
             <td data-label="Người thực hiện"><SearchHighlight text={event.actor || '—'} query={auditFilters.actor}/></td>
             <td data-label="Đối tượng"><strong>{event.name || '—'}</strong><small className="dashboard-history-note">{(event.meals || []).join(' · ')}</small></td>
             <td>{canRestore ? <RowActionMenu label="Thao tác lịch sử"><ExplainedButton label="Khôi phục" type="button" data-close-row-menu className="secondary" disabled={busy} reason="Đang xử lý thao tác; hãy chờ kết quả trước khi khôi phục tiếp." aria-busy={pendingRow?.action === 'restore' && pendingRow.id === event.entryId} onClick={() => void restoreResponse(event)}>{pendingRow?.action === 'restore' && pendingRow.id === event.entryId ? 'Đang khôi phục…' : 'Khôi phục'}</ExplainedButton></RowActionMenu> : restoreEligible && weekData?.week?.formStatus === 'closed' ? <span title="Không tự mở Form vì thao tác đó sẽ công khai Form">Form đã đóng</span> : restoreEligible ? <span>Chưa xác định Form</span> : alreadyRestored && event.action === 'deleted' ? <span>Đã xử lý</span> : null}</td>
           </tr>;
-        })}
+        })}</Fragment>)}
       </tbody></table></TableScroll> : !displayedWeek||auditTotal==null?<p>Chưa có dữ liệu lịch sử. Hãy tải lại dữ liệu.</p>:weekLoading?<p>Đang đọc kết quả lọc lịch sử…</p>:<FilterEmptyState title={auditConditions.length||auditTotal>0?'Không có thao tác phù hợp':'Chưa có thao tác nào trong tuần này'} conditions={auditConditions} onClear={key=>{filterHistory(key,key==='errorsOnly'?false:'');document.querySelector('.audit-filters input')?.focus();}}/>}
       {displayedWeek?.historyPage?.nextOffset!=null ? <ExplainedButton label="Tải thêm lịch sử" type="button" className="secondary" disabled={!weekReady||weekLoading||busy||historyLoading} reason={busy?'Đang xử lý thao tác.':weekLoading||historyLoading?'Đang đọc dữ liệu lịch sử.':'Bản đang xem chưa được xác minh; hãy tải lại dữ liệu trước.'} onClick={()=>void loadMoreHistory()}>{historyLoading?'Đang tải lịch sử…':'Tải thêm lịch sử'}</ExplainedButton> : filteredHistory.length > auditLimit && <button type="button" className="secondary" onClick={() => setAuditLimit(value => value + 50)}>Tải thêm lịch sử</button>}
       </TableWorkspace>
@@ -722,7 +733,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       {reconciliation && <><div className="reconciliation-counts"><p>Form <strong>{reconciliation.formCount}</strong></p><p>Sheet <strong>{reconciliation.sheetCount}</strong></p><p>Ghép duy nhất <strong>{reconciliation.matchedCount}</strong></p><p>Cần kiểm tra <strong>{reconciliation.issues.length}</strong></p></div><ul className="reconciliation-issues">{reconciliation.issues.map((issue, index) => <li key={`${weekKey}-${index}`}><strong>{({ 'form-only': 'Chỉ có trong Form', 'sheet-only': 'Chỉ có trong Sheet', ambiguous: 'Ghép không duy nhất' })[issue.kind]}</strong><p>{issue.name || '(Thiếu tên)'} · {formatTime(issue.timestamp)} · {issue.source === 'sheet' ? 'Sheet' : 'Form'}{issue.rows?.length ? ` · hàng ${issue.rows.join(', ')}` : ''}</p><p>{issue.meals.join(' · ')}</p><SheetRowButton weekKey={weekKey} source={issue.source} response={issue} request={request} disabled={busy} /></li>)}</ul>{!reconciliation.issues.length && <p role="status">Form và Sheet đang khớp duy nhất.</p>}</>}
     </section>}
 
-    {tab === 'branding' && overview.role === 'owner' && <section className="dashboard-panel"><h2>Thương hiệu trường</h2><p>Áp dụng cho trang xem, kho tuần, Dashboard và cài đặt. Chỉ lưu thông tin hiển thị công khai.</p>{brandDirty&&<p className="unsaved-state" role="status" aria-label="Chưa lưu thương hiệu">Chưa lưu · Thương hiệu đang sửa chưa áp dụng lên web.</p>}<form className="branding-form" onSubmit={event => void saveBranding(event)}><label>Tên trường<input required maxLength={100} value={brandDraft.schoolName} onChange={event => setBrandDraft({ ...brandDraft, schoolName: event.target.value })} /></label><label>URL ảnh logo HTTPS<input type="url" maxLength={512} placeholder="https://…/logo.png" value={brandDraft.logoUrl} onChange={event => setBrandDraft({ ...brandDraft, logoUrl: event.target.value })} /></label><label>Màu chủ đạo<input type="color" value={brandDraft.primaryColor} onChange={event => setBrandDraft({ ...brandDraft, primaryColor: event.target.value })} /></label><BrandingPreview draft={brandDraft}/><p className="dashboard-hint">Dùng ảnh HTTPS truy cập được công khai; chưa hỗ trợ tải ảnh lên. Không dán khóa API hoặc liên kết chứa thông tin bí mật.</p><ExplainedButton disabled={busy} reason="Đang xử lý yêu cầu; hãy chờ kết quả trước khi lưu tiếp.">Lưu thương hiệu</ExplainedButton></form></section>}
+{tab === 'branding' && overview.role === 'owner' && <section className="dashboard-panel"><h2>Thương hiệu trường</h2><p>Áp dụng cho trang xem, kho tuần, Dashboard và cài đặt. Chỉ lưu thông tin hiển thị công khai.</p>{brandDirty&&<p className="unsaved-state" role="status" aria-label="Chưa lưu thương hiệu">Chưa lưu · Thương hiệu đang sửa chưa áp dụng lên web.</p>}<form className="branding-form" onSubmit={event => void saveBranding(event)}><label>Tên trường<input required maxLength={100} value={brandDraft.schoolName} onChange={event => setBrandDraft({ ...brandDraft, schoolName: event.target.value })} /></label><label>URL ảnh logo HTTPS<input type="url" maxLength={512} placeholder="https://…/logo.png" value={brandDraft.logoUrl} aria-invalid={Boolean(logoIssue||brandDraft.logoUrl&&logoPhase==='error')} aria-describedby={logoFeedbackId} onChange={event => setBrandDraft({ ...brandDraft, logoUrl: event.target.value })} /></label><div id={logoFeedbackId} className="logo-input-feedback" data-state={logoIssue?'invalid':logoPhase}><p role="status" aria-label="Tình trạng logo">{logoMessage}</p>{brandDraft.logoUrl&&!logoIssue&&logoPhase==='error'&&<ExplainedButton type="button" className="secondary" disabled={busy} reason="Đang xử lý thao tác khác; hãy chờ hoàn tất." onClick={()=>setLogoAttempt(value=>value+1)}>Thử tải lại logo</ExplainedButton>}</div><label>Màu chủ đạo<input type="color" value={brandDraft.primaryColor} onChange={event => setBrandDraft({ ...brandDraft, primaryColor: event.target.value })} /></label><BrandingPreview draft={brandDraft} logoAttempt={logoAttempt} onLogoStatus={receiveLogoStatus}/><p className="dashboard-hint">Dùng ảnh HTTPS truy cập được công khai; chưa hỗ trợ tải ảnh lên. Không dán khóa API hoặc liên kết chứa thông tin bí mật.</p><ExplainedButton disabled={busy} reason="Đang xử lý yêu cầu; hãy chờ kết quả trước khi lưu tiếp.">Lưu thương hiệu</ExplainedButton></form></section>}
 
     {tab === 'access' && overview.role === 'owner' && <section className="dashboard-panel">
       <div className="field-label-row"><h2>Gmail được phép quản trị</h2><FieldHelp label="Quyền quản trị">Chỉ chủ sở hữu chỉnh quyền. Xem cho phép mở Dashboard; OCR/tạo tuần và Xóa/khôi phục là hai quyền riêng. Bật/tắt ô quyền sẽ cập nhật quyền; gỡ Gmail cần xác nhận. Gỡ quyền không chuyển quyền sở hữu hay xóa dữ liệu. Mở trợ giúp không đổi quyền.</FieldHelp></div>
@@ -742,7 +753,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       if (menu !== regionBase.menu || image !== regionBase.image) throw new Error('Nháp đã thay đổi; đóng cửa sổ và chọn vùng lại.');
       dispatchMenu({type:'edit',value:applyRegionResult(menu,target,result)});setAllowMissing(false);setRegionBase(null);
     }} />}
-    {quickResponse && <ResponseQuickView response={currentQuickResponse || quickResponse} week={displayedWeek?.week} verified={weekReady && Boolean(currentQuickResponse)} onClose={() => setQuickResponse(null)} />}
+    {quickResponse && <ResponseQuickView response={currentQuickResponse || quickResponse} week={displayedWeek?.week} verified={weekReady && Boolean(currentQuickResponse)} navigation={{index:quickIndex,total:visibleResponses.length,previous:quickIndex>0?visibleResponses[quickIndex-1]:null,next:quickIndex>=0?visibleResponses[quickIndex+1]:null}} onSelect={response=>{const current=visibleResponses.find(item=>item.responseId===response?.responseId);if(current)setQuickResponse(current);}} onClose={() => setQuickResponse(null)} />}
     {confirmation && <ActionConfirmation message={confirmation.message} changes={confirmation.changes} showReason={confirmation.showReason} onCancel={() => setConfirmation(null)} onConfirm={reason => { const action = confirmation.run; setConfirmation(null); void action(reason); }} />}
   </main></DashboardLayout>;
 }

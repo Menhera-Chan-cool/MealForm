@@ -1,5 +1,10 @@
 export const DEFAULT_BRANDING = { schoolName: '', logoUrl: '', primaryColor: '#087f5b', updatedAt: 0 };
 
+export function logoInputIssue(value){
+  if(!value)return '';
+  return normalizeBranding({logoUrl:value}).logoUrl===value?'':'Nhập URL ảnh HTTPS hợp lệ, không có khoảng trắng hoặc tài khoản/mật khẩu trong liên kết.';
+}
+
 export function uiThemeVariables(color, scheme = 'light') {
   const theme = brandingTheme(color, scheme);
   return {

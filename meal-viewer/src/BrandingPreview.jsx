@@ -2,7 +2,8 @@ import {useState} from 'react';
 import {normalizeBranding,uiThemeVariables} from './branding.mjs';
 import {Badge} from './components/ui/badge.jsx';
 
-export default function BrandingPreview({draft}) {
+/** @param {{draft:any,logoAttempt?:number,onLogoStatus?:(value:{url:string,attempt:number,state:string})=>void}} props */
+export default function BrandingPreview({draft,logoAttempt=0,onLogoStatus}) {
   const [surface,setSurface]=useState('viewer'),[device,setDevice]=useState('phone'),[scheme,setScheme]=useState('light');
   const brand=normalizeBranding(draft);
   return <section className="branding-context-preview" aria-label="Xem trước thương hiệu">
@@ -13,7 +14,7 @@ export default function BrandingPreview({draft}) {
       <label>Giao diện minh họa<select value={scheme} onChange={event=>setScheme(event.target.value)}><option value="light">Sáng</option><option value="dark">Tối</option></select></label>
     </div>
     <div className="branding-preview-viewport"><div className="branding-preview-canvas" data-device={device} data-scheme={scheme} style={uiThemeVariables(brand.primaryColor,scheme)}>
-      <div className="branding-preview-header">{brand.logoUrl&&<img src={brand.logoUrl} alt="Xem trước logo" referrerPolicy="no-referrer"/>}<strong>{brand.schoolName||'Tên trường của bạn'}</strong></div>
+      <div className="branding-preview-header">{brand.logoUrl&&<img key={`${brand.logoUrl}:${logoAttempt}`} src={brand.logoUrl} alt="Xem trước logo" referrerPolicy="no-referrer" onLoad={()=>onLogoStatus?.({url:brand.logoUrl,attempt:logoAttempt,state:'loaded'})} onError={()=>onLogoStatus?.({url:brand.logoUrl,attempt:logoAttempt,state:'error'})}/>}<strong>{brand.schoolName||'Tên trường của bạn'}</strong></div>
       <div className="branding-sample-layout" data-surface={surface}>
         {surface==='dashboard'&&device==='pc'&&<aside><strong>Quản trị thực đơn</strong><span className="branding-sample-action">Tổng quan</span><span>Tạo tuần</span><span>Lượt gửi</span></aside>}
         <div className="branding-sample-content"><h3>{surface==='viewer'?'Thực đơn tuần này':'Dashboard quản trị'}</h3><small>Dữ liệu minh họa</small>
