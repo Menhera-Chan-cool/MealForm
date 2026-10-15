@@ -29,3 +29,24 @@ assert.equal(typeof ui.brandHasEdits,'function');
 assert.equal(ui.brandHasEdits({schoolName:'Trường',logoUrl:'',primaryColor:'#087f5b',updatedAt:2},{schoolName:'Trường',logoUrl:'',primaryColor:'#087f5b',updatedAt:1}),false);
 assert.equal(ui.brandHasEdits({schoolName:'Trường ',logoUrl:'',primaryColor:'#087f5b'},{schoolName:'Trường',logoUrl:'',primaryColor:'#087f5b'}),true);
 assert.equal(ui.brandHasEdits({logoUrl:'invalid'},{logoUrl:''}),true);
+
+const viewer=await import('./src/viewer-model.mjs');
+assert.equal(typeof viewer.detailResultCounts,'function','counts must distinguish source submissions from projected meal choices');
+const countData={headers:['Timestamp','Họ tên','Thứ 2 (12/10/2026)','Thứ 4 (14/10/2026)','Thứ 6 (16/10/2026)'],days:[{day:'Thứ 2 (12/10/2026)'},{day:'Thứ 4 (14/10/2026)'},{day:'Thứ 6 (16/10/2026)'}],rows:[['08/10/2026 10:00','An','Cơm','Bún','Cơm'],['08/10/2026 11:00','An','Cơm','','Phở'],['08/10/2026 12:00','Bình','Bún','Cơm','Bún']]};
+for(const [filters,want] of [
+  [{},{responses:3,choices:8}],
+  [{meal:'Cơm'},{responses:3,choices:4}],
+  [{day:'Thứ 4 (14/10/2026)'},{responses:2,choices:2}],
+  [{day:'Thứ 4 (14/10/2026)',meal:'Cơm'},{responses:1,choices:1}],
+  [{name:'An'},{responses:2,choices:5}],
+  [{name:'Không có'},{responses:0,choices:0}]
+])assert.deepEqual(viewer.detailResultCounts(viewer.buildDetailModel(countData,filters)),want);
+assert.deepEqual(viewer.detailResultCounts(viewer.buildDetailModel(null,{})),{responses:0,choices:0});
+
+assert.equal(typeof ui.compactDayLabel,'function','mobile date labels must use the actual source weekday, not column position');
+for(const [full,want] of [
+  ['Thứ 2 (12/10/2026)','T2 · 12/10'],['Thứ 4 (14/10/2026)','T4 · 14/10'],
+  ['Thứ Sáu (16/10/2026)','T6 · 16/10'],['Chủ nhật (18/10/2026)','CN · 18/10'],
+  ['Thứ Năm · 29/02/2024','T5 · 29/02'],['Thứ 2 (31/02/2026)','Thứ 2 (31/02/2026)'],
+  ['Thứ 2 (12/13/2026)','Thứ 2 (12/13/2026)'],['Thứ 2','Thứ 2'],['Ngày tùy chỉnh','Ngày tùy chỉnh']
+])assert.equal(ui.compactDayLabel(full),want);

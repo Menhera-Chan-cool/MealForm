@@ -25,6 +25,135 @@ export async function interceptMealServices(page: import('@playwright/test').Pag
   });
 }
 
+test('viewer counts submissions separately from meal choices across filters and mobile tabs',async({page})=>{
+  await page.setViewportSize({width:390,height:960});
+  await interceptMealServices(page);
+  await page.goto('http://127.0.0.1:5175/newest');
+  const counts=page.getByRole('status',{name:'Kết quả lọc'});
+  await expect(counts).toContainText('2 lượt gửi');
+  await expect(counts).toContainText('10 lựa chọn món');
+  await page.getByRole('tab',{name:'Tổng hợp',exact:true}).click();
+  await expect(page.locator('.ui-day-card').first().locator('[data-slot=badge]').first()).toHaveText('1 lựa chọn');
+  await page.getByRole('tab',{name:'Chi tiết',exact:true}).click();
+  await expect(counts).toBeVisible();
+  await page.getByRole('button',{name:'Bộ lọc',exact:true}).click();
+  await page.getByRole('combobox',{name:'Món',exact:true}).fill('CƠM GÀ');
+  await page.getByRole('option',{name:'CƠM GÀ',exact:true}).click();
+  await page.getByRole('button',{name:'Đóng bộ lọc',exact:true}).click();
+  await expect(counts).toContainText('1 lượt gửi');
+  await expect(counts).toContainText('5 lựa chọn món');
+  await expect(page.locator('.detail-wrap tbody tr')).toHaveCount(5);
+});
+
+test('registration context keeps closed viewed week separate from open next-week Form',async({page})=>{
+  await page.setViewportSize({width:390,height:960});
+  await interceptMealServices(page);
+  await page.route('**/api/viewer?**',async route=>{
+    const body={headers:['Timestamp','Họ tên',...days.map(day=>day.day)],rows:[],days,calendarDays:days.map(day=>day.day),formStatus:'closed',formUrl:weeks[0].formUrl,nextForm:{formStatus:'open',formUrl:'https://docs.google.com/forms/d/e/next-synthetic/viewform',calendarDays:['Thứ 2 (19/10/2026)','Thứ 6 (23/10/2026)']}};
+    await route.fulfill({json:body});
+  });
+  await page.goto('http://127.0.0.1:5175/newest');
+  const viewed=page.getByRole('group',{name:'Form tuần đang xem',exact:true});
+  const target=page.getByRole('group',{name:'Form đăng ký tuần sau',exact:true});
+  await expect(viewed).toContainText('12/10/2026 – 16/10/2026');
+  await expect(viewed).toContainText('Form đã đóng');
+  await expect(viewed.getByRole('link')).toHaveCount(0);
+  await expect(target).toContainText('19/10/2026 – 23/10/2026');
+  await expect(target).toContainText('Form đang mở');
+  await expect(target.getByRole('link',{name:/Đăng ký tuần sau/})).toHaveAttribute('href','https://docs.google.com/forms/d/e/next-synthetic/viewform');
+  await page.screenshot({path:'review/production/registration-context-mobile.png',fullPage:true});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('mobile actual-day labels expand on tap without changing filters and stay full on PC',async({page})=>{
+  await page.setViewportSize({width:390,height:960});
+  await interceptMealServices(page);
+  await page.goto('http://127.0.0.1:5175/newest');
+  await page.getByRole('tab',{name:'Tổng hợp',exact:true}).click();
+  const label=page.locator('.ui-day-card').nth(2).getByRole('button',{name:/Thứ 4 \(14\/10\/2026\)/});
+  await expect(label).toHaveText('T4 · 14/10');
+  await label.click();
+  await expect(label).toHaveText('Thứ 4 (14/10/2026)');
+  await expect(page.getByRole('status',{name:'Kết quả lọc'})).toContainText('2 lượt gửi');
+  await page.getByRole('tab',{name:'Chi tiết',exact:true}).click();
+  await expect(page.locator('.detail-wrap tbody tr').first().getByRole('button',{name:/Thứ 4 \(14\/10\/2026\)/})).toHaveText('T4 · 14/10');
+  await page.setViewportSize({width:1440,height:960});
+  await expect(page.locator('.detail-wrap thead')).toContainText('Thứ 4 (14/10/2026)');
+  await expect(page.locator('.ui-day-card').nth(2).getByRole('button')).toBeHidden();
+});
+
+test('What is new opens only on request and resets when display menu closes',async({page})=>{
+  const writes:object[]=[];
+  await interceptMealServices(page,'owner','#357185',writes);
+  await page.goto('http://127.0.0.1:5175/newest');
+  const menu=page.getByRole('dialog',{name:'Tùy chọn hiển thị',exact:true});
+  await expect(page.getByRole('region',{name:'Điểm mới của giao diện'})).toBeHidden();
+  await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();
+  const button=menu.getByRole('button',{name:'Có gì mới?',exact:true});
+  await expect(button).toHaveAttribute('aria-expanded','false');
+  await button.click();
+  const notes=page.getByRole('region',{name:'Điểm mới của giao diện'});
+  await expect(notes).toBeVisible();
+  await expect(notes).toContainText('lượt gửi');
+  await expect(notes).toContainText('tuần sau');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();
+  await expect(button).toHaveAttribute('aria-expanded','false');
+  await expect(notes).toBeHidden();
+  expect(writes).toEqual([]);
+});
+
+test('mobile Dashboard holiday details and quick view preserve actual dates and meals',async({page})=>{
+  const writes:object[]=[];
+  await page.setViewportSize({width:390,height:960});
+  await interceptMealServices(page,'owner','#357185',writes);
+  await page.route('**/api/dashboard?**',route=>{
+    if(!new URL(route.request().url()).searchParams.has('week'))return route.fallback();
+    return route.fulfill({json:{week:{...weeks[0],dayLabels:['Thứ 4 (14/10/2026)','Thứ 6 (16/10/2026)'],closedDays:['Thứ 2 (12/10/2026)']},responseCount:1,responseIds:['sample-a'],responses:[{responseId:'sample-a',name:'Trường An',timestamp:1791467940000,meals:['CƠM GÀ','BÚN BÒ'],deletable:true,deleteToken:'synthetic-token',rowNumber:2}],history:[]}});
+  });
+  await page.goto('http://127.0.0.1:5175/dashboard');
+  await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Lượt gửi',exact:true}).click();
+  const row=page.locator('[data-response-id="sample-a"]');
+  const firstDay=row.locator('.response-meals>div').first();
+  await expect(firstDay.getByRole('button',{name:/Thứ 4/})).toHaveText('T4 · 14/10');
+  await expect(firstDay.locator('dd')).toHaveText('CƠM GÀ');
+  await row.getByRole('button',{name:'Xem nhanh',exact:true}).click();
+  const quick=page.getByRole('dialog',{name:'Chi tiết lượt gửi'});
+  const lastDay=quick.locator('.response-meals>div').last();
+  await expect(lastDay.locator('dd')).toHaveText('BÚN BÒ');
+  await lastDay.getByRole('button',{name:/Thứ 6/}).click();
+  await expect(lastDay.getByRole('button',{name:/Thứ 6/})).toHaveText('Thứ 6 (16/10/2026)');
+  await expect(quick).toContainText('Không phục vụ: Thứ 2 (12/10/2026)');
+  await quick.getByRole('button',{name:'Đóng',exact:true}).click();
+  await expect(row.getByRole('button',{name:'Xem nhanh',exact:true})).toBeFocused();
+  expect(writes).toEqual([]);
+});
+
+test('new viewer contexts and manual release notes fit large-text light and dark screens',async({page})=>{
+  await interceptMealServices(page);
+  await page.addInitScript(()=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme:'system',motion:'off'}));localStorage.setItem('meal-text-size','large');});
+  for(const width of [1440,390,320])for(const theme of ['light','dark']){
+    await page.setViewportSize({width,height:900});
+    await page.goto('http://127.0.0.1:5175/newest');
+    await expect(page.getByRole('group',{name:'Form tuần đang xem'})).toContainText('Form đã đóng');
+    await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();
+    const menu=page.getByRole('dialog',{name:'Tùy chọn hiển thị',exact:true});
+    await menu.getByRole('combobox',{name:'Giao diện',exact:true}).selectOption(theme);
+    await expect(page.locator('html')).toHaveAttribute('data-color-scheme',theme);
+    await menu.getByRole('button',{name:'Lớn',exact:true}).click();
+    await menu.getByRole('button',{name:'Có gì mới?',exact:true}).click();
+    const notes=page.getByRole('region',{name:'Điểm mới của giao diện'});
+    await notes.locator('li').last().scrollIntoViewIfNeeded();
+    await expect(notes.locator('li').last()).toBeInViewport();
+    const overflow=await menu.evaluate(el=>el.scrollWidth>el.clientWidth+1);
+    expect(overflow,`menu ${width} ${theme}`).toBe(false);
+    await menu.screenshot({path:`review/production/whats-new-${width}-${theme}.png`});
+    await page.keyboard.press('Escape');
+    await page.locator('.form-access').screenshot({path:`review/production/form-context-${width}-${theme}.png`});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+});
+
 test('real Dashboard has grouped desktop navigation with all nine authorized tools', async ({page}) => {
   await interceptMealServices(page);
   await page.goto('http://127.0.0.1:5175/dashboard');

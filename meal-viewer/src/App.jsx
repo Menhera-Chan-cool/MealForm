@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ALL, buildDetailModel, errorMessage, readViewerFilters, spreadsheetIdFromUrl, viewerApiUrl, weekNavigation, shouldDeferViewerUpdate, millisecondsUntilMealWeekRollover, todayDayLabel, mealRegistrationTarget } from './viewer-model.mjs';
+import { ALL, buildDetailModel, detailResultCounts, errorMessage, readViewerFilters, spreadsheetIdFromUrl, viewerApiUrl, weekNavigation, shouldDeferViewerUpdate, millisecondsUntilMealWeekRollover, todayDayLabel, mealRegistrationTarget } from './viewer-model.mjs';
 import Dashboard from './Dashboard.jsx';
 import ContentSkeleton from './ContentSkeleton.jsx';
 import {useAppearance} from './AppearanceProvider.jsx';
@@ -8,8 +8,7 @@ import { safeErrorReport } from './safe-error-report.mjs';
 import ErrorReportButton from './ErrorReportButton.jsx';
 import DetailTable from './DetailTable.jsx';
 import FilterControls, { ComboSelect } from './FilterControls.jsx';
-import MealFormLink from './MealFormLink.jsx';
-import FormStatus from './FormStatus.jsx';
+import RegistrationContext from './RegistrationContext.jsx';
 import ChevronIcon from './ChevronIcon.jsx';
 import useDisclosureAnimation from './useDisclosureAnimation.js';
 import HistoryArchive from './HistoryArchive.jsx';
@@ -314,6 +313,7 @@ function App() {
     });
   }, [data, days, mealOptions]);
   const model = useMemo(() => buildDetailModel(data, filters, responseSort), [data, filters, responseSort]);
+  const resultCounts = detailResultCounts(model);
   const formStatus = busy || !data ? 'loading' : data.formStatus || 'loading';
   const registration = mealRegistrationTarget(data, isNewestPage);
   const todayLabel = todayDayLabel(days, Date.now() + serverClockOffset);
@@ -411,11 +411,7 @@ function App() {
           {advancedError && <p className="advanced-error" role="alert">{advancedError}</p>}
         </div>}
         <div className="form-access" aria-label="Trạng thái Form">
-          <div className={`form-links${weekLink.length > 1 ? ' three-actions' : ''}${registration.dates ? ' next-registration' : ''}`}>
-            {weekLink.map(link => <a key={link.href} className="form-link week-link" href={link.href}>{link.label}</a>)}
-            <MealFormLink {...registration} />
-          </div>
-          <FormStatus status={formStatus} />
+          <RegistrationContext dates={weekDates.length?`${weekDates[0]} – ${weekDates.at(-1)}`:''} status={formStatus} registration={registration}/>
           {data?.nextFormUnavailable && <small>Chưa kiểm tra được Form tuần sau. Hãy thử tải lại dữ liệu.</small>}
         </div>
       </div>
@@ -429,6 +425,7 @@ function App() {
 
       <ErrorReportButton report={failure} />
       {data?.closedDays?.length > 0 && <p className="closed-days-note">Ngày không phục vụ: {data.closedDays.join(' · ')}</p>}
+      {data&&<p className="viewer-result-count" role="status" aria-label="Kết quả lọc"><span>Theo bộ lọc hiện tại:</span><strong>{resultCounts.responses} lượt gửi</strong><span>·</span><strong>{resultCounts.choices} lựa chọn món</strong></p>}
       <ViewerTabs value={viewerTab} onChange={setViewerTab}/>
       <section className="data-section viewer-reading-panel" id="viewer-summary" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-summary':undefined} hidden={mobileViewer&&viewerTab!=='summary'}>
         <div className="section-heading"><div className="section-heading-title"><SummaryIcon /><h2>Tổng hợp lựa chọn</h2></div><button
@@ -438,7 +435,6 @@ function App() {
         ><ChevronIcon expanded={summaryActive} className="summary-chevron" /></button></div>
         <div id="summary-panel" className={`collapse-panel ${summaryVisible ? 'expanded' : !mobileViewer&&summaryClosing ? 'closing' : 'collapsed'}`} aria-hidden={!summaryVisible} inert={!summaryVisible}>
           <div className="summary-content">
-            <p className="summary-result-count" aria-live="polite">Đang hiển thị {model.rows.length} kết quả</p>
             <ViewerSummary days={days} filters={filters} model={model}/>
           </div>
         </div>

@@ -26,6 +26,16 @@ export function displayHeader(value) {
   return ({timestamp:'Thời điểm gửi','thoi diem':'Thời điểm gửi','full name':'Họ tên',name:'Họ tên',date:'Ngày',meal:'Món',action:'Thao tác',status:'Trạng thái'})[foldSearchText(value)]||value;
 }
 
+export function compactDayLabel(value) {
+  const label=String(value??'');
+  const match=label.match(/^(Thứ\s+(?:[2-7]|Hai|Ba|Tư|Bốn|Năm|Sáu|Bảy)|Chủ\s+nhật)\s*(?:\(|[·,–-])?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\)?$/iu);
+  if(!match)return label;
+  const [,weekday,day,month,year]=match,iso=`${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`;
+  if(!weekRange({startDate:iso,endDate:iso}))return label;
+  const short=({'thu hai':'T2','thu ba':'T3','thu tu':'T4','thu bon':'T4','thu nam':'T5','thu sau':'T6','thu bay':'T7','chu nhat':'CN'})[foldSearchText(weekday)]||weekday.replace(/^Thứ\s+/iu,'T');
+  return `${short} · ${day.padStart(2,'0')}/${month.padStart(2,'0')}`;
+}
+
 export function archiveWeekHref(key,month='',view='list') {
   const params=new URLSearchParams({week:key});
   if(/^\d{4}-(0[1-9]|1[0-2])$/.test(month))params.set('month',month);

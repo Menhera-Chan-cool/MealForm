@@ -6,6 +6,7 @@ import './comfort.css';
 import {useAppearance} from './AppearanceProvider.jsx';
 import SearchInput from './SearchInput.jsx';
 import SearchHighlight from './SearchHighlight.jsx';
+import ChevronIcon from './ChevronIcon.jsx';
 
 const Comfort=createContext(()=>()=>{});
 const PreferencesSlot=createContext(()=>{});
@@ -24,6 +25,7 @@ export default function ComfortProvider({children}) {
   const dialog=useRef(null),input=useRef(null),returnFocus=useRef(null);
   const settings=useRef(null),settingsTrigger=useRef(null),settingsId=useId();
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [updatesOpen,setUpdatesOpen]=useState(false),updatesId=useId();
   const [displaySlot,setDisplaySlot]=useState(null);
   const register=useCallback(value=>{setRegistered(value);return()=>setRegistered(null);},[]);
   const commands=useMemo(()=>[...(registered?.commands||[]),...pages].filter(command=>foldSearchText(command.label).includes(foldSearchText(query))),[registered,query]);
@@ -72,11 +74,16 @@ export default function ComfortProvider({children}) {
   const toolbar=<>
     <div className="comfort-toolbar" aria-label="Điều hướng và cỡ chữ">
       <button ref={settingsTrigger} type="button" className="secondary comfort-menu-toggle" aria-label="Tùy chọn hiển thị" title="Tùy chọn hiển thị" aria-haspopup="dialog" aria-expanded={settingsOpen} aria-controls={settingsId} popoverTarget={settingsId} onKeyDown={event=>{if(event.key==='ArrowDown'){event.preventDefault();if(!settings.current.matches(':popover-open'))settingsTrigger.current.click();settings.current.querySelector('button:not(:disabled)')?.focus();}}}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="4" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg></button>
-      <div ref={settings} id={settingsId} className="comfort-menu" popover="auto" role="dialog" aria-label="Tùy chọn hiển thị" onBeforeToggle={positionSettings} onToggle={event=>setSettingsOpen(event.newState==='open')} onKeyDown={moveSettingsFocus}>
+      <div ref={settings} id={settingsId} className="comfort-menu" popover="auto" role="dialog" aria-label="Tùy chọn hiển thị" onBeforeToggle={positionSettings} onToggle={event=>{setSettingsOpen(event.newState==='open');if(event.newState!=='open')setUpdatesOpen(false);}} onKeyDown={moveSettingsFocus}>
         <h2>Tùy chọn hiển thị</h2>
         <button type="button" className="secondary comfort-command" disabled={blocked} onClick={show}>Lệnh nhanh<span aria-hidden="true">Ctrl/⌘ K</span></button>
         <div className="comfort-font-row"><span>Cỡ chữ</span><div className="comfort-font-options" role="group" aria-label="Cỡ chữ"><button className="secondary" type="button" aria-pressed={size==='normal'} onClick={()=>setSize('normal')}>Bình thường</button><button className="secondary" type="button" aria-pressed={size==='large'} onClick={()=>setSize('large')}>Lớn</button></div></div>
         <div className="appearance-controls"><label>Giao diện<select aria-label="Giao diện" value={appearance.theme} onChange={event=>appearance.setPreference({theme:event.target.value})}><option value="light">Sáng</option><option value="dark">Tối</option><option value="system">Theo hệ thống</option></select></label><label>Hiệu ứng<select aria-label="Hiệu ứng" value={appearance.motion} onChange={event=>appearance.setPreference({motion:event.target.value})}><option value="full">Đầy đủ</option><option value="light">Nhẹ</option><option value="off">Tắt</option></select></label></div>
+        <button type="button" className="secondary comfort-command" aria-expanded={updatesOpen} aria-controls={updatesId} onClick={()=>setUpdatesOpen(value=>!value)}>Có gì mới?<ChevronIcon expanded={updatesOpen}/></button>
+        <section className="release-notes" id={updatesId} aria-label="Điểm mới của giao diện" hidden={!updatesOpen}>
+          <h3>Cập nhật giao diện · 15/10/2026</h3>
+          <ul><li>Đếm riêng lượt gửi và lựa chọn món theo bộ lọc.</li><li>Phân biệt Form tuần đang xem với Form đăng ký tuần sau.</li><li>Nhãn ngày gọn trên điện thoại; chạm để xem ngày đầy đủ.</li><li>Xem điểm mới tại đây khi cần, không có cửa sổ tự bật.</li></ul>
+        </section>
       </div>
     </div>
   </>;
