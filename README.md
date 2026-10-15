@@ -2,7 +2,9 @@
 
 ## Sáu cải tiến đọc và đối chiếu — 15/10/2026
 
-Nhãn ô trống phân biệt Chưa chọn / Không phục vụ / Chưa đọc được theo dữ liệu thực; ngày nghỉ vẫn hiện trong bộ lọc nhưng không chọn được. Thương hiệu có so sánh Đã lưu–Đang sửa và khôi phục riêng tên/logo/màu. Ảnh OCR phóng to có bản đồ nhỏ điều hướng bằng kéo hoặc bàn phím. Trang đăng nhập cho biết trang/tuần sẽ tiếp tục và giữ nguyên liên kết hiện tại. Không tự lưu thương hiệu, chạy OCR hay sửa dữ liệu Form/Sheet. Xem phạm vi và bằng chứng tại `SPEC-reading-polish.md`, `VERIFICATION-reading-polish-2026-10-15.md`; bản ghi phát hành sẽ được bổ sung sau khi kiểm tra production.
+Nhãn ô trống phân biệt Chưa chọn / Không phục vụ / Chưa đọc được theo dữ liệu thực; ngày nghỉ vẫn hiện trong bộ lọc nhưng không chọn được. Thương hiệu có so sánh Đã lưu–Đang sửa và khôi phục riêng tên/logo/màu. Ảnh OCR phóng to có bản đồ nhỏ điều hướng bằng kéo hoặc bàn phím. Trang đăng nhập cho biết trang/tuần sẽ tiếp tục và giữ nguyên liên kết hiện tại. Không tự lưu thương hiệu, chạy OCR hay sửa dữ liệu Form/Sheet.
+
+Đã merge [PR #13](https://github.com/Menhera-Chan-cool/MealForm/pull/13) vào `main` và đưa đúng artifact đã kiểm tra lên [production](https://menutaythanh.vercel.app). **104/104 kiểm thử giao diện**, 31 bộ ứng dụng/API/GAS trên cả hai bản mã, 11 kiểm thử tương thích, năm token/guard, build TypeScript/Vite/Storybook và sáu ca trên tài nguyên Vercel đều đạt. Kiểm tra dữ liệu thật chỉ đọc: 22 lượt/110 lựa chọn, mobile 390px không tràn ngang, API riêng tư vẫn 401. Không đổi dependency, quyền, secrets hoặc deploy Apps Script (giữ v79); chỉ đổi serializer Vercel để không làm mất giá trị null. Xem `SPEC-reading-polish.md` và `VERIFICATION-reading-polish-2026-10-15.md`. RAR/mã trong thư mục chia sẻ cũ không tự cập nhật.
 
 ## Ngữ cảnh đọc — các mục 4, 5, 6 đã phát hành 15/10/2026
 
