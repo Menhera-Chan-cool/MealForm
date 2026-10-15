@@ -65,3 +65,12 @@ for(const [text,date,now,want] of [
   ['x'.repeat(501),'2026-10-18',previewNow,'Nội dung vượt quá 500 ký tự.'],
   ['Nghỉ','2024-02-29',Date.parse('2024-02-29T17:00:00Z'),'Thông báo đã hết hạn; sẽ không hiện trên trang xem.']
 ])assert.deepEqual(ui.noticePreview(text,date,now),{notice:null,message:want});
+
+assert.equal(typeof ui.reviewChanges,'function');
+assert.deepEqual(ui.reviewChanges({name:'Cũ',color:'#123456',ignored:'secret'},{name:'<b>Mới</b>',color:'#123456',ignored:'different'},{name:'Tên',color:'Màu'}),[{label:'Tên',before:'Cũ',after:'<b>Mới</b>'}]);
+assert.deepEqual(ui.reviewChanges({}, {name:''},{name:'Tên'}),[]);
+assert.equal(typeof ui.viewerLinkIssue,'function');
+for(const [path,search,want] of [
+  ['/not-a-page','','route'],['/','?view=','invalid'],['/','?view=bad!','invalid'],['/','?view=synthetic',null],['/history','?week=', 'invalid'],['/history','?week=bad%21','invalid'],['/history','?week=2026-10-12_2026-10-16',null],['/next','',null],['/history','',null]
+])assert.equal(ui.viewerLinkIssue(path,search),want);
+for(const [status,message,want] of [[400,'','invalid'],[403,'','forbidden'],[404,'','missing'],[502,'Không tìm thấy tuần đã đăng ký.','missing'],[502,'Chỉ xem tuần cũ trong kho.','archive-only'],[502,'Không thể kết nối.','connection'],[0,'offline','connection']])assert.equal(ui.viewerProblemKind(status,message),want);

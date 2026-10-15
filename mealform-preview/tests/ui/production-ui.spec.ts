@@ -11,10 +11,10 @@ export async function interceptMealServices(page: import('@playwright/test').Pag
     let data: object = {};
     if(url.pathname === '/api/branding') data = {schoolName:'Trường minh họa',logoUrl:'',primaryColor};
     if(url.pathname === '/api/session') data = {authenticated:true};
-    if(url.pathname === '/api/viewer') data = {headers:['Thời điểm','Họ tên',...days.map(day=>day.day)],rows:[['08/10/2026 20:59:00','Trường An',...days.map(()=> 'CƠM GÀ')],['08/10/2026 20:58:00','Minh Anh',...days.map(()=> 'BÚN BÒ')]],days,calendarDays:days.map(day=>day.day),formStatus:'closed',formUrl:weeks[0].formUrl};
-    if(url.pathname === '/api/history') data = {weeks:[{...weeks[1],startDate:'2026-10-05',endDate:'2026-10-09'}]};
+    if(url.pathname === '/api/viewer'||url.pathname==='/api/history'&&url.searchParams.has('week')) data = {headers:['Thời điểm','Họ tên',...days.map(day=>day.day)],rows:[['08/10/2026 20:59:00','Trường An',...days.map(()=> 'CƠM GÀ')],['08/10/2026 20:58:00','Minh Anh',...days.map(()=> 'BÚN BÒ')]],days,calendarDays:days.map(day=>day.day),formStatus:'closed',formUrl:weeks[0].formUrl};
+    if(url.pathname === '/api/history'&&!url.searchParams.has('week')) data = {weeks:[{...weeks[1],startDate:'2026-10-05',endDate:'2026-10-09'}]};
     if(url.pathname === '/api/dashboard') {
-      if(route.request().method() !== 'GET') { writes.push({method:route.request().method(),...route.request().postDataJSON()}); data={ok:true}; }
+      if(route.request().method() !== 'GET') { const body=route.request().postDataJSON();writes.push({method:route.request().method(),...body}); data=body.action==='set-branding'?{...body.branding,updatedAt:8}:body.action==='set-week-notice'?{ok:true,notice:{text:body.text,endsOn:body.endsOn,updatedAt:8}}:{ok:true}; }
       else if(url.searchParams.has('notice')) data={notice:{text:'',endsOn:'',updatedAt:0}};
       else if(url.searchParams.has('health')) data={checkedAt:Date.now(),checks:[{id:'google',label:'Kết nối Google',status:'ok',message:'Kết quả minh họa'}]};
       else if(url.searchParams.has('reconcile')) data={formCount:2,sheetCount:2,matchedCount:2,issues:[]};
@@ -24,6 +24,69 @@ export async function interceptMealServices(page: import('@playwright/test').Pag
     await route.fulfill({status:200,json:data});
   });
 }
+
+test('clarity-controls: branding review shows old/new values and only confirmed snapshot writes',async({page})=>{
+  const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await page.locator('.ui-sidebar').getByRole('button',{name:'Thương hiệu',exact:true}).click();await page.getByLabel('Tên trường',{exact:true}).fill('Tên mới kiểm thử');await page.getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();
+  const review=page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true});await expect(review).toContainText('Trường minh họa');await expect(review).toContainText('Tên mới kiểm thử');await review.getByRole('button',{name:'Hủy',exact:true}).click();expect(writes).toEqual([]);await expect(page.getByLabel('Tên trường',{exact:true})).toHaveValue('Tên mới kiểm thử');await page.getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();await review.getByRole('button',{name:'Xác nhận',exact:true}).click();await expect.poll(()=>writes.length).toBe(1);expect(writes[0]).toMatchObject({method:'POST',action:'set-branding',branding:{schoolName:'Tên mới kiểm thử',primaryColor:'#357185'},expectedUpdatedAt:0});
+});
+
+test('clarity-controls: notice review cancel preserves draft and confirmation retains revision',async({page})=>{
+  const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);const endsOn=new Date(Date.now()+7*86400000).toISOString().slice(0,10);await page.route('**/api/dashboard?**',route=>new URL(route.request().url()).searchParams.has('notice')?route.fulfill({json:{notice:{text:'Nội dung cũ',endsOn,updatedAt:7}}}):route.fallback());await page.goto('http://127.0.0.1:5175/dashboard');await page.locator('.ui-sidebar').getByRole('button',{name:'Thông báo tuần',exact:true}).click();await page.getByRole('textbox',{name:'Nội dung thông báo',exact:true}).fill('Nội dung mới');await page.getByRole('button',{name:'Lưu thông báo',exact:true}).click();const review=page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true});await expect(review).toContainText('Nội dung cũ');await expect(review).toContainText('Nội dung mới');await review.getByRole('button',{name:'Hủy',exact:true}).click();expect(writes).toEqual([]);await expect(page.getByRole('textbox',{name:'Nội dung thông báo',exact:true})).toHaveValue('Nội dung mới');await page.getByRole('button',{name:'Lưu thông báo',exact:true}).click();await review.getByRole('button',{name:'Xác nhận',exact:true}).click();await expect.poll(()=>writes.length).toBe(1);expect(writes[0]).toMatchObject({action:'set-week-notice',weekKey:key,text:'Nội dung mới',endsOn,expectedUpdatedAt:7});
+});
+
+test('clarity-controls: deadline review retains the original reason and Form concurrency guards',async({page})=>{
+  const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await page.locator('.ui-sidebar').getByRole('button',{name:'Điều khiển Form',exact:true}).click();const date=new Date(Date.now()+7*86400000).toISOString().slice(0,10);await page.getByLabel('Hạn mới — giờ Việt Nam',{exact:true}).fill(date+'T12:00');await page.getByRole('button',{name:'Lưu hạn đăng ký',exact:true}).click();const review=page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true});await expect(review.locator('.change-review')).toContainText('Hạn đăng ký');await expect(review.locator('.change-review')).toContainText('Trước');await expect(review.locator('.change-review')).toContainText('Sau');await review.getByRole('textbox',{name:'Lý do (tùy chọn)',exact:true}).fill('Chốt thử');await review.getByRole('button',{name:'Xác nhận',exact:true}).click();await expect.poll(()=>writes.length).toBe(1);expect(writes[0]).toMatchObject({action:'form-control',weekKey:key,mode:'deadline',deadline:date+'T12:00:00+07:00',expectedStatus:'closed',expectedLockAt:weeks[0].lockAt,reason:'Chốt thử'});
+});
+
+test('clarity-controls: PC resize supports pointer, keyboard and reset without changing data',async({page})=>{
+  await interceptMealServices(page);await page.setViewportSize({width:1440,height:960});await page.goto('http://127.0.0.1:5175/newest');const th=page.locator('.detail-wrap th').nth(1);await expect(th).toBeVisible();await page.evaluate(()=>document.fonts.ready);const before=(await th.boundingBox())!.width;const handle=th.getByRole('separator',{name:'Độ rộng cột Họ tên',exact:true});const box=(await handle.boundingBox())!;await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width/2+80,box.y+box.height/2);await page.mouse.up();expect((await th.boundingBox())!.width).toBeCloseTo(before+80,0);await handle.focus();await page.keyboard.press('ArrowRight');expect((await th.boundingBox())!.width).toBeCloseTo(before+96,0);await expect(page.getByRole('status',{name:'Kết quả lọc'})).toContainText('10 lựa chọn món');await page.getByRole('button',{name:'Cỡ cột mặc định',exact:true}).click();await expect(page.locator('.detail-wrap table')).toHaveCSS('table-layout','auto');expect(Math.abs((await th.boundingBox())!.width-before)).toBeLessThan(2);await page.setViewportSize({width:390,height:960});await expect(handle).toBeHidden();await expect(page.locator('.detail-wrap tbody tr').first().locator('td')).toHaveCount(7);
+});
+
+test('clarity-controls: manual shortcut reference preserves Ctrl K and adds no delete shortcut',async({page})=>{
+  const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/newest');await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();const button=page.getByRole('button',{name:'Phím tắt',exact:true});await expect(button).toHaveAttribute('aria-expanded','false');await button.click();const reference=page.getByRole('region',{name:'Hướng dẫn phím tắt',exact:true});await expect(reference).toContainText('OCR');await expect(reference).toContainText('Không có phím tắt xóa');await page.keyboard.press('Escape');await page.keyboard.press('Control+k');await expect(page.getByRole('dialog',{name:'Lệnh nhanh',exact:true})).toBeVisible();await page.keyboard.press('Escape');await page.getByRole('heading',{name:'Thực đơn tuần này',exact:true}).click();await page.keyboard.press('Delete');expect(writes).toEqual([]);
+});
+
+test('clarity-controls: real pending read elapsed time resets and stopping never claims backend cancellation',async({page})=>{
+  await page.clock.install();await interceptMealServices(page);let release:()=>void=()=>{};const hold=new Promise<void>(resolve=>release=resolve);await page.route('**/api/dashboard?**',async route=>{if(new URL(route.request().url()).searchParams.has('reconcile')){await hold;return route.fulfill({json:{formCount:0,sheetCount:0,matchedCount:0,issues:[]}});}return route.fallback();});await page.goto('http://127.0.0.1:5175/dashboard');await page.locator('.ui-sidebar').getByRole('button',{name:'Đối soát',exact:true}).click();await page.getByRole('button',{name:'Đối soát tuần này',exact:true}).click();const elapsed=page.getByRole('status',{name:'Thời gian chờ',exact:true});await expect(elapsed).toContainText('Đang đối soát');await page.clock.fastForward(12000);await expect(elapsed).toContainText('12 giây');await page.getByRole('button',{name:'Dừng chờ dữ liệu',exact:true}).click();await expect(elapsed).toBeHidden();await expect(page.locator('.dashboard-message')).toContainText('Máy chủ có thể vẫn xử lý');release();
+});
+
+test('clarity-controls: malformed and unknown links explain the problem without reading week data',async({page})=>{
+  await interceptMealServices(page);let reads=0;page.on('request',request=>{if(/\/api\/(viewer|history)/.test(request.url()))reads++;});for(const path of ['/not-a-page','/?view=','/?view=bad!','/history?week=']){await page.goto('http://127.0.0.1:5175'+path);await expect(page.getByRole('region',{name:'Vấn đề liên kết',exact:true})).toBeVisible();await expect(page.getByRole('link',{name:'Tuần này',exact:true})).toBeVisible();}expect(reads).toBe(0);
+});
+
+test('clarity-controls: missing, forbidden and network viewer states follow server evidence',async({page})=>{
+  await interceptMealServices(page);for(const [status,error,heading] of [[404,'Không tìm thấy tuần đã đăng ký.','Không tìm thấy tuần trong liên kết'],[403,'Không có quyền xem.','Chưa có quyền xem tuần này'],[502,'Không thể kết nối.','Chưa tải được dữ liệu'],[502,'Không tìm thấy tuần đã đăng ký.','Không tìm thấy tuần trong liên kết']] as const){await page.route('**/api/history?**',route=>route.fulfill({status,json:{error}}));await page.goto('http://127.0.0.1:5175/history?week=missing');await expect(page.getByRole('heading',{name:heading,exact:true})).toBeVisible();}
+});
+
+test('clarity-controls: all tables resize independently, Escape cancels drag and projection resets widths',async({page})=>{
+  const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);
+  await page.route('**/api/dashboard?**',route=>new URL(route.request().url()).searchParams.has('week')?route.fulfill({json:{week:{...weeks[0],dayLabels:days.map(day=>day.day)},responses:[{responseId:'sample-a',name:'Trường An',meals:['CƠM GÀ']}],history:[{id:'audit-a',action:'deleted',name:'Trường An',at:1791467940000,actor:'admin@example.com'}]}}):route.fallback());
+  await page.goto('http://127.0.0.1:5175/dashboard');await page.locator('.ui-sidebar').getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();
+  for(const label of ['Bảng lượt gửi','Bảng lịch sử thao tác'])await test.step('Resize '+label,async()=>{
+    const workspace=page.getByRole('region',{name:label,exact:true}),handle=workspace.getByRole('separator').first();await expect(handle).toBeVisible();await handle.focus();await page.keyboard.press('End');await expect(handle).toHaveAttribute('aria-valuenow',await handle.getAttribute('aria-valuemax') as string);await page.keyboard.press('Home');await expect(handle).toHaveAttribute('aria-valuenow','144');
+    await workspace.getByRole('button',{name:'Cỡ cột mặc định',exact:true}).click();await expect(workspace.getByRole('button',{name:'Cỡ cột mặc định',exact:true})).toBeDisabled();
+  });
+  await page.goto('http://127.0.0.1:5175/newest');const workspace=page.getByRole('region',{name:'Bảng chi tiết',exact:true});await workspace.getByRole('button',{name:'Phóng rộng bảng chi tiết',exact:true}).click();const expanded=page.getByRole('dialog',{name:'Bảng chi tiết',exact:true}),handle=expanded.getByRole('separator',{name:'Độ rộng cột Họ tên',exact:true});await expect(handle).toBeVisible();await page.evaluate(()=>document.fonts.ready);
+  const box=(await handle.boundingBox())!,before=(await handle.locator('..').boundingBox())!.width;
+  await page.mouse.move(box.x+12,box.y+12);await page.mouse.down();await page.mouse.move(box.x+92,box.y+12);await page.keyboard.press('Escape');await page.mouse.up();await expect(expanded).toBeVisible();expect((await handle.locator('..').boundingBox())!.width).toBeCloseTo(before,0);await page.keyboard.press('Escape');
+  await workspace.getByRole('separator',{name:'Độ rộng cột Họ tên',exact:true}).focus();await page.keyboard.press('ArrowRight');await workspace.getByRole('button',{name:'Cột hiển thị',exact:true}).click();await page.getByRole('dialog',{name:'Cột hiển thị · Bảng chi tiết',exact:true}).getByRole('checkbox',{name:'Thứ 4 (14/10/2026)',exact:true}).uncheck();await page.keyboard.press('Escape');await expect(page.locator('.detail-wrap th').nth(4)).toBeHidden();
+  await page.getByRole('combobox',{name:'Ngày',exact:true}).click();await page.getByRole('option',{name:'Thứ 4 (14/10/2026)',exact:true}).click();await expect(workspace.getByRole('button',{name:'Cỡ cột mặc định',exact:true})).toBeDisabled();await expect(page.locator('.detail-wrap thead').getByRole('columnheader')).toHaveCount(2);expect(writes).toEqual([]);
+});
+
+test('clarity-controls: refresh keeps rows on network failure but clears data when server refuses access',async({page})=>{
+  await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/history?week='+key);await expect(page.locator('.detail-wrap tbody tr')).toHaveCount(2);
+  await page.route('**/api/history?**',route=>route.fulfill({status:502,json:{error:'Kết nối tạm thời gián đoạn.'}}));await page.getByRole('button',{name:'Tải lại dữ liệu',exact:true}).click();await expect(page.locator('.detail-wrap tbody tr')).toHaveCount(2);await expect(page.locator('.viewer-error')).toContainText('Dữ liệu lần tải trước đang được giữ');
+  await page.route('**/api/history?**',route=>route.fulfill({status:403,json:{error:'Không có quyền xem.'}}));await page.getByRole('button',{name:'Tải lại dữ liệu',exact:true}).click();await expect(page.getByRole('heading',{name:'Chưa có quyền xem tuần này',exact:true})).toBeVisible();await expect(page.locator('.detail-wrap')).toHaveCount(0);
+});
+
+test('clarity-controls: compact review and shortcut reference fit mobile light and dark with large text',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);
+  for(const theme of ['light','dark']){
+    await page.setViewportSize({width:360,height:640});await page.goto('http://127.0.0.1:5175/dashboard?tab=branding');
+    await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();const display=page.getByRole('dialog',{name:'Tùy chọn hiển thị',exact:true});await display.getByRole('combobox',{name:'Giao diện',exact:true}).selectOption(theme);await display.getByRole('button',{name:'Lớn',exact:true}).click();await display.getByRole('button',{name:'Phím tắt',exact:true}).click();await expect(page.getByRole('region',{name:'Hướng dẫn phím tắt',exact:true})).toBeVisible();await display.screenshot({path:`review/clarity-controls/shortcuts-${theme}-360.png`});const bounds=(await display.boundingBox())!;expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(360);await page.keyboard.press('Escape');
+    await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();await page.getByRole('dialog',{name:'Thêm chức năng'}).getByRole('button',{name:'Thương hiệu',exact:true}).click();await page.getByLabel('Tên trường',{exact:true}).fill('Tên trường kiểm thử rất dài '.repeat(3));await page.getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();const review=page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true});await review.screenshot({path:`review/clarity-controls/confirmation-${theme}-360.png`});const cancel=review.getByRole('button',{name:'Hủy',exact:true}),box=(await cancel.boundingBox())!;expect(box.y).toBeGreaterThanOrEqual(0);expect(box.y+box.height).toBeLessThanOrEqual(640);await cancel.click();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }expect(errors).toEqual([]);expect(writes).toEqual([]);
+});
 
 test('operate: PC sidebar collapse frees width and keeps named keyboard navigation and mobile tools',async({page})=>{
   const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);
@@ -1067,9 +1130,9 @@ test('clarity: unsaved branding cancels navigation/logout and survives failed sa
   expect(await page.evaluate(()=>{const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;})).toBe(true);
   page.once('dialog',dialog=>dialog.dismiss());await nav.getByRole('button',{name:'Tổng quan',exact:true}).click();await expect(field).toHaveValue('Tên đang sửa');
   page.once('dialog',dialog=>dialog.dismiss());await nav.getByRole('button',{name:'Đăng xuất',exact:true}).click();await expect(field).toHaveValue('Tên đang sửa');expect(writes).toEqual([]);
-  page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();
+  await page.getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Xác nhận',exact:true}).click();
   await expect(page.locator('.dashboard-message')).toContainText('Lỗi lưu thử');await expect(dirty).toBeVisible();await expect(field).toHaveValue('Tên đang sửa');
-  page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();await expect(dirty).toHaveCount(0);
+  await page.getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Xác nhận',exact:true}).click();await expect(dirty).toHaveCount(0);
   await field.fill('Bản bỏ đi');page.once('dialog',dialog=>dialog.accept());await nav.getByRole('button',{name:'Tổng quan',exact:true}).click();await nav.getByRole('button',{name:'Thương hiệu',exact:true}).click();await expect(field).toHaveValue('Tên đang sửa');
 });
 
@@ -1087,8 +1150,8 @@ test('clarity: unsaved notices keep text on week cancel and save error, then ret
   const dirty=page.getByRole('status',{name:'Chưa lưu thông báo',exact:true});await expect(dirty).toBeVisible();
   const picker=page.getByRole('combobox',{name:'Tìm tuần',exact:true});const selected=await picker.inputValue();await picker.fill('05/10');
   page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('option',{name:weeks[1].name,exact:true}).click();await expect(picker).toHaveValue(selected);await expect(text).toHaveValue('Nháp thông báo');
-  page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Lưu thông báo',exact:true}).click();await expect(page.locator('.dashboard-message')).toContainText('Chưa lưu được thử');await expect(text).toBeEnabled();await expect(dirty).toBeVisible();
-  page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Lưu thông báo',exact:true}).click();await expect(dirty).toHaveCount(0);
+  await page.getByRole('button',{name:'Lưu thông báo',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Xác nhận',exact:true}).click();await expect(page.locator('.dashboard-message')).toContainText('Chưa lưu được thử');await expect(text).toBeEnabled();await expect(dirty).toBeVisible();
+  await page.getByRole('button',{name:'Lưu thông báo',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Xác nhận',exact:true}).click();await expect(dirty).toHaveCount(0);
   expect(writes.map(body=>({weekKey:body.weekKey,expectedUpdatedAt:body.expectedUpdatedAt,text:body.text}))).toEqual([{weekKey:key,expectedUpdatedAt:1,text:'Nháp thông báo'},{weekKey:key,expectedUpdatedAt:1,text:'Nháp thông báo'}]);
 });
 
@@ -1131,10 +1194,10 @@ test('clarity: notice conflicts preserve the draft and require an explicit reloa
   });
   await page.goto('http://127.0.0.1:5175/dashboard');await page.locator('.ui-sidebar').getByRole('button',{name:'Thông báo tuần',exact:true}).click();
   const text=page.getByRole('textbox',{name:'Nội dung thông báo',exact:true}),save=page.getByRole('button',{name:'Lưu thông báo',exact:true});await expect(text).toBeEnabled();await text.fill('Nháp giữ lại');
-  page.once('dialog',dialog=>dialog.accept());await save.click();await expect(save).toBeDisabled();await expect(text).toBeEnabled();await expect(text).toHaveValue('Nháp giữ lại');
+  await save.click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Xác nhận',exact:true}).click();await expect(save).toBeDisabled();await expect(text).toBeEnabled();await expect(text).toHaveValue('Nháp giữ lại');
   const readsBeforeCancel=reads;page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'Tải lại thông báo',exact:true}).click();expect(reads).toBe(readsBeforeCancel);await expect(text).toHaveValue('Nháp giữ lại');
   page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Tải lại thông báo',exact:true}).click();await expect(text).toHaveValue('Bản mới trên máy chủ');await expect(page.getByRole('status',{name:'Chưa lưu thông báo',exact:true})).toHaveCount(0);
-  await text.fill('Đã đối chiếu');page.once('dialog',dialog=>dialog.accept());await save.click();await expect.poll(()=>writes.length).toBe(2);expect(writes.map(value=>value.expectedUpdatedAt)).toEqual([1,2]);
+  await text.fill('Đã đối chiếu');await save.click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Xác nhận',exact:true}).click();await expect.poll(()=>writes.length).toBe(2);expect(writes.map(value=>value.expectedUpdatedAt)).toEqual([1,2]);
 });
 
 test('clarity: responsive review of new states stays readable across viewport and theme',async({page})=>{

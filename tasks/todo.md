@@ -1,5 +1,15 @@
 # Admin upgrades
 
+## Clarity controls — selected 4, 5, 8, 9, 10; production authorized 2026-10-15
+
+- [x] save-diff: original payload/revision/reason, no-write cancel, snapshots and failed-save retention.
+- [x] column-resize: actual pointer/keyboard widths, reset/cancel, three callers, hidden columns, mobile/projection/expanded behavior.
+- [x] shortcut-reference: manual, contextual and no new destructive bindings.
+- [x] wait-elapsed: truthful active phase, clock/reset/stop/cleanup and cached-data behavior.
+- [x] viewer-link-errors: honest server classifications, syntax/unknown paths, protected/empty weeks and retained refresh data.
+- [x] Full native/API/frontend/compatibility/Storybook checks and bounded visual review; 67 frontend, 29 native/API scripts, 11 compatibility, 5 token/guard, 49 stories.
+- [ ] Exact-head PR/main, tested artifact promotion, genuine readonly smoke, README/release evidence.
+
 ## Operate UI — selected 1, 2, 4, 6, 7; production authorized 2026-10-15
 
 - [x] field-help: named manual popovers at scoped callers; keyboard/touch/no-write tests.

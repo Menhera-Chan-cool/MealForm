@@ -79,3 +79,21 @@ export function noticePreview(text,endsOn,now=Date.now()) {
   if(!message&&expiresAt<=now)message='Thông báo đã hết hạn; sẽ không hiện trên trang xem.';
   return message?{notice:null,message}:{notice:{text,expiresAt},message:''};
 }
+
+export function reviewChanges(before,after,labels) {
+  return Object.entries(labels).map(([key,label])=>({label,before:String(before?.[key]??''),after:String(after?.[key]??'')})).filter(row=>row.before!==row.after);
+}
+
+export function viewerLinkIssue(pathname,search) {
+  const path=String(pathname||'/').replace(/\/+$/,'')||'/',params=new URLSearchParams(search);
+  if(!['/','/newest','/next','/history','/dashboard','/setup'].includes(path))return 'route';
+  if(path==='/'&&params.has('view')&&!/^[A-Za-z0-9_-]{1,100}$/.test(params.get('view')||''))return 'invalid';
+  if(path==='/history'&&params.has('week')&&!/^[A-Za-z0-9_-]{1,120}$/.test(params.get('week')||''))return 'invalid';
+  return null;
+}
+
+export function viewerProblemKind(status,message='') {
+  if(status===502&&/^Không tìm thấy tuần đã đăng ký\./.test(message))return 'missing';
+  if(status===502&&/^Chỉ xem tuần cũ/.test(message))return 'archive-only';
+  return ({400:'invalid',403:'forbidden',404:'missing'})[status]||'connection';
+}

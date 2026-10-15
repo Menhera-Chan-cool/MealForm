@@ -7,6 +7,7 @@ import ArchiveCalendar from './ArchiveCalendar.jsx';
 import {archiveMonths,weekMonths} from './ui-model.mjs';
 import {archiveWeekHref,filterConditions} from './ui-clarity.mjs';
 import FilterEmptyState from './FilterEmptyState.jsx';
+import ElapsedWait from './ElapsedWait.jsx';
 import {ArchiveBreadcrumbs,ArchiveWeekMetadata} from './WeekContext.jsx';
 import usePageTitle from './usePageTitle.js';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
@@ -38,6 +39,7 @@ export default function HistoryArchive({ onUnauthorized }) {
   usePageTitle(month===ALL?'Kho tuần cũ':`Kho tuần · Tháng ${month}`);
   return <section className="archive-panel">
     <VersionNotice disabled={busy} />
+    <ElapsedWait active={busy} label="Đang tải kho tuần"/>
     <ArchiveBreadcrumbs month={selectedMonth} view={view}/>
     <div className="section-heading"><h2>Kho tuần cũ</h2><button className="secondary" disabled={busy} onClick={() => void load()}>Tải lại</button></div>
     {pending>0&&<button className="secondary" type="button" onClick={()=>{reads.cancel();setBusy(false);setMessage(STOP_WAIT_MESSAGE);}}>Dừng chờ dữ liệu</button>}

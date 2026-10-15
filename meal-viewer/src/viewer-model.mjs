@@ -85,7 +85,7 @@ export function readViewerFilters(raw) {
 export function rootRedirectTarget(pathname, search) {
   const path = String(pathname || '/').replace(/\/+$/, '') || '/';
   if (path === '/old') return '/history';
-  return path === '/' && !new URLSearchParams(search || '').get('view') ? '/newest' : '';
+  return path === '/' && !new URLSearchParams(search || '').has('view') ? '/newest' : '';
 }
 
 export function weekNavigation(pathname) {

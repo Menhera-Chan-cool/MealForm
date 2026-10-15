@@ -13,6 +13,8 @@ import ContentSkeleton from '../../meal-viewer/src/ContentSkeleton.jsx';
 import OcrProgress from '../../meal-viewer/src/OcrProgress.jsx';
 import TableWorkspace from '../../meal-viewer/src/TableWorkspace.jsx';
 import NoticePreview from '../../meal-viewer/src/NoticePreview.jsx';
+import ViewerLinkProblem from '../../meal-viewer/src/ViewerLinkProblem.jsx';
+import ElapsedWait from '../../meal-viewer/src/ElapsedWait.jsx';
 import {buildDetailModel,readViewerFilters} from '../../meal-viewer/src/viewer-model.mjs';
 import {sampleDays,sampleOverview,sampleViewer,installProductionFixtures} from './production-fixtures.mjs';
 import '../../meal-viewer/src/styles.css';
@@ -50,3 +52,5 @@ export const OCRReview:Story={render:()=> <AppearanceProvider><BrandingProvider>
 export const MobileDark:Story={globals:{theme:'dark',viewport:{value:'phone',isRotated:false}}};
 export const ColumnVisibility:Story={render:()=>{const model=buildDetailModel(sampleViewer,readViewerFilters(''));return <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Cột bảng PC · Dữ liệu minh họa</h1><TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết" headers={model.headers} requiredColumns={[model.nameIndex]}><DetailTable model={model}/></TableWorkspace></main></BrandingProvider></AppearanceProvider>;}};
 export const NoticeDraftPreview:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Nháp thông báo · Chưa đăng công khai</h1><NoticePreview text={'Thứ Tư nghỉ.\nĐã điều chỉnh thực đơn, vui lòng kiểm tra lại.'} endsOn={new Date(Date.now()+7*86400000).toISOString().slice(0,10)} weekName="Tuần minh họa" dirty/></main></BrandingProvider></AppearanceProvider>};
+export const LinkRecovery:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Liên kết thực đơn · Minh họa</h1><ViewerLinkProblem kind="missing"/></main></BrandingProvider></AppearanceProvider>};
+export const PendingRead:Story={render:()=> <AppearanceProvider><BrandingProvider><main className="meal-ui ui-viewer"><h1>Trạng thái chờ · Minh họa</h1><ElapsedWait active label="Đang tải thực đơn"/><p>Bộ đếm thời gian trình duyệt, không phải tiến độ máy chủ.</p></main></BrandingProvider></AppearanceProvider>};

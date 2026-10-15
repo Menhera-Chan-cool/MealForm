@@ -1,5 +1,15 @@
 # MealForm
 
+## UI rõ thao tác — các mục 4, 5, 8, 9, 10 ngày 15/10/2026
+
+- Xác nhận lưu hạn/Form, thương hiệu và thông báo tuần có giá trị Trước/Sau. Hủy giữ nguyên nháp; xác nhận giữ payload, phiên bản và lý do thao tác hiện có.
+- Kéo độ rộng cột PC ở Chi tiết viewer, Lượt gửi và Lịch sử; hỗ trợ bàn phím, hủy lần kéo và khôi phục cỡ mặc định. Chỉ đổi cách xem, không ghi vào Sheet; mobile vẫn đủ thông tin.
+- Menu “…” có Phím tắt mở theo yêu cầu, ghi rõ ngữ cảnh và không thêm phím xóa/khôi phục.
+- Hiện số giây trình duyệt đã chờ, không giả phần trăm hay thời gian hoàn thành. Dừng chờ chỉ dừng đọc trên trình duyệt, không hủy tác vụ máy chủ.
+- Liên kết sai/tuần không có/quyền bị từ chối/lỗi kết nối có hướng xử lý riêng theo bằng chứng máy chủ. Lỗi mạng khi tải lại vẫn giữ bản đã đọc; không coi lỗi kết nối là tuần bị xóa.
+
+Phạm vi chỉ frontend, giữ API/Apps Script/phân quyền/secrets/dependency. Phát hành đang qua cổng kiểm thử và kiểm tra artifact; chưa tuyên bố đã đổi production. Hồ sơ: `VERIFICATION-clarity-controls-2026-10-15.md`. RAR cũ không tự cập nhật.
+
 ## Năm cải tiến UI vận hành — đã phát hành 15/10/2026
 
 - Sidebar Dashboard PC thu gọn thành thanh biểu tượng; vẫn có nhãn khi rê chuột/dùng bàn phím và giữ nguyên các mục theo quyền.

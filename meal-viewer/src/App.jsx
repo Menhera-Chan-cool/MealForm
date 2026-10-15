@@ -21,7 +21,9 @@ import ViewerSummary from './ViewerSummary.jsx';
 import ViewerTabs from './ViewerTabs.jsx';
 import usePageTitle from './usePageTitle.js';
 import {ArchiveBreadcrumbs} from './WeekContext.jsx';
-import {viewerPageTitle,archiveBackHref,filterConditions} from './ui-clarity.mjs';
+import {viewerPageTitle,archiveBackHref,filterConditions,viewerLinkIssue,viewerProblemKind} from './ui-clarity.mjs';
+import ViewerLinkProblem from './ViewerLinkProblem.jsx';
+import ElapsedWait from './ElapsedWait.jsx';
 import FilterEmptyState from './FilterEmptyState.jsx';
 import TableWorkspace from './TableWorkspace.jsx';
 import WeekNavigation from './WeekNavigation.jsx';
@@ -72,6 +74,7 @@ function App() {
   const appearance = useAppearance();
   const viewerPath = window.location.pathname;
   const viewerSearch = window.location.search;
+  const routeIssue=viewerLinkIssue(viewerPath,viewerSearch);
   const isDashboard = viewerPath === '/dashboard' || viewerPath === '/dashboard/';
   const isSetup = viewerPath.replace(/\/+$/, '') === '/setup';
   const isHistory = viewerPath.replace(/\/+$/, '') === '/history';
@@ -88,6 +91,7 @@ function App() {
   const [checking, setChecking] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [loadProblem,setLoadProblem]=useState(null);
   const [failure, setFailure] = useState(null);
   const [message, setMessage] = useState('Đang kiểm tra đăng nhập…');
   const { open: summaryOpen, closing: summaryClosing, active: summaryActive, toggle: toggleSummary } = useDisclosureAnimation(SUMMARY_PANEL_STORAGE_KEY);
@@ -135,11 +139,11 @@ function App() {
     const ticket=reads.begin();
     loading.current = true;
     if (background) setChecking(true);
-    else { setBusy(true); setLoadError(''); setMessage('Đang tải dữ liệu…'); }
+    else { setBusy(true); setLoadError('');setLoadProblem(null); setMessage('Đang tải dữ liệu…'); }
     try {
       const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store',signal:ticket.signal });
       if(!reads.current(ticket))throw cancelledRead();
-      if (response.status === 401) { setData(null); setAuth('anonymous'); setPendingUpdate(false); setLoadError(''); return; }
+      if (response.status === 401) { setData(null); setAuth('anonymous'); setPendingUpdate(false); setLoadError('');setLoadProblem(null); return; }
       const result = await response.json();
       if(!reads.current(ticket))throw cancelledRead();
       const responseTime = Date.parse(response.headers.get('date') || '');
@@ -167,6 +171,7 @@ function App() {
         return;
       }
       setData(result);
+      setLoadProblem(null);
       setFailure(null);
       setPendingUpdate(false);
       setLoadError('');
@@ -177,7 +182,11 @@ function App() {
       const reason = error instanceof TypeError ? 'Không thể kết nối tới máy chủ.'
         : error instanceof SyntaxError ? 'Máy chủ trả về dữ liệu không hợp lệ.'
           : errorMessage(error, 'Không thể tải dữ liệu.');
-      setLoadError(`${reason}${dataRef.current ? ' Dữ liệu lần tải trước đang được giữ.' : ''}`);
+      const kind=viewerProblemKind(error.status,error.message);
+      const revoked=kind==='forbidden'||kind==='missing'||kind==='archive-only';
+      if(revoked){setData(null);setPendingUpdate(false);if(kind==='forbidden')clearDashboardCache();}
+      setLoadProblem(kind);
+      setLoadError(`${reason}${dataRef.current&&!revoked ? ' Dữ liệu lần tải trước đang được giữ.' : ''}`);
       setMessage('');
     } finally {
       if(reads.current(ticket)){
@@ -205,9 +214,9 @@ function App() {
   }, [isDashboard, isSetup, isHistoryList, loadData]);
 
   useEffect(() => {
-    void checkSession();
+    if(!routeIssue)void checkSession();
     return () => { authRequest.current++; };
-  }, [checkSession]);
+  }, [checkSession,routeIssue]);
 
   useEffect(() => {
     if (auth !== 'authenticated') return undefined;
@@ -300,7 +309,7 @@ function App() {
   const weekDates = (data?.calendarDays || days).map(day => typeof day === 'string' ? day : String(day?.day || ''))
     .map(label => label.match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0]).filter(Boolean);
   const pageTitle = isNewestPage ? 'Thực đơn tuần này' : isNextPage ? 'Thực đơn tuần sau' : isHistory ? 'Kho thực đơn tuần cũ' : 'Thực đơn bán trú';
-  usePageTitle(isDashboard?(auth==='authenticated'?'':'Dashboard'):isSetup?'':isHistoryList?(auth==='authenticated'?'':'Kho tuần cũ'):viewerPageTitle(data,pageTitle));
+  usePageTitle(routeIssue?'Liên kết thực đơn':isDashboard?(auth==='authenticated'?'':'Dashboard'):isSetup?'':isHistoryList?(auth==='authenticated'?'':'Kho tuần cũ'):viewerPageTitle(data,pageTitle));
   const nameOptions = useMemo(() => [...new Set((data?.rows || []).map(row => String(row?.[1] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')), [data]);
   const mealOptions = useMemo(() => [...new Set(days.flatMap(day => Array.isArray(day.meals) ? day.meals : []))].sort((a, b) => a.localeCompare(b, 'vi')), [days]);
   useEffect(() => {
@@ -343,12 +352,13 @@ function App() {
     setMessage('Đã đăng xuất. Hãy dùng Gmail được cấp quyền dashboard.');
   }
 
+  if(routeIssue)return <main className="meal-ui ui-viewer"><header className="viewer-header"><h1>Liên kết thực đơn</h1><DisplayPreferencesSlot/></header><ViewerLinkProblem kind={routeIssue}/></main>;
   if (isSetup) return <SetupChecklist authenticated={auth === 'authenticated'} />;
   if (auth === 'error') return <main className="meal-ui ui-viewer"><section className="login-panel"><h1>Chưa kết nối được</h1><p role="alert">{message}</p><p>Thông tin phiên chưa bị xóa. Bạn không cần đăng xuất để thử lại.</p><div className="actions"><button type="button" onClick={() => void checkSession()}>Kiểm tra lại</button><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đăng xuất</button>{isWeekPage && <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>}</div><ErrorReportButton report={failure} /></section></main>;
-  if (isHistoryList && auth === 'loading') return <main className="meal-ui ui-viewer"><ContentSkeleton label="Đang xác nhận đăng nhập…" /></main>;
+  if (isHistoryList && auth === 'loading') return <main className="meal-ui ui-viewer"><ContentSkeleton label="Đang xác nhận đăng nhập…" /><ElapsedWait active label="Đang xác nhận đăng nhập"/></main>;
   if (isHistoryList && auth === 'authenticated') return <main className="meal-ui ui-viewer"><header className="viewer-header"><h1>Kho thực đơn tuần cũ</h1><DisplayPreferencesSlot/></header><WeekNavigation current="history"/><HistoryArchive onUnauthorized={() => setAuth('anonymous')} /></main>;
   if (isDashboard) {
-    if (auth === 'loading') return <main className="meal-ui ui-viewer"><ContentSkeleton label="Đang xác nhận đăng nhập và quyền dashboard…" /></main>;
+    if (auth === 'loading') return <main className="meal-ui ui-viewer"><ContentSkeleton label="Đang xác nhận đăng nhập và quyền dashboard…" /><ElapsedWait active label="Đang xác nhận đăng nhập"/></main>;
     if (auth === 'anonymous') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p><ErrorReportButton report={failure} /></section></main>;
     if (auth === 'forbidden') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đổi tài khoản Google</button><ErrorReportButton report={failure} /></section></main>;
     return <Dashboard key={dashboardData?.accountId} initialData={dashboardData} onSignOut={signOutDashboard} onUnauthorized={(message, status) => { setFailure(safeErrorReport('dashboard', { status })); clearDashboardCache(); authRequest.current++; setDashboardData(null); setAuth(status === 401 ? 'anonymous' : 'forbidden'); setMessage(message); }} />;
@@ -366,7 +376,8 @@ function App() {
     <WeekNavigation current={isNewestPage?'current':isNextPage?'next':isHistory?'history':''} selected={isHistory} backHref={archiveBackHref(new URLSearchParams(viewerSearch).get('week')||'',viewerSearch)}/>
     {isHistory&&<ArchiveBreadcrumbs weekKey={new URLSearchParams(viewerSearch).get('week')||''}/>}
     <WeekNotice notice={data?.weekNotice} serverNow={data?.serverNow}/>
-    {readPending>0&&<div className="read-wait"><button className="secondary" type="button" onClick={stopWaiting}>Dừng chờ dữ liệu</button><small>Không hủy tác vụ máy chủ.</small></div>}
+    {auth==='loading'&&<ElapsedWait active label="Đang xác nhận đăng nhập"/>}
+    {readPending>0&&<div className="read-wait"><ElapsedWait active label="Đang tải thực đơn" requestKey={viewerPath+viewerSearch}/><button className="secondary" type="button" onClick={stopWaiting}>Dừng chờ dữ liệu</button><small>Không hủy tác vụ máy chủ.</small></div>}
     {stoppedReading&&<p className="dashboard-cache-status" role="status">{message}</p>}
 
     {auth === 'anonymous' ? <section className="login-panel">
@@ -384,7 +395,7 @@ function App() {
         {weekLink.map(link => <a key={link.href} className="form-link week-link" href={link.href}>{link.label}</a>)}
         <button className="secondary" type="button" disabled={busy || checking} onClick={() => void loadData(true, auth === 'guest')}>Tải lại dữ liệu</button>
       </div>
-    </section> : <>
+    </section> : !data&&(loadProblem||auth==='forbidden')?<ViewerLinkProblem kind={auth==='forbidden'?'forbidden':loadProblem} message={loadError} archiveHref={isHistory?archiveBackHref(new URLSearchParams(viewerSearch).get('week')||'',viewerSearch):'/history'} onRetry={()=>void loadData(true,auth==='guest')} onChangeAccount={()=>void signOutDashboard().catch(error=>setLoadError(error.message))}/>: <>
       <FilterControls days={days} nameOptions={nameOptions} mealOptions={mealOptions} filters={filters} onChange={setFilter} />
 
       <div className="toolbar">
