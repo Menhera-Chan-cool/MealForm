@@ -1,12 +1,12 @@
 # MealForm
 
-## Ngữ cảnh đọc — các mục 4, 5, 6
+## Ngữ cảnh đọc — các mục 4, 5, 6 đã phát hành 15/10/2026
 
 - Bảng phóng rộng giữ tuần, bộ lọc và thứ tự ngay trên vùng đọc ở Chi tiết, Lượt gửi, Lịch sử.
 - Hiện hạn đăng ký đã cấu hình theo giờ Việt Nam và thời gian còn lại gần đúng. Hạn tuần đang xem và tuần sau tách riêng; không tự suy đoán ngày hoặc tự đóng Form.
 - Xem nhanh ghim Đóng/Lượt trước/Lượt sau; nội dung cuộn riêng, đi theo đúng lượt đã tải.
 
-Mã đã hoàn thiện trong [PR #12](https://github.com/Menhera-Chan-cool/MealForm/pull/12); bản Vercel staging đã build và kiểm tra cả ba mục. Phát hành hạn đăng ký cần cập nhật metadata Apps Script bằng tài khoản chủ; phản hồi backend cũ hiện chưa có `lockAt`. Mã trong RAR cũ không tự cập nhật. Trạng thái phát hành: `VERIFICATION-reading-context-2026-10-15.md`.
+Đã merge [PR #12](https://github.com/Menhera-Chan-cool/MealForm/pull/12) vào main và đưa đúng bản đã kiểm tra lên [production](https://menutaythanh.vercel.app). Apps Script phiên bản 79 đã trả hạn thật cho tuần đang xem và tuần sau; giữ nguyên URL deployment, quyền và trigger. Kiểm tra website thật đạt, mobile 390px không tràn ngang. Mã trong RAR cũ không tự cập nhật. Hồ sơ: `VERIFICATION-reading-context-2026-10-15.md`.
 
 ## Công cụ đọc — 1, 2, 10, 5, 6: đã phát hành 15/10/2026
 

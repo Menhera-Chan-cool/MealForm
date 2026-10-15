@@ -38,4 +38,4 @@ Baseline `2d217e639cf459f6f0ecb34d7fc193488c38b9cb`; local integration branch `u
 
 ## Limits
 
-Chrome responsive emulation, not physical-device or cross-browser certification. Business-action checks use synthetic services; genuine production checks are readonly. No new API/backend/Apps Script/OAuth/secret/dependency/CI change, paid service, production write or rebuilt RAR. The later three reading-context features remain local and require their own release approval.
+Chrome responsive emulation, not physical-device or cross-browser certification. Business-action checks use synthetic services; genuine production checks are readonly. This five-feature release made no API/backend/Apps Script/OAuth/secret/dependency/CI change, paid service, production write or rebuilt RAR. The later three reading-context features were separately approved and subsequently published through PR #12; their metadata backend change is recorded in VERIFICATION-reading-context-2026-10-15.md.

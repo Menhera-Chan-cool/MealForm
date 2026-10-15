@@ -1,8 +1,8 @@
 # Approved admin upgrades: implementation plan
 
-## Reading context — selected 4, 5, 6; publication authorized via PR #12
+## Reading context — selected 4, 5, 6; published via PR #12
 
-Map: CAPABILITY-MAP-reading-context.md and its three module specs. Publish the tested runtime through PR #12 after owner-authenticated Apps Script metadata deployment, promote the existing verified Vercel artifact and check genuine readonly responses. Existing local/API/GAS and built-asset checks have passed. Preserve all filter/scroll/focus/data/auth/trigger behavior; no new dependency or service reads. No live Form/Sheet writes.
+Map: CAPABILITY-MAP-reading-context.md and its three module specs. PR #12 merged, Apps Script v79 deployed in place and existing verified Vercel artifact promoted without rebuild. Local/API/GAS, built-asset and genuine production checks passed, including both configured deadlines and 390px layout. Preserve all filter/scroll/focus/data/auth/trigger behavior; no new dependency or service reads. No live Form/Sheet writes.
 
 ## Reading tools — selected 1, 2, 10, 5, 6; 2026-10-15
 
