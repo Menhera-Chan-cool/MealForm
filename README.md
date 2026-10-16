@@ -6,6 +6,8 @@
 
 Phạm vi: CAPABILITY-MAP-ime-access-labels.md. Kết quả kiểm thử và tình trạng phát hành: VERIFICATION-ime-access-labels-2026-10-16.md. Không đổi API, Apps Script, quyền hoặc dữ liệu Form/Sheet.
 
+Đã merge [PR #16](https://github.com/Menhera-Chan-cool/MealForm/pull/16) vào main và đưa đúng artifact đã kiểm tra lên [production](https://menutaythanh.vercel.app). **132/132 ca UI**, 33 bộ ứng dụng/API/GAS ở cả hai bản, 11 tương thích, năm token/guard, TypeScript/Vite/Storybook và tám ca trên tài nguyên Vercel đều đạt. Website thật kiểm tra chỉ đọc đạt; không thêm thư viện, không deploy Apps Script (giữ v79). Nhãn ảnh chỉ lưu trên trình duyệt, không đồng bộ thiết bị. Chưa chứng nhận bộ gõ/điện thoại vật lý; RAR/mã trong thư mục chia sẻ cũ không tự cập nhật.
+
 ## Điều hướng OCR — các mục 4, 6, 8; 16/10/2026
 
 Sắp xếp nguồn ảnh trước khi có kết quả OCR bằng kéo hoặc Lên/Xuống, giữ ảnh đang xem và nháp; Tổng quan có “Cần xử lý” từ đúng kết quả đã tải/đúng tuần, không kiểm tra thêm; tìm trong tiêu đề/ngày/món OCR không cần gõ dấu, đánh dấu và chuyển đúng ô, hỗ trợ ngày đã thu gọn và Undo. Không tự thay nội dung, chạy OCR hay tạo Form. Phạm vi và bằng chứng: CAPABILITY-MAP-ocr-navigation.md, VERIFICATION-ocr-navigation-2026-10-16.md.

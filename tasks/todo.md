@@ -162,4 +162,4 @@
 - [x] access-discovery: readonly email/permission intersection; original member mutation identity preserved.
 - [x] image-labels: optional bounded local metadata; association and draft compatibility RED/GREEN.
 - [x] Full regression (132/132), bounded responsive review, both native suites, preview builds/compatibility, canonical source sync.
-- [ ] Pinned main merge, exact artifact promotion and readonly live verification.
+- [x] PR #16 pinned main merge, exact artifact promotion and readonly live verification; release docs, no RAR rebuild.

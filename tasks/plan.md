@@ -4,6 +4,8 @@
 
 User approved all three and main/production. Follow CAPABILITY-MAP-ime-access-labels.md and module specs. Write failing real-UI/native tests first, fix shared composition handling, derive readonly member filters, then persist optional image labels. Run native suites, full actual-entrypoint/compatibility tests and preview builds serially; bounded PC/mobile light/dark review. Commit/push PR, verify exact immutable artifact, merge pinned source, promote unchanged artifact and GET-only production smoke. No backend deployment or live owner-data mutation.
 
+Published via PR #16, source e675b2c, merge c7148da; exact artifact dpl_9YxsKhpsm6ax7d4bpVfgrLaE8qiq promoted without rebuild. 132/132 actual-entrypoint cases, both native suites, compatibility/builds, eight deployed-asset cases and genuine readonly production checks passed. See VERIFICATION-ime-access-labels-2026-10-16.md for the diagnosed pointer-test motion precondition and physical-IME/device limits.
+
 ## OCR navigation — selected 4, 6, 8; 2026-10-16
 
 Published via PR #15: source eb31a6c, merge f6b4b52, artifact dpl_GWDbbs1isW78SJLc7N5BokUJsbSh promoted without rebuild. Full 123-case suite, 33 native scripts in both copies, 11 compatibility cases, seven immutable-asset cases and genuine GET-only production smoke passed. See VERIFICATION-ocr-navigation-2026-10-16.md.
