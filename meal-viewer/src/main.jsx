@@ -14,6 +14,7 @@ import './ui-ten.css';
 import './ui-clarity.css';
 import './reading-polish.css';
 import './operating-feedback.css';
+import './ocr-navigation.css';
 
 const redirect = rootRedirectTarget(window.location.pathname, window.location.search);
 if (window.location.pathname === '/newform') window.location.replace('/dashboard?tab=create');

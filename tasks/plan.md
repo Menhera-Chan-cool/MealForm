@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## OCR navigation — selected 4, 6, 8; 2026-10-16
+
+Approved map CAPABILITY-MAP-ocr-navigation.md and its three module specs. Build image ordering with provenance guards, reuse loaded warning snapshots in Overview, then add read-only live OCR field find/navigation. Native and actual-entrypoint RED/GREEN per slice. Preserve source identity, draft/Undo, role and create/delete guards. Full app/preview/compatibility verification and bounded visual review precede checked immutable artifact, pinned PR/main merge, production promotion, GET-only live smoke and release docs. No new dependency or service calls.
+
 ## Operating feedback — seven selected capabilities, 2026-10-16
 
 Published through PR #14: source 08728ae, merge 4b23a80; verified immutable artifact dpl_E2wXb68gLFEgv7o5HGJz5WwTj7k5 promoted unchanged. All seven capabilities, full 115-case suite, 32 native scripts in both copies, 11 compatibility cases and genuine readonly production smoke passed. See VERIFICATION-operating-feedback-2026-10-16.md.

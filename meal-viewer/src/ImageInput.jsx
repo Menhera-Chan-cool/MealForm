@@ -1,11 +1,20 @@
-import {useEffect,useId,useMemo,useRef} from 'react';
+import {useEffect,useId,useMemo,useRef,useState} from 'react';
+import {ArrowUp,ArrowDown,GripVertical} from 'lucide-react';
 import {readMenuImages,IMAGE_LIMITS} from './image-import.mjs';
 import {imageBudget,decimalMB} from './operating-ui.mjs';
+import {moveImage} from './ocr-navigation.mjs';
 
-export default function ImageInput({images,activeImage,disabled,onImages,onChoose,onRemove,onBusy,onMessage}){
+export default function ImageInput({images,activeImage,disabled,onImages,onChoose,onRemove,onBusy,onMessage,onReorder,reorderBlocked=''}){
   const input=useRef(null),append=useRef(false);
+  const list=useRef(null),drag=useRef(null),[dropTarget,setDropTarget]=useState(null);
   const limitsId=useId();
+  const orderId=useId(),canOrder=Boolean(onReorder)&&!disabled&&!reorderBlocked;
   const budget=useMemo(()=>imageBudget(images),[images]);
+  function reorder(from,to){
+    if(!canOrder)return;const next=moveImage(images,from,to);if(next===images)return;
+    onReorder(next);onMessage(`Đã chuyển ảnh ${from+1} tới vị trí ${to+1}. Chưa chạy OCR.`,'info');
+    requestAnimationFrame(()=>list.current?.querySelector(`[data-source-index="${to}"] [data-image-choice]`)?.focus({preventScroll:true}));
+  }
   async function ingest(files,add){
     if(disabled||!files.length)return;
     onBusy(true);
@@ -33,6 +42,17 @@ export default function ImageInput({images,activeImage,disabled,onImages,onChoos
     </button>
     <div className="image-budget"><p role="status" aria-label="Dung lượng bộ ảnh">{budget?`${budget.count}/${IMAGE_LIMITS.count} ảnh · ${decimalMB(budget.bytes)}/${decimalMB(IMAGE_LIMITS.bytes)} MB`:'Chưa đọc được dung lượng bộ ảnh.'}</p>{budget&&<><progress max={IMAGE_LIMITS.bytes} value={budget.bytes} aria-label="Dung lượng ảnh đã dùng"/><small>{budget.remainingSlots&&budget.remainingBytes?`Còn ${budget.remainingSlots} ảnh · ${decimalMB(budget.remainingBytes)} MB`:'Đã đạt hạn mức. Bỏ bớt ảnh hoặc chọn lại bộ ảnh để thay thế.'}</small></>}</div>
     <div className="image-upload-footer"><small>Ctrl/⌘ V để dán ảnh. Chọn lại sẽ thay bộ ảnh; kéo thả hoặc Thêm ảnh giữ ảnh hiện có.</small>{images.length>0&&<button type="button" className="secondary" disabled={disabled||!budget||!budget.remainingSlots||!budget.remainingBytes} onClick={()=>{append.current=true;input.current.click();}}>Thêm ảnh</button>}</div>
-    <div className="image-source-list">{images.map((entry,i)=><div className="image-source" key={i}><button type="button" className="secondary" aria-pressed={activeImage===entry.dataUrl} disabled={disabled} onClick={()=>onChoose(entry)}><img src={entry.dataUrl} alt=""/><span>Ảnh {i+1}: {entry.name}</span></button><button type="button" className="secondary" aria-label={`Bỏ ảnh ${i+1}`} disabled={disabled} onClick={()=>void onRemove(i)}>Bỏ ảnh</button></div>)}</div>
+    {images.length>1&&<p id={orderId} className="image-order-hint">{reorderBlocked||'Sắp xếp trước OCR: kéo tay nắm hoặc dùng nút Lên/Xuống. Không đổi ảnh đang xem.'}</p>}
+    <div className="image-source-list" ref={list}>{images.map((entry,i)=><div className="image-source" key={i} data-source-index={i} data-drop-target={dropTarget===i}
+      onDragOver={event=>{if(!canOrder||drag.current?.images!==images)return;event.preventDefault();event.dataTransfer.dropEffect='move';setDropTarget(i);}}
+      onDragLeave={event=>{if(!(event.relatedTarget instanceof Node)||!event.currentTarget.contains(event.relatedTarget))setDropTarget(null);}}
+      onDrop={event=>{if(!drag.current)return;event.preventDefault();event.stopPropagation();const current=drag.current;drag.current=null;setDropTarget(null);if(current.images===images&&event.dataTransfer.getData('application/x-mealform-image-index')===String(current.from))reorder(current.from,i);}}>
+      <button type="button" data-image-choice className="secondary" aria-pressed={activeImage===entry.dataUrl} disabled={disabled} onClick={()=>onChoose(entry)}><img src={entry.dataUrl} alt="" draggable="false"/><span>Ảnh {i+1}: {entry.name}</span></button>
+      {images.length>1&&<div className="image-order-actions"><button type="button" className="secondary image-drag-handle" aria-label={`Kéo để đổi vị trí ảnh ${i+1}`} aria-describedby={orderId} disabled={!canOrder} draggable={canOrder}
+        onDragStart={event=>{if(!canOrder){event.preventDefault();return;}drag.current={images,from:i};event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('application/x-mealform-image-index',String(i));}}
+        onDragEnd={()=>{drag.current=null;setDropTarget(null);}} onKeyDown={event=>{if(event.key==='ArrowUp'||event.key==='ArrowDown'){event.preventDefault();reorder(i,i+(event.key==='ArrowUp'?-1:1));}}}><GripVertical size={18} aria-hidden="true"/></button>
+        <button type="button" className="secondary" aria-label={`Di chuyển ảnh ${i+1} lên`} aria-describedby={orderId} disabled={!canOrder||i===0} onClick={()=>reorder(i,i-1)}><ArrowUp size={16} aria-hidden="true"/>Lên</button><button type="button" className="secondary" aria-label={`Di chuyển ảnh ${i+1} xuống`} aria-describedby={orderId} disabled={!canOrder||i===images.length-1} onClick={()=>reorder(i,i+1)}><ArrowDown size={16} aria-hidden="true"/>Xuống</button></div>}
+      <button type="button" className="secondary" aria-label={`Bỏ ảnh ${i+1}`} disabled={disabled} onClick={()=>void onRemove(i)}>Bỏ ảnh</button>
+    </div>)}</div>
   </div>;
 }

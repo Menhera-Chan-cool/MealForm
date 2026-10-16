@@ -1,5 +1,12 @@
 # Admin upgrades
 
+## OCR navigation — 2026-10-16
+
+- [x] ocr-image-order: identity-preserving drag and Up/Down; draft/preview/budget; retained OCR guards.
+- [x] loaded-attention: same-week loaded snapshots only, read-time context, explicit existing navigation, no fetch.
+- [x] ocr-find: real IDs, accent folding, reviewed-day reopening, live edits/Undo, no submit or content mutation.
+- [ ] Full verification, checked artifact, PR/main merge, production, readonly live smoke and documentation.
+
 ## Operating feedback — 2026-10-16
 
 - [x] image-budget: accepted/restored/removed/rejected images, actual bytes/slots, no OCR.
