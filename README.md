@@ -1,5 +1,11 @@
 # MealForm
 
+## Tìm kiếm ổn định, lọc quyền Gmail và nhãn ảnh — 16/10/2026
+
+Ô tìm kiếm giữ kết quả cũ trong lúc ghép dấu tiếng Việt rồi áp dụng chữ hoàn chỉnh; không nhảy kết quả OCR/lệnh nhanh khi Enter còn thuộc bộ gõ. Mục Quyền Gmail có tìm email và lọc Xem/OCR/Xóa trên danh sách đã tải, không tự chỉnh quyền. Ảnh thực đơn có nhãn phụ tối đa 100 ký tự dưới tên tệp gốc; nhãn đi cùng ảnh khi sắp xếp và lưu trong nháp riêng của tài khoản trên trình duyệt, không gửi lên OCR.
+
+Phạm vi: CAPABILITY-MAP-ime-access-labels.md. Kết quả kiểm thử và tình trạng phát hành: VERIFICATION-ime-access-labels-2026-10-16.md. Không đổi API, Apps Script, quyền hoặc dữ liệu Form/Sheet.
+
 ## Điều hướng OCR — các mục 4, 6, 8; 16/10/2026
 
 Sắp xếp nguồn ảnh trước khi có kết quả OCR bằng kéo hoặc Lên/Xuống, giữ ảnh đang xem và nháp; Tổng quan có “Cần xử lý” từ đúng kết quả đã tải/đúng tuần, không kiểm tra thêm; tìm trong tiêu đề/ngày/món OCR không cần gõ dấu, đánh dấu và chuyển đúng ô, hỗ trợ ngày đã thu gọn và Undo. Không tự thay nội dung, chạy OCR hay tạo Form. Phạm vi và bằng chứng: CAPABILITY-MAP-ocr-navigation.md, VERIFICATION-ocr-navigation-2026-10-16.md.

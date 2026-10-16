@@ -4,7 +4,7 @@ export function normalizeOcrDraft(value, accountId) {
   let images;
   if(value.images!==undefined){
     if(!Array.isArray(value.images)||!value.images.length||value.images.length>5)return null;
-    try{images=value.images.map(entry=>{if(typeof entry.name!=='string'||entry.name.length>500)throw Error();imageDataBytes(entry.dataUrl);return{dataUrl:entry.dataUrl,name:entry.name};});if(images.reduce((sum,image)=>sum+imageDataBytes(image.dataUrl),0)>2800000||!images.some(entry=>entry.dataUrl===value.image))return null;}catch{return null;}
+    try{images=value.images.map(entry=>{if(typeof entry.name!=='string'||entry.name.length>500||entry.label!==undefined&&(typeof entry.label!=='string'||entry.label.length>100))throw Error();imageDataBytes(entry.dataUrl);return{dataUrl:entry.dataUrl,name:entry.name,...(entry.label!==undefined?{label:entry.label}:{})};});if(images.reduce((sum,image)=>sum+imageDataBytes(image.dataUrl),0)>2800000||!images.some(entry=>entry.dataUrl===value.image))return null;}catch{return null;}
   }
   if (value.menu) {
     const days = value.menu.days;

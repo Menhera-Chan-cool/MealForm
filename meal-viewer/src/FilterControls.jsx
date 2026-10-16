@@ -6,16 +6,18 @@ import SearchHighlight from './SearchHighlight.jsx';
 import {X} from 'lucide-react';
 import useVisualViewport from './useVisualViewport.js';
 import {calendarDayChoices,isClosedDay} from './reading-ui.mjs';
+import useComposedSearch from './useComposedSearch.js';
 
 export function ComboSelect({ id, label, value, values, onChange, onSelect, disabled = false, placeholder, searchable = true, includeAll = true, className = '',optionGroups={},disabledOptions=[] }) {
   const root = useRef(null);
   const { open, closing, active, show, hide, toggle } = useDisclosureAnimation();
   const [query, setQuery] = useState('');
   const inputValue = searchable ? onSelect && open ? query : value === ALL ? '' : value : value;
+  const search=useComposedSearch(inputValue,event=>{if(onSelect)setQuery(event.target.value);else onChange(event.target.value.trim()||ALL);show();},disabled);
   const searchQuery = onSelect ? query : inputValue;
   const matches = useMemo(() => searchable ? matchOptions(values, searchQuery) : values, [values, searchQuery, searchable]);
   const visibleItems = Math.min(Math.max(matches.length + (includeAll ? 1 : 0), 2), 5);
-  const canClear=searchable&&Boolean(onSelect?open&&query:inputValue);
+  const canClear=searchable&&(!onSelect||open)&&Boolean(search.value);
 
   useEffect(() => {
     if (disabled) hide();
@@ -29,6 +31,7 @@ export function ComboSelect({ id, label, value, values, onChange, onSelect, disa
 
   function choose(next) {
     if(disabledOptions.includes(next))return;
+    search.reset();
     (onSelect || onChange)(next);
     hide();
   }
@@ -43,10 +46,11 @@ export function ComboSelect({ id, label, value, values, onChange, onSelect, disa
         id={id} type={searchable ? 'search' : 'text'} role="combobox" aria-label={label}
         aria-autocomplete={searchable ? 'list' : 'none'} readOnly={!searchable}
         aria-expanded={open} aria-controls={`${id}-options`}
-        value={inputValue} disabled={disabled} placeholder={placeholder || (searchable ? id === 'name' ? 'Tìm nhanh tên…' : ALL : undefined)} autoComplete="off"
+        value={search.value} disabled={disabled} placeholder={placeholder || (searchable ? id === 'name' ? 'Tìm nhanh tên…' : ALL : undefined)} autoComplete="off"
         onFocus={showOptions} onClick={showOptions}
-        onChange={searchable ? event => { if (onSelect) setQuery(event.target.value); else onChange(event.target.value.trim() || ALL); show(); } : undefined}
+        onChange={searchable?search.onChange:undefined} onCompositionStart={search.onCompositionStart} onCompositionEnd={search.onCompositionEnd} onBlur={search.onBlur}
         onKeyDown={event => {
+          if(search.isComposing(event))return;
           if (event.key === 'Escape') { event.preventDefault(); hide(); }
           if (event.key === 'ArrowDown' && open) {
             const first = root.current?.querySelector('.combo-option:not(:disabled)');
@@ -54,7 +58,7 @@ export function ComboSelect({ id, label, value, values, onChange, onSelect, disa
           }
         }}
       />
-      {canClear&&<button type="button" className="secondary search-clear combo-clear" disabled={disabled} aria-label={`Xóa tìm kiếm ${label}`} onClick={()=>{if(onSelect)setQuery('');else onChange(ALL);root.current?.querySelector('input')?.focus();}}><X size={16} aria-hidden="true"/></button>}
+      {canClear&&<button type="button" className="secondary search-clear combo-clear" disabled={disabled} aria-label={`Xóa tìm kiếm ${label}`} onMouseDown={event=>event.preventDefault()} onClick={()=>{search.reset();if(onSelect)setQuery('');else onChange(ALL);root.current?.querySelector('input')?.focus();}}><X size={16} aria-hidden="true"/></button>}
       <button className="combo-toggle" type="button" disabled={disabled} aria-expanded={open} aria-controls={`${id}-options`} aria-label={`${open ? 'Đóng' : 'Mở'} danh sách ${label.toLocaleLowerCase()}`} onClick={() => {
         const nextOpen = !open;
         if (nextOpen && onSelect) setQuery('');

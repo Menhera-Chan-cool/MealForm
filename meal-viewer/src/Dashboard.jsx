@@ -131,6 +131,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [auditLimit, setAuditLimit] = useState(50);
   const highlightTimer = useRef(null);
   const [email, setEmail] = useState('');
+  const [memberQuery,setMemberQuery]=useState(''),[memberPermission,setMemberPermission]=useState('');
+  const members=overview.members||(overview.allowedEmails||[]).map(email=>({email,permissions:{view:true,create:true,manageResponses:true}}));
+  const visibleMembers=members.filter(member=>foldSearchText(member.email).includes(foldSearchText(memberQuery).trim())&&(!memberPermission||member.permissions[memberPermission]===true));
   const [file, setFile] = useState(null);
   const [image, setImage] = useState('');
   const [images,setImages]=useState([]);
@@ -653,7 +656,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <div className="field-label-row"><h2>Tạo tuần từ ảnh thực đơn</h2><FieldHelp label="OCR">OCR đọc chữ và món từ ảnh. Kết quả có thể sai; hãy đối chiếu ảnh, sửa ngày và món trước khi bấm Tạo Form và Sheet. Đọc ảnh không tự tạo tuần.</FieldHelp></div>
       <OcrProgress menu={menu} state={creationState}/>
       <div className="draft-toolbar"><p role="status">{draft.status || 'Nháp lưu riêng trên thiết bị này, không đồng bộ giữa các máy.'}</p><ExplainedButton type="button" className="secondary" disabled={busy || !draft.ready} reason={busy?'Đang xử lý yêu cầu; không xóa nháp trong lúc này.':'Chưa đọc xong nháp trên thiết bị; hãy chờ.'} onClick={()=>void clearDraft()}>Xóa nháp</ExplainedButton></div>
-      <ImageInput onReorder={next=>{if(!busy&&draft.ready&&!imageOrderBlocked)setImages(next);}} reorderBlocked={imageOrderBlocked} images={images} activeImage={image} disabled={busy||!draft.ready} onBusy={setBusy} onMessage={setMessage} onChoose={chooseImage} onRemove={removeImage} onImages={(next,append)=>{setCreationState('idle');setImages(next);chooseImage(next[0]);if(!append){setMenu(null);setAllowMissing(false);}setMergeBase(null);}}/>
+      <ImageInput onLabel={(index,label)=>{if(!busy&&draft.ready&&!mergeBase&&!regionBase)setImages(current=>current.map((entry,i)=>i===index?{...entry,label}:entry));}} onReorder={next=>{if(!busy&&draft.ready&&!imageOrderBlocked)setImages(next);}} reorderBlocked={imageOrderBlocked} images={images} activeImage={image} disabled={busy||!draft.ready} onBusy={setBusy} onMessage={setMessage} onChoose={chooseImage} onRemove={removeImage} onImages={(next,append)=>{setCreationState('idle');setImages(next);chooseImage(next[0]);if(!append){setMenu(null);setAllowMissing(false);}setMergeBase(null);}}/>
       {image && file?.name && !file.type && <p className="menu-image-hint">Ảnh đã khôi phục: {file.name}. Không cần chọn lại để tiếp tục OCR hoặc sửa món.</p>}
       <ExplainedButton label="Đọc thực đơn" disabled={busy || !image} reason={busy?'Đang xử lý yêu cầu khác; hãy chờ hoàn tất.':'Chọn ảnh thực đơn trước khi đọc OCR.'} onClick={() => void runOcr()}>{busy ? 'Đang xử lý…' : 'Đọc thực đơn'}</ExplainedButton>
       {image&&(menu||menuHistory.past.length>0||menuHistory.future.length>0)&&<div className="menu-history-tools"><ExplainedButton type="button" className="secondary" disabled={busy || !menuHistory.past.length} reason={busy?'Đang xử lý yêu cầu.':'Chưa có bước sửa trước đó để hoàn tác trong lần mở này.'} onClick={() => moveMenuHistory('undo')}>Hoàn tác</ExplainedButton><ExplainedButton type="button" className="secondary" disabled={busy || !menuHistory.future.length} reason={busy?'Đang xử lý yêu cầu.':'Chưa có bước đã hoàn tác để làm lại.'} onClick={() => moveMenuHistory('redo')}>Làm lại</ExplainedButton><small>Ctrl/⌘ Z · Ctrl/⌘ Shift Z. Lịch sử sửa chỉ giữ trong lần mở này.</small></div>}
@@ -779,7 +782,13 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         <label>Thêm Gmail<input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="ten@gmail.com" required /></label>
         <button disabled={busy}>Cấp quyền</button>
       </form>
-      <ul className="dashboard-email-list">{(overview.members || (overview.allowedEmails || []).map(email => ({ email, permissions: { view: true, create: true, manageResponses: true } }))).map(member => <li key={member.email}>
+      <div className="member-discovery" role="search" aria-label="Tìm và lọc quyền Gmail">
+        <label>Tìm Gmail đã cấp quyền<SearchInput label="Tìm Gmail đã cấp quyền" value={memberQuery} maxLength={254} placeholder="Nhập email cần tìm" onChange={event=>setMemberQuery(event.target.value)} onClear={()=>setMemberQuery('')}/></label>
+        <label>Lọc theo quyền<select aria-label="Lọc theo quyền" value={memberPermission} onChange={event=>setMemberPermission(event.target.value)}><option value="">Tất cả quyền</option><option value="view">Có quyền Xem</option><option value="create">Có quyền OCR / tạo tuần</option><option value="manageResponses">Có quyền Xóa / khôi phục</option></select></label>
+      </div>
+      <p className="member-discovery-result" role="status" aria-label="Kết quả lọc quyền Gmail">Hiện {visibleMembers.length}/{members.length} tài khoản đã tải. Chỉ lọc hiển thị, không đổi quyền.</p>
+      {!members.length?<p>Chưa có Gmail được cấp quyền.</p>:!visibleMembers.length&&<p>Không có Gmail khớp bộ lọc. Hãy xóa từ khóa hoặc chọn Tất cả quyền.</p>}
+      <ul className="dashboard-email-list">{visibleMembers.map(member => <li key={member.email}>
         <strong>{member.email}</strong><div className="member-permissions"><span>{member.permissions.view ? '✓ Xem' : 'Quyền lỗi'}</span>{[['create', 'OCR / tạo tuần'], ['manageResponses', 'Xóa / khôi phục']].map(([key, label]) => <label key={key}><input type="checkbox" checked={member.permissions[key] === true} disabled={busy} onChange={event => void changeAllowedEmail('set-permissions', member.email, { ...member.permissions, view: true, [key]: event.target.checked })} /> {label}</label>)}</div>
         <button className="danger" disabled={busy} onClick={() => { if (window.confirm(`Gỡ quyền dashboard của ${member.email}?`)) void changeAllowedEmail('remove-email', member.email); }}>Gỡ quyền</button>
       </li>)}</ul>
