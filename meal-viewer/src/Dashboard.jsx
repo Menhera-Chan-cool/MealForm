@@ -61,6 +61,11 @@ import {brandFieldErrors} from './operate-accessibility.mjs';
 import CreationReceipt from './CreationReceipt.jsx';
 import useDashboardHistory from './useDashboardHistory.js';
 import {readDashboardLocation} from './dashboard-navigation.mjs';
+import DraftInspection from './DraftInspection.jsx';
+import DraftTransfer from './DraftTransfer.jsx';
+import SessionFeedback from './SessionFeedback.jsx';
+import ContextGuide from './ContextGuide.jsx';
+import ConnectionNotice,{useOnlineState} from './ConnectionNotice.jsx';
 
 const MEAL_SLOTS = [0, 1, 2];
 
@@ -99,8 +104,10 @@ function historyActionLabel(action) {
 
 function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const branding = useBranding();
+  const online=useOnlineState();
   const {gate:reads,pending:readPending}=useReadWait();
   const request = async (url, options) => {
+    if(!online)throw new TypeError('Thiết bị đang báo ngoại tuyến. Bản đã tải chỉ đọc; không có thao tác nào được xếp hàng để gửi lại.');
     if(options?.method&&options.method!=='GET'){warningRevision.current++;setHealth(null);setReconciliation(null);}
     const ticket=(!options?.method||options.method==='GET')?reads.begin():null;
     try {
@@ -146,9 +153,14 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [mergeBase,setMergeBase]=useState(null);
   const [menuHistory, dispatchMenu] = useReducer(menuHistoryReducer, undefined, () => menuHistoryReducer(undefined, { type: 'reset', value: null }));
   const menu = menuHistory.present;
+  const [originalMenu,setOriginalMenu]=useState(null),[draftSource,setDraftSource]=useState('');
+  const [editorFocused,setEditorFocused]=useState(false),focusScroll=useRef(null);
+  function toggleEditorFocus(){const next=!editorFocused;if(next)focusScroll.current={top:window.scrollY,left:window.scrollX};setEditorFocused(next);requestAnimationFrame(()=>{if(next)document.querySelector('.editor-focus-tools')?.scrollIntoView({block:'start'});else if(focusScroll.current)window.scrollTo({...focusScroll.current,behavior:'instant'});});}
+  useEffect(()=>{if(tab!=='create')setEditorFocused(false);},[tab]);
+  useEffect(()=>{const escape=event=>{if(editorFocused&&event.key==='Escape'&&!document.querySelector('dialog:modal,:popover-open')){event.preventDefault();toggleEditorFocus();}};document.addEventListener('keydown',escape);return()=>document.removeEventListener('keydown',escape);},[editorFocused]);
   const [reviewEpoch,setReviewEpoch]=useState(0);
   const [ocrQuery,setOcrQuery]=useState(''),[ocrActive,setOcrActive]=useState('');
-  const setMenu = value => {setReviewEpoch(epoch=>epoch+1);setOcrQuery('');setOcrActive('');dispatchMenu({ type: 'reset', value });};
+  const setMenu = value => {if(!value){setOriginalMenu(null);setDraftSource('');}setReviewEpoch(epoch=>epoch+1);setOcrQuery('');setOcrActive('');dispatchMenu({ type: 'reset', value });};
   const [creationState,setCreationState]=useState('idle');
   const [createdWeek,setCreatedWeek]=useState(null);
   const [ocrAttempt,setOcrAttempt]=useState(0),ocrWorkspace=useRef(null);
@@ -158,6 +170,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [message, updateMessage] = useState('');
   const [failure, setFailure] = useState(null);
   const [toast, setToast] = useState(null);
+  const [sessionEvents,setSessionEvents]=useState([]),feedbackId=useRef(0);
   const [pendingRow, setPendingRow] = useState(null);
   const weekRequest = useRef(0);
   const weekLoadTimer=useRef(null);
@@ -167,7 +180,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   function setMessage(text, kind) {
     updateMessage(text);
     if (!text || kind === 'success' || /^Đã |^Apps Script đã/.test(text)) setFailure(null);
-    if (text) setToast({ message: text, kind: kind || (/^Đã |^Apps Script đã/.test(text) ? 'success' : /^Đang /.test(text) ? 'info' : 'error') });
+    if (text) {const severity=kind||(/^Đã |^Apps Script đã/.test(text)?'success':/^Đang /.test(text)?'info':'error');setToast({message:text,kind:severity});if(!/^Đang /.test(text))setSessionEvents(current=>[{id:++feedbackId.current,at:Date.now(),context:tabTitle,message:severity==='error'?'Thao tác chưa hoàn tất. Kiểm tra thông báo đang hiện và dữ liệu trước khi thử lại; không tự gửi lại thao tác.':text.slice(0,300)},...current].slice(0,20));}
   }
   const [authorizationUrl, setAuthorizationUrl] = useState('');
   const [health, setHealth] = useState(null);
@@ -200,8 +213,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
   const selectedWeek = (overview.weeks || []).find(week => week.weekKey === weekKey);
   const permissions = overview.permissions || { view: true, create: true, manageResponses: true };
-  const draft = useOcrDraft(overview.accountId, permissions.create === true, { image, filename: file?.name || '', images:images.length?images:undefined, menu }, saved => {
-    setImage(saved.image); setFile({ name: saved.filename }); setMenu(saved.menu); setAllowMissing(false);
+  const draft = useOcrDraft(overview.accountId, permissions.create === true, { image, filename: file?.name || '', images:images.length?images:undefined, menu,originalMenu,source:draftSource }, saved => {
+    setImage(saved.image); setFile({ name: saved.filename }); setMenu(saved.menu);setOriginalMenu(saved.originalMenu||null);setDraftSource(saved.source||''); setAllowMissing(false);
     setImages(saved.images||(saved.image?[{dataUrl:saved.image,name:saved.filename||'Ảnh nháp'}]:[]));
   });
 
@@ -212,7 +225,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   function navigate(nextTab=tab,nextWeek=weekKey,recordHistory=true,restored){
     if(nextTab===tab&&nextWeek===weekKey&&!restored)return true;
     if(busy||document.querySelector('dialog:modal:not(.quick-dialog)')||!leaveDrafts())return false;
-    viewState.save();if(recordHistory)navigationHistory.push(nextTab,nextWeek);setTabState(nextTab);
+    viewState.save();if(nextTab!==tab)setQuickResponse(null);if(recordHistory)navigationHistory.push(nextTab,nextWeek);setTabState(nextTab);
     if(restored){viewState.restore(restored.view,nextWeek);setAuditFilters(restored.auditFilters);setAuditLimit(restored.auditLimit);}
     if(nextWeek!==weekKey){setQuickResponse(null);setWeekKey(nextWeek);}return true;
   }
@@ -241,7 +254,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   function moveOcrMatch(direction){if(busy||!ocrMatches.length)return;const index=ocrIndex<0?(direction>0?0:ocrMatches.length-1):(ocrIndex+direction+ocrMatches.length)%ocrMatches.length;setOcrActive(ocrMatches[index].id);jumpToReview(ocrMatches[index].id);}
   function ocrFieldClass(id,existing=''){return [existing,ocrMatches.some(hit=>hit.id===id)?'ocr-search-hit':'',ocrIndex>=0&&ocrActive===id?'ocr-search-current':''].filter(Boolean).join(' ');}
   function jumpToReview(id){
-    if(busy)return;const target=document.getElementById(id);if(!target)return;
+    if(busy)return;const target=document.getElementById(id)||(/^ocr-meal-(\d+)-/.test(id)?document.getElementById('ocr-closed-'+id.split('-')[2]):null);if(!target)return;
     const focus=()=>{target.scrollIntoView({block:'center'});target.focus({preventScroll:true});};
     if(ocrWorkspace.current)ocrWorkspace.current.showEditor(focus);else requestAnimationFrame(focus);
   }
@@ -249,7 +262,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const existingFormUrl = mealRegistrationTarget(existingWeek).formUrl;
   const existingSheetUrl = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[A-Za-z0-9_-]+(?:\/|$)/.test(existingWeek?.spreadsheetUrl || '') ? existingWeek.spreadsheetUrl : '';
   const displayedWeek = weekData?.week?.weekKey === weekKey ? weekData : null;
-  const weekReady = weekVerified && Boolean(displayedWeek) && (!displayedWeek.page || (displayedWeek.page.query === query && displayedWeek.page.sort === responseSort));
+  const weekReady = online && weekVerified && Boolean(displayedWeek) && (!displayedWeek.page || (displayedWeek.page.query === query && displayedWeek.page.sort === responseSort));
   const currentQuickResponse = quickResponse && displayedWeek?.responses.find(response => response.responseId === quickResponse.responseId);
   const visibleResponses = (displayedWeek?.responses || []).filter(response =>
     foldSearchText(response.name).includes(foldSearchText(query))).slice().sort((left, right) => {
@@ -327,9 +340,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       const previousIds = new Set(keep ? previous.responseIds || [] : []);
       setHighlightIds(manual && keep ? (result.responseIds || []).filter(id => !previousIds.has(id)) : []);
       if (manual) highlightTimer.current = setTimeout(() => setHighlightIds([]), 8000);
-      setWeekVerified(true); setCacheTime(0);
+      setWeekVerified(true); setCacheTime(Date.now());
       writeDashboardCache(overview.accountId, key, result);
-      setMessage('');
+      if(manual)setMessage('Đã tải lại dữ liệu của tuần đang chọn.','success');else setMessage('');
       return true;
     } catch (error) { if (generation === weekRequest.current&&error.name!=='AbortError') setMessage(error.message); return false; }
     finally { if (generation === weekRequest.current) setWeekLoading(false); }
@@ -408,6 +421,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   useEffect(() => {if(!brandHasEdits(brandDraft,brandSaved)){setBrandDraft(branding);setBrandSaved(branding);}}, [branding]);
 
   async function controlForm(mode, reason) {
+    if(!online){setMessage('Thiết bị đang báo ngoại tuyến; không gửi thao tác.');return;}
     if (overview.role !== 'owner' || !selectedWeek) return;
     const lockAt = mode === 'close' ? selectedWeek.lockAt : `${deadline}:00+07:00`;
     if (mode !== 'close' && deadlineIssue) { setFormAttempt(value=>value+1);setMessage(deadlineIssue); return; }
@@ -438,6 +452,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
 
   async function saveBranding(event,proposal) {
+    if(!online){event?.preventDefault?.();setMessage('Thiết bị đang báo ngoại tuyến; không gửi thao tác.');return;}
     event?.preventDefault();
     if (overview.role !== 'owner'||busy) return;
     if(!proposal&&brandErrors.length){setBrandAttempt(value=>value+1);return;}
@@ -488,6 +503,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
 
   async function runOcr() {
+    if(!online){setMessage('Thiết bị đang báo ngoại tuyến; không gửi thao tác.');return;}
     if (!image) { setMessage('Hãy chọn ảnh thực đơn trước.'); return; }
     setCreationState('idle');setBusy(true); setMessage('Đang đọc ảnh thực đơn…');
     try {
@@ -502,7 +518,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         body: JSON.stringify({ action: 'ocr', image })
       });
       const days = (result.days || []).map(day => ({ ...day, meals: [...(day.meals || [])].slice(0, 3) }));
-      setMenu({ title: result.title || 'Thực đơn bán trú', days });
+      const next={title:result.title||'Thực đơn bán trú',days};setMenu(next);setOriginalMenu(next);setDraftSource('');
       setAllowMissing(false);
       setMessage('OCR xong. Hãy rà soát tên món và ngày trước khi tạo tuần.');
     } catch (error) { setMessage(error.message); }
@@ -527,6 +543,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
 
   async function createWeek(event) {
+    if(!online){event?.preventDefault?.();setMessage('Thiết bị đang báo ngoại tuyến; không gửi thao tác.');return;}
     event.preventDefault();
     if (existingWeek) { setMessage('Tuần này đã có Form; dùng liên kết hiện có hoặc tải lại sổ tuần. Không ghi đè.', 'info'); return; }
     if (!validation.canCreate) {
@@ -559,6 +576,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
 
   async function deleteResponse(response, reason) {
+    if(!online){setMessage('Thiết bị đang báo ngoại tuyến; không gửi thao tác.');return;}
     const focusIndex=visibleResponses.findIndex(item=>item.responseId===response.responseId);
     const neighbor=visibleResponses[focusIndex+1]||visibleResponses[focusIndex-1];
     const time = formatTime(response.timestamp);
@@ -586,6 +604,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
 
   async function restoreResponse(event) {
+    if(!online){event?.preventDefault?.();setMessage('Thiết bị đang báo ngoại tuyến; không gửi thao tác.');return;}
     if (!weekReady || !event.restorable || !event.entryId || restoreAttempts.has(event.entryId)) return;
     const originalTime = formatTime(event.originalTimestamp);
     if (!window.confirm(`Khôi phục lượt của ${event.name} (gửi gốc lúc ${originalTime})? Lượt sẽ được tạo mới trong Form, nên thời điểm gửi trong Form sẽ là thời điểm hiện tại.`)) return;
@@ -605,6 +624,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
 
   async function changeAllowedEmail(action, address = email, memberPermissions) {
+    if(!online){setMessage('Thiết bị đang báo ngoại tuyến; không gửi thao tác.');return;}
     const target = address.trim();
     if (!target) return;
     setBusy(true); setMessage('Đang cập nhật quyền…');
@@ -650,7 +670,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
 
   function weekPicker() {
-    return <DashboardWeekPicker weeks={overview.weeks || []} value={weekKey} disabled={busy || healthBusy} onChange={selectWeek} />;
+    return <DashboardWeekPicker weeks={overview.weeks || []} value={weekKey} disabled={busy || !online || healthBusy} onChange={selectWeek} />;
   }
 
   async function signOut(){
@@ -662,23 +682,26 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
           finally { setSigningOut(false); }
 
   }
+  useEffect(()=>{if(!online){setWeekVerified(false);warningRevision.current++;setHealth(null);setReconciliation(null);}},[online]);
   const missingScriptPermission = isAppsScriptPermissionError(message);
-  return <DashboardLayout warnings={warnings} tab={tab} onNavigate={setTab} role={overview.role} permissions={permissions} email={overview.email} schoolName={branding.schoolName} busy={busy||signingOut} onSignOut={signOut}><main id="dashboard-content" className="dashboard-shell meal-ui" data-density={viewState.view.density}>
+  return <DashboardLayout editorFocused={editorFocused} warnings={warnings} tab={tab} onNavigate={setTab} role={overview.role} permissions={permissions} email={overview.email} schoolName={branding.schoolName} busy={busy||signingOut} onSignOut={signOut}><main id="dashboard-content" className="dashboard-shell meal-ui" data-density={viewState.view.density}>
     <header className="dashboard-header">
       <div><h1>Dashboard quản trị</h1><p className="sub">Quản lý tuần thực đơn, tạo Form từ ảnh và xử lý lượt gửi.</p></div>
       <DisplayPreferencesSlot/>
     </header>
     <div className="dashboard-account" aria-label="Tài khoản đang đăng nhập"><strong>{overview.email || 'Đang xác minh Gmail…'}</strong><span>{accountRoleLabel({ ...overview, permissions })}</span><small>{permissions.create ? 'OCR/tạo tuần' : 'Không tạo tuần'} · {permissions.manageResponses ? 'Xóa/khôi phục' : 'Không xóa lượt gửi'}</small></div>
-    <VersionNotice disabled={busy || signingOut || Boolean(regionBase) || Boolean(mergeBase) || Boolean(confirmation)} beforeReload={async()=>{if(!leaveDrafts())return false;viewState.save();await draft.flush();}} />
-    {message && <div className={`dashboard-message ${missingScriptPermission || /không|lỗi|chưa/i.test(message) ? 'error' : ''}`} role={missingScriptPermission?'alert':'status'} aria-live="polite">{missingScriptPermission&&<strong>Thiếu quyền Apps Script. </strong>}{message}{missingScriptPermission&&(overview.role==='owner'?<button className="secondary" type="button" disabled={busy} onClick={()=>void authorizeScript()}>Cấp quyền Apps Script</button>:<span> Liên hệ chủ sở hữu để cấp quyền.</span>)}{authorizationUrl && <> <ExternalLink className="action-link" href={authorizationUrl}>Mở trang cấp quyền Google</ExternalLink></>}</div>}
+    <ConnectionNotice online={online} savedAt={cacheTime} hasData={Boolean(displayedWeek)}/>
+    <div className="dashboard-assist-tools"><ContextGuide tab={tab} disabled={busy||Boolean(confirmation)||Boolean(regionBase)||Boolean(mergeBase)}/><SessionFeedback entries={sessionEvents} onClear={()=>setSessionEvents([])}/></div>
+    <VersionNotice disabled={busy || !online || signingOut || Boolean(regionBase) || Boolean(mergeBase) || Boolean(confirmation)} beforeReload={async()=>{if(!leaveDrafts())return false;viewState.save();await draft.flush();}} />
+    {message && <div className={`dashboard-message ${missingScriptPermission || /không|lỗi|chưa/i.test(message) ? 'error' : ''}`} role={missingScriptPermission?'alert':'status'} aria-live="polite">{missingScriptPermission&&<strong>Thiếu quyền Apps Script. </strong>}{message}{missingScriptPermission&&(overview.role==='owner'?<button className="secondary" type="button" disabled={busy||!online} onClick={()=>void authorizeScript()}>Cấp quyền Apps Script</button>:<span> Liên hệ chủ sở hữu để cấp quyền.</span>)}{authorizationUrl && <> <ExternalLink className="action-link" href={authorizationUrl}>Mở trang cấp quyền Google</ExternalLink></>}</div>}
 
     <ErrorReportButton report={failure || draft.failure} />
-    {readPending>0&&<div className="read-wait">{!busy&&<ElapsedWait active label={reconciling?'Đang đối soát':healthBusy?'Đang kiểm tra hệ thống':weekLoading?'Đang tải lượt gửi':'Đang chờ dữ liệu'} requestKey={JSON.stringify([tab,weekKey,query,responseSort,auditFilters])}/>}<button type="button" className="secondary" disabled={busy} onClick={stopWaiting}>Dừng chờ dữ liệu</button><small>Chỉ dừng chờ trên trình duyệt; không hủy thao tác máy chủ.</small></div>}
+    {readPending>0&&<div className="read-wait">{!busy&&<ElapsedWait active label={reconciling?'Đang đối soát':healthBusy?'Đang kiểm tra hệ thống':weekLoading?'Đang tải lượt gửi':'Đang chờ dữ liệu'} requestKey={JSON.stringify([tab,weekKey,query,responseSort,auditFilters])}/>}<button type="button" className="secondary" disabled={busy||!online} onClick={stopWaiting}>Dừng chờ dữ liệu</button><small>Chỉ dừng chờ trên trình duyệt; không hủy thao tác máy chủ.</small></div>}
     <ElapsedWait active={busy} label={creationState==='creating'?'Đang tạo Form và Sheet':pendingRow?.action==='delete'?'Đang xóa lượt gửi':pendingRow?.action==='restore'?'Đang khôi phục lượt gửi':'Đang xử lý yêu cầu'} requestKey={`${weekKey}:${creationState}:${pendingRow?.id||''}`}/>
-    {tab==='notice'&&overview.role==='owner'&&<section className="dashboard-panel"><h2>Thông báo tuần</h2>{weekPicker()}<WeekNoticeEditor key={weekKey} ref={noticeEditor} onDirtyChange={setNoticeDirty} weekKey={weekKey} weekName={selectedWeek?.name} request={request} busy={busy} onBusy={setBusy} onMessage={setMessage}/></section>}
+    {tab==='notice'&&overview.role==='owner'&&<section className="dashboard-panel"><h2>Thông báo tuần</h2>{weekPicker()}<WeekNoticeEditor key={weekKey} ref={noticeEditor} onDirtyChange={setNoticeDirty} weekKey={weekKey} weekName={selectedWeek?.name} request={request} busy={busy||!online} onBusy={setBusy} onMessage={setMessage}/></section>}
     {tab === 'overview' && (readPending>0 && overview.overviewPending && !overview.weeks?.length ? <ContentSkeleton label="Đang tải sổ tuần…"/> : <DashboardOverview attention={warnings} attentionWeek={selectedWeek?.name||'Chưa chọn tuần'} attentionLoaded={Boolean(health?.uiWeekKey===weekKey||reconciliation?.weekKey===weekKey)} onAttention={id=>navigate(id,weekKey)} weeks={overview.weeks||[]} busy={busy} owner={overview.role==='owner'} onRefresh={()=>void refreshOverview()} onView={key=>navigate('delete',key)} onControl={key=>navigate('form',key)}/>)}
 
-    {tab === 'health' && overview.role === 'owner' && <><section className="dashboard-panel system-authorization"><h2>Cấp quyền Apps Script</h2><p>Cấp các quyền Google mà script hiện yêu cầu để đọc ảnh, tạo và quản lý Form/Sheet. Chỉ chủ sở hữu thực hiện bước này.</p><button className="secondary" type="button" disabled={busy} onClick={()=>void authorizeScript()}>Cấp quyền Apps Script</button></section><section className="dashboard-panel">
+    {tab === 'health' && overview.role === 'owner' && <><section className="dashboard-panel system-authorization"><h2>Cấp quyền Apps Script</h2><p>Cấp các quyền Google mà script hiện yêu cầu để đọc ảnh, tạo và quản lý Form/Sheet. Chỉ chủ sở hữu thực hiện bước này.</p><button className="secondary" type="button" disabled={busy||!online} onClick={()=>void authorizeScript()}>Cấp quyền Apps Script</button></section><section className="dashboard-panel">
       <div className="dashboard-section-title"><h2>Kiểm tra hệ thống</h2>{weekPicker()}</div>
       <p>Kiểm tra quyền Google, thư mục, Sheet, Form, cấu hình OCR và lịch tự khóa.</p>
       <ExplainedButton label="Kiểm tra lại" className="secondary" type="button" disabled={healthBusy} reason="Đang kiểm tra hệ thống; hãy chờ kết quả hoặc dừng chờ dữ liệu." aria-busy={healthBusy} onClick={() => void checkHealth()}>{healthBusy ? 'Đang kiểm tra…' : 'Kiểm tra lại'}</ExplainedButton>
@@ -688,21 +711,25 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
     {tab === 'create' && permissions.create && <section className="dashboard-panel">
       <div className="field-label-row"><h2>Tạo tuần từ ảnh thực đơn</h2><FieldHelp label="OCR">OCR đọc chữ và món từ ảnh. Kết quả có thể sai; hãy đối chiếu ảnh, sửa ngày và món trước khi bấm Tạo Form và Sheet. Đọc ảnh không tự tạo tuần.</FieldHelp></div>
+      <div className="editor-focus-tools"><button type="button" className="secondary" aria-pressed={editorFocused} onClick={toggleEditorFocus}>{editorFocused?'Thoát chế độ tập trung':'Tập trung sửa thực đơn'}</button>{editorFocused&&<span>Chỉ thu gọn giao diện; nháp và lịch sử sửa được giữ.</span>}</div>
       <OcrProgress menu={menu} state={creationState}/>
       <CreationReceipt week={createdWeek} onResponses={key=>navigate('delete',key)} onNew={()=>{setCreatedWeek(null);setCreationState('idle');document.querySelector('.image-upload-target')?.focus();}}/>
-      <div className="draft-toolbar"><p role="status">{draft.status || 'Nháp lưu riêng trên thiết bị này, không đồng bộ giữa các máy.'}</p><ExplainedButton type="button" className="secondary" disabled={busy || !draft.ready} reason={busy?'Đang xử lý yêu cầu; không xóa nháp trong lúc này.':'Chưa đọc xong nháp trên thiết bị; hãy chờ.'} onClick={()=>void clearDraft()}>Xóa nháp</ExplainedButton></div>
+      <div className="draft-toolbar"><p role="status">{draft.status || 'Nháp lưu riêng trên thiết bị này, không đồng bộ giữa các máy.'}</p><ExplainedButton type="button" className="secondary" disabled={busy || !online || !draft.ready} reason={busy?'Đang xử lý yêu cầu; không xóa nháp trong lúc này.':'Chưa đọc xong nháp trên thiết bị; hãy chờ.'} onClick={()=>void clearDraft()}>Xóa nháp</ExplainedButton></div>
+      <DraftTransfer menu={menu} disabled={busy||!online||!draft.ready||Boolean(mergeBase)||Boolean(regionBase)} onApply={(next,before,kind)=>{if(busy||!online||!draft.ready||before!==menu)throw Error('Nháp đã thay đổi hoặc chưa thể sửa; hãy xem trước lại.');dispatchMenu({type:'apply',value:next});if(!menu)setOriginalMenu(next);if(!image)setDraftSource('table');setAllowMissing(false);setCreationState('idle');setMessage(kind==='table'?'Đã áp dụng bảng vào nháp. Chưa tạo Form/Sheet.':'Đã sao chép món trong nháp. Có thể hoàn tác.','success');}}/>
+      {menu&&<DraftInspection menu={menu} original={originalMenu} onJump={jumpToReview} disabled={busy||!online}/>}
       <ImageInput onLabel={(index,label)=>{if(!busy&&draft.ready&&!mergeBase&&!regionBase)setImages(current=>current.map((entry,i)=>i===index?{...entry,label}:entry));}} onReorder={next=>{if(!busy&&draft.ready&&!imageOrderBlocked)setImages(next);}} reorderBlocked={imageOrderBlocked} images={images} activeImage={image} disabled={busy||!draft.ready} onBusy={setBusy} onMessage={setMessage} onChoose={chooseImage} onRemove={removeImage} onImages={(next,append)=>{setCreationState('idle');setImages(next);chooseImage(next[0]);if(!append){setMenu(null);setAllowMissing(false);}setMergeBase(null);}}/>
       {image && file?.name && !file.type && <p className="menu-image-hint">Ảnh đã khôi phục: {file.name}. Không cần chọn lại để tiếp tục OCR hoặc sửa món.</p>}
-      <ExplainedButton label="Đọc thực đơn" className={menu?'secondary':''} disabled={busy || !image} reason={busy?'Đang xử lý yêu cầu khác; hãy chờ hoàn tất.':'Chọn ảnh thực đơn trước khi đọc OCR.'} onClick={() => void runOcr()}>{busy ? 'Đang xử lý…' : 'Đọc thực đơn'}</ExplainedButton>
-      {image&&(menu||menuHistory.past.length>0||menuHistory.future.length>0)&&<div className="menu-history-tools"><ExplainedButton type="button" className="secondary" disabled={busy || !menuHistory.past.length} reason={busy?'Đang xử lý yêu cầu.':'Chưa có bước sửa trước đó để hoàn tác trong lần mở này.'} onClick={() => moveMenuHistory('undo')}>Hoàn tác</ExplainedButton><ExplainedButton type="button" className="secondary" disabled={busy || !menuHistory.future.length} reason={busy?'Đang xử lý yêu cầu.':'Chưa có bước đã hoàn tác để làm lại.'} onClick={() => moveMenuHistory('redo')}>Làm lại</ExplainedButton><small>Ctrl/⌘ Z · Ctrl/⌘ Shift Z. Lịch sử sửa chỉ giữ trong lần mở này.</small></div>}
-      {image && <OcrWorkspace ref={ocrWorkspace} hasMenu={Boolean(menu)} source={<MenuImagePreview src={image} name={file?.name} regionDisabled={busy || !menu} onRegion={menu ? () => setRegionBase({image,menu}) : undefined} />}>
+      <ExplainedButton label="Đọc thực đơn" className={menu?'secondary':''} disabled={busy || !online || !image} reason={busy?'Đang xử lý yêu cầu khác; hãy chờ hoàn tất.':'Chọn ảnh thực đơn trước khi đọc OCR.'} onClick={() => void runOcr()}>{busy ? 'Đang xử lý…' : 'Đọc thực đơn'}</ExplainedButton>
+      {(menu||menuHistory.past.length>0||menuHistory.future.length>0)&&<div className="menu-history-tools"><ExplainedButton type="button" className="secondary" disabled={busy || !online || !menuHistory.past.length} reason={busy?'Đang xử lý yêu cầu.':'Chưa có bước sửa trước đó để hoàn tác trong lần mở này.'} onClick={() => moveMenuHistory('undo')}>Hoàn tác</ExplainedButton><ExplainedButton type="button" className="secondary" disabled={busy || !online || !menuHistory.future.length} reason={busy?'Đang xử lý yêu cầu.':'Chưa có bước đã hoàn tác để làm lại.'} onClick={() => moveMenuHistory('redo')}>Làm lại</ExplainedButton><small>Ctrl/⌘ Z · Ctrl/⌘ Shift Z. Lịch sử sửa chỉ giữ trong lần mở này.</small></div>}
+      {(image||menu) && <OcrWorkspace ref={ocrWorkspace} hasMenu={Boolean(menu)} source={image?<MenuImagePreview src={image} name={file?.name} regionDisabled={busy || !menu} onRegion={menu ? () => setRegionBase({image,menu}) : undefined} />:<p>Bản nháp nhập từ bảng; không có ảnh nguồn.</p>}>
       {menu && <form className="menu-review" onSubmit={createWeek} onBlur={() => dispatchMenu({ type: 'commit' })} onKeyDown={event => {
         if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'z' && !busy) { event.preventDefault(); moveMenuHistory(event.shiftKey ? 'redo' : 'undo'); }
       }}>
-        <OcrFindBar query={ocrQuery} onQuery={queryOcr} matches={ocrMatches} index={ocrIndex} disabled={busy} onMove={moveOcrMatch}/>
-        <label>Tiêu đề tuần (không bắt buộc)<input id="ocr-title" aria-label="Tiêu đề tuần" enterKeyHint="next" className={ocrFieldClass('ocr-title')} value={menu.title || ''} maxLength={500} disabled={busy} onChange={event => dispatchMenu({ type: 'edit', group: 'title', value: current => ({ ...current, title: event.target.value }) })} /></label>
-        <label>Chọn thứ Hai<input id="ocr-monday" aria-label="Chọn thứ Hai" type="date" value={/^\d{2}\/\d{2}\/\d{4}$/.test(menu.days?.[0]?.date || '') ? menu.days[0].date.split('/').reverse().join('-') : ''} disabled={busy} onChange={event => chooseMonday(event.target.value)} /><small>Tự điền 5 ngày, giữ món/ngày nghỉ. Hoàn tác khôi phục cả tuần.</small></label>
-        {existingWeek && <div className="existing-week-warning" role="status"><strong>Tuần này đã có Form — không tạo hoặc ghi đè tuần mới.</strong><div className="dashboard-links">{existingFormUrl && <ExternalLink href={existingFormUrl}>Mở Form</ExternalLink>}{existingSheetUrl && <ExternalLink href={existingSheetUrl}>Mở Sheet</ExternalLink>}<button type="button" className="secondary" disabled={busy} onClick={() => void refreshOverview()}>Tải lại sổ tuần</button></div></div>}
+        <fieldset className="draft-edit-fields" disabled={busy||!online}>
+        <OcrFindBar query={ocrQuery} onQuery={queryOcr} matches={ocrMatches} index={ocrIndex} disabled={busy||!online} onMove={moveOcrMatch}/>
+        <label>Tiêu đề tuần (không bắt buộc)<input id="ocr-title" aria-label="Tiêu đề tuần" enterKeyHint="next" className={ocrFieldClass('ocr-title')} value={menu.title || ''} maxLength={500} disabled={busy||!online} onChange={event => dispatchMenu({ type: 'edit', group: 'title', value: current => ({ ...current, title: event.target.value }) })} /></label>
+        <label>Chọn thứ Hai<input id="ocr-monday" aria-label="Chọn thứ Hai" type="date" value={/^\d{2}\/\d{2}\/\d{4}$/.test(menu.days?.[0]?.date || '') ? menu.days[0].date.split('/').reverse().join('-') : ''} disabled={busy||!online} onChange={event => chooseMonday(event.target.value)} /><small>Tự điền 5 ngày, giữ món/ngày nghỉ. Hoàn tác khôi phục cả tuần.</small></label>
+        {existingWeek && <div className="existing-week-warning" role="status"><strong>Tuần này đã có Form — không tạo hoặc ghi đè tuần mới.</strong><div className="dashboard-links">{existingFormUrl && <ExternalLink href={existingFormUrl}>Mở Form</ExternalLink>}{existingSheetUrl && <ExternalLink href={existingSheetUrl}>Mở Sheet</ExternalLink>}<button type="button" className="secondary" disabled={busy||!online} onClick={() => void refreshOverview()}>Tải lại sổ tuần</button></div></div>}
         <h3>Rà soát 5 ngày</h3>
         {reviewLinks.length>0&&<div className="ocr-issue-list" role="region" aria-label="Cần đối chiếu OCR"><FormErrorSummary label="Lỗi cần sửa trước khi tạo tuần" errors={reviewLinks} attempt={ocrAttempt} onJump={jumpToReview}/></div>}
         {menu.days.map((day, dayIndex) => {
@@ -723,8 +750,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         {validation.dateError && <p className="dashboard-warning" role="alert">{validation.dateError}</p>}
         {validation.servingError && <p className="dashboard-warning" role="alert">{validation.servingError}</p>}
         {validation.invalidMealDays.length > 0 && <p className="dashboard-warning" role="alert">Mỗi ngày cần ít nhất 2 món và tối đa 3 món: {validation.invalidMealDays.join(', ')}.</p>}
-        {validation.missingMealDays.length > 0 && <label className="dashboard-confirm-missing"><input type="checkbox" checked={allowMissing} disabled={busy} onChange={event => setAllowMissing(event.target.checked)} /> Tôi xác nhận các ngày sau có ít hơn 3 món: {validation.missingMealDays.join(', ')}</label>}
-        <ExplainedButton type="submit" disabled={busy || Boolean(existingWeek)} reason={busy?'Đang xử lý yêu cầu; chưa thể tạo thêm.':existingWeek?'Tuần này đã có Form và Sheet. Mở liên kết hiện có hoặc sửa ngày; không tạo trùng.':validation.dateError||validation.servingError||(validation.invalidMealDays.length?'Sửa các ngày chưa đủ 2 món hoặc vượt quá 3 món.':'Đối chiếu và xác nhận các ngày có ít hơn 3 món ở cuối bảng.')}>Tạo Form và Sheet</ExplainedButton>
+        {validation.missingMealDays.length > 0 && <label className="dashboard-confirm-missing"><input type="checkbox" checked={allowMissing} disabled={busy||!online} onChange={event => setAllowMissing(event.target.checked)} /> Tôi xác nhận các ngày sau có ít hơn 3 món: {validation.missingMealDays.join(', ')}</label>}
+        <ExplainedButton type="submit" disabled={busy || !online || Boolean(existingWeek)} reason={busy?'Đang xử lý yêu cầu; chưa thể tạo thêm.':existingWeek?'Tuần này đã có Form và Sheet. Mở liên kết hiện có hoặc sửa ngày; không tạo trùng.':validation.dateError||validation.servingError||(validation.invalidMealDays.length?'Sửa các ngày chưa đủ 2 món hoặc vượt quá 3 món.':'Đối chiếu và xác nhận các ngày có ít hơn 3 món ở cuối bảng.')}>Tạo Form và Sheet</ExplainedButton>
+        </fieldset>
       </form>}
       </OcrWorkspace>}
     </section>}
@@ -733,7 +761,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <TableWorkspace label="Bảng lượt gửi" expandLabel="Phóng rộng bảng lượt gửi" preferenceKey="dashboard-responses" context={{week:selectedWeek?.name||'Chưa chọn tuần',filters:query.trim()?`Họ tên: ${query.trim()}`:'Không có bộ lọc',sort:responseSort==='name'?'Tên A–Z':responseSort==='oldest'?'Cũ nhất':'Mới nhất'}} headers={['Thời điểm','Họ tên','Món đã chọn','Thao tác']} requiredColumns={[1,3]}>
       <div className="dashboard-section-title"><h2>Lượt gửi và lịch sử thao tác</h2></div>
       <WeekNotice notice={displayedWeek?.week?.weekNotice} serverNow={displayedWeek?.week?.serverNow}/>
-<div className="dashboard-sticky-tools" ref={viewState.toolbarRef}>{weekPicker()}<div className="dashboard-refresh-bar"><ExplainedButton label="Tải lại dữ liệu" className="secondary" disabled={busy || weekLoading || !weekKey} reason={busy?'Đang xử lý thao tác; hãy chờ hoàn tất.':weekLoading?'Đang tải lượt gửi; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký để tải lượt gửi.'} aria-busy={weekLoading} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</ExplainedButton>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div><label className="dashboard-search">Tìm theo họ tên<SearchInput id="dashboard-name-search" label="Tìm theo họ tên" maxLength={200} value={query} onClear={()=>setQuery('')} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label></div>
+<div className="dashboard-sticky-tools" ref={viewState.toolbarRef}>{weekPicker()}<div className="dashboard-refresh-bar"><ExplainedButton label="Tải lại dữ liệu" className="secondary" disabled={busy || !online || weekLoading || !weekKey} reason={busy?'Đang xử lý thao tác; hãy chờ hoàn tất.':weekLoading?'Đang tải lượt gửi; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký để tải lượt gửi.'} aria-busy={weekLoading} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</ExplainedButton>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div><label className="dashboard-search">Tìm theo họ tên<SearchInput id="dashboard-name-search" label="Tìm theo họ tên" maxLength={200} value={query} onClear={()=>setQuery('')} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label></div>
       {displayedWeek&&<p className="dashboard-filter-result" role="status" aria-live="polite" aria-atomic="true" aria-label="Kết quả lọc lượt gửi">Còn {visibleResponses.length} lượt gửi trong phần đã tải.{!weekReady&&' Bản đang xem chưa được xác minh.'}</p>}
       {displayedWeek && !weekReady && <p className="dashboard-cache-status" role="status">{cacheTime ? `Bản lưu lúc ${formatTime(cacheTime)}. ` : 'Dữ liệu lần xem trước. '}{weekLoading ? 'Đang xác minh…' : 'Chưa xác minh được; chỉ xem, hãy tải lại trước khi thao tác.'}</p>}
       {displayedWeek && weekReady && <p className="dashboard-hint">Dữ liệu đã xác minh. Tự kiểm tra lượt mới mỗi phút khi tab đang mở; bảng chỉ đổi khi tải lại.</p>}
@@ -751,7 +779,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       {weekLoading && !displayedWeek ? <ContentSkeleton label="Đang tải lượt gửi…" kind="table"/> : <TableScroll className="dashboard-response-list" ref={viewState.listRef} data-week-key={weekKey}><table className="dashboard-table dashboard-response-table" role="table"><thead><tr>{['Thời điểm','Họ tên','Món đã chọn','Thao tác'].map((label,index)=><th key={label}>{label}<ColumnResizeHandle index={index} label={label}/></th>)}</tr></thead><tbody>
         {visibleResponses.length ? visibleResponses.map(response => <tr key={response.responseId || response.rowNumber || `${response.timestamp}-${response.name}`} data-response-id={response.responseId} className={highlightIds.includes(response.responseId) ? 'new-response' : ''}>
           <td data-label="Thời điểm"><FriendlyTime value={response.timestamp}/></td><td data-label="Họ tên"><strong><SearchHighlight text={response.name} query={query}/></strong>{highlightIds.includes(response.responseId) && <span className="new-response-label">Mới</span>}{response.partial && <strong className="dashboard-partial"> · Form đã xóa, Sheet còn hàng</strong>}</td><td data-label="Món đã chọn"><ResponseMeals response={response} week={displayedWeek?.week} /></td>
-          <td data-label="Thao tác"><div className="dashboard-row-actions"><button type="button" className="secondary" onClick={() => setQuickResponse(response)}>Xem nhanh</button><RowActionMenu label="Thao tác lượt gửi"><div role="group" aria-label="Kiểm tra lượt gửi"><SheetRowButton key={`${weekKey}-${weekRequest.current}-${response.responseId}`} weekKey={weekKey} source={response.partial ? 'sheet' : 'form'} response={response} request={request} disabled={busy || !weekReady} /></div><div className="row-menu-danger" role="group" aria-label="Thao tác xóa">{permissions.manageResponses && (response.deletable || !weekReady) ? <ExplainedButton label="Xóa lượt này" type="button" data-close-row-menu className="danger" disabled={busy || !weekReady} reason={busy?'Đang xử lý một thao tác; chưa thể xóa tiếp.':'Dữ liệu hiện tại chưa được xác minh; hãy tải lại dữ liệu trước khi xóa.'} aria-busy={pendingRow?.action === 'delete' && pendingRow.id === response.responseId} onClick={() => void deleteResponse(response)}>{pendingRow?.action === 'delete' && pendingRow.id === response.responseId ? 'Đang xóa…' : response.partial ? 'Xóa nốt hàng Sheet' : 'Xóa lượt này'}</ExplainedButton> : <span title={response.note}>{!permissions.manageResponses ? 'Chỉ xem' : response.partial ? 'Cần kiểm tra thủ công' : 'Không đối chiếu được'}</span>}</div></RowActionMenu></div></td>
+          <td data-label="Thao tác"><div className="dashboard-row-actions"><button type="button" className="secondary" onClick={() => setQuickResponse(response)}>Xem nhanh</button><RowActionMenu label="Thao tác lượt gửi"><div role="group" aria-label="Kiểm tra lượt gửi"><SheetRowButton key={`${weekKey}-${weekRequest.current}-${response.responseId}`} weekKey={weekKey} source={response.partial ? 'sheet' : 'form'} response={response} request={request} disabled={busy || !online || !weekReady} /></div><div className="row-menu-danger" role="group" aria-label="Thao tác xóa">{permissions.manageResponses && (response.deletable || !weekReady) ? <ExplainedButton label="Xóa lượt này" type="button" data-close-row-menu className="danger" disabled={busy || !online || !weekReady} reason={busy?'Đang xử lý một thao tác; chưa thể xóa tiếp.':'Dữ liệu hiện tại chưa được xác minh; hãy tải lại dữ liệu trước khi xóa.'} aria-busy={pendingRow?.action === 'delete' && pendingRow.id === response.responseId} onClick={() => void deleteResponse(response)}>{pendingRow?.action === 'delete' && pendingRow.id === response.responseId ? 'Đang xóa…' : response.partial ? 'Xóa nốt hàng Sheet' : 'Xóa lượt này'}</ExplainedButton> : <span title={response.note}>{!permissions.manageResponses ? 'Chỉ xem' : response.partial ? 'Cần kiểm tra thủ công' : 'Không đối chiếu được'}</span>}</div></RowActionMenu></div></td>
         </tr>) : <tr><td className="empty" colSpan="4">{!displayedWeek?'Chưa có dữ liệu đã xác minh. Hãy tải lại dữ liệu.':weekLoading?'Đang đọc kết quả lọc…':<FilterEmptyState title={responseConditions.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={responseConditions} onClear={()=>{setQuery('');document.getElementById('dashboard-name-search')?.focus();}}/>}</td></tr>}
       </tbody></table></TableScroll>}
       {displayedWeek?.page && <div className="dashboard-batch-tools"><p role="status">Đã tải {displayedWeek.responses.length} / {displayedWeek.page.matchedCount} lượt phù hợp · tổng {displayedWeek.page.total} lượt. Bản đối chiếu lúc {formatTime(displayedWeek.page.snapshotAt)}.</p>{displayedWeek.page.nextOffset != null && <ExplainedButton label="Tải thêm lượt gửi" type="button" className="secondary" disabled={!weekReady || busy || weekLoading || moreLoading} reason={busy?'Đang xử lý thao tác.':weekLoading||moreLoading?'Đang đọc lượt gửi.':'Bản đang xem chưa được xác minh; hãy tải lại dữ liệu trước.'} onClick={() => void loadMoreResponses()}>{moreLoading ? 'Đang tải thêm…' : 'Tải thêm lượt gửi'}</ExplainedButton>}</div>}
@@ -771,7 +799,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
             <td data-label="Thời gian">{group.key==='unknown'?'Chưa có thời điểm':formatTime(event.at)}{event.originalTimestamp > 0 && <small className="dashboard-history-note">Gửi gốc: {formatTime(event.originalTimestamp)}</small>}</td>
             <td data-label="Người thực hiện"><SearchHighlight text={event.actor || '—'} query={auditFilters.actor}/></td>
             <td data-label="Đối tượng"><strong>{event.name || '—'}</strong><small className="dashboard-history-note">{(event.meals || []).join(' · ')}</small></td>
-            <td>{canRestore ? <RowActionMenu label="Thao tác lịch sử"><ExplainedButton label="Khôi phục" type="button" data-close-row-menu className="secondary" disabled={busy} reason="Đang xử lý thao tác; hãy chờ kết quả trước khi khôi phục tiếp." aria-busy={pendingRow?.action === 'restore' && pendingRow.id === event.entryId} onClick={() => void restoreResponse(event)}>{pendingRow?.action === 'restore' && pendingRow.id === event.entryId ? 'Đang khôi phục…' : 'Khôi phục'}</ExplainedButton></RowActionMenu> : restoreEligible && weekData?.week?.formStatus === 'closed' ? <span title="Không tự mở Form vì thao tác đó sẽ công khai Form">Form đã đóng</span> : restoreEligible ? <span>Chưa xác định Form</span> : alreadyRestored && event.action === 'deleted' ? <span>Đã xử lý</span> : null}</td>
+            <td>{canRestore ? <RowActionMenu label="Thao tác lịch sử"><ExplainedButton label="Khôi phục" type="button" data-close-row-menu className="secondary" disabled={busy||!online} reason="Đang xử lý thao tác; hãy chờ kết quả trước khi khôi phục tiếp." aria-busy={pendingRow?.action === 'restore' && pendingRow.id === event.entryId} onClick={() => void restoreResponse(event)}>{pendingRow?.action === 'restore' && pendingRow.id === event.entryId ? 'Đang khôi phục…' : 'Khôi phục'}</ExplainedButton></RowActionMenu> : restoreEligible && weekData?.week?.formStatus === 'closed' ? <span title="Không tự mở Form vì thao tác đó sẽ công khai Form">Form đã đóng</span> : restoreEligible ? <span>Chưa xác định Form</span> : alreadyRestored && event.action === 'deleted' ? <span>Đã xử lý</span> : null}</td>
           </tr>;
         })}</Fragment>)}
       </tbody></table></TableScroll> : !displayedWeek||auditTotal==null?<p>Chưa có dữ liệu lịch sử. Hãy tải lại dữ liệu.</p>:weekLoading?<p>Đang đọc kết quả lọc lịch sử…</p>:<FilterEmptyState title={auditConditions.length||auditTotal>0?'Không có thao tác phù hợp':'Chưa có thao tác nào trong tuần này'} conditions={auditConditions} onClear={key=>{filterHistory(key,key==='errorsOnly'?false:'');document.querySelector('.audit-filters input')?.focus();}}/>}
@@ -782,17 +810,17 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     {tab === 'form' && overview.role === 'owner' && <section className="dashboard-panel">
       <div className="dashboard-section-title"><h2>Trạng thái và hạn đăng ký</h2>{weekPicker()}</div>
       {formAttempt>0&&deadlineIssue&&<FormErrorSummary label="Lỗi cần sửa trước khi đổi hạn Form" attempt={formAttempt} errors={[{id:'dashboard-deadline',label:'Hạn mới — giờ Việt Nam',message:deadlineIssue}]}/>}
-      {selectedWeek ? <><p>Form: <strong>{selectedWeek.formStatus === 'open' ? 'Đang mở' : selectedWeek.formStatus === 'closed' ? 'Đã đóng' : 'Chưa xác định'}</strong></p><RegistrationDeadline lockAt={selectedWeek.lockAt} status={selectedWeek.formStatus} serverNow={overview.serverNow}/><div className="dashboard-deadline"><div className="field-label-row"><label htmlFor="dashboard-deadline">Hạn mới — giờ Việt Nam</label><FieldHelp label="Hạn đăng ký">Đây là thời điểm Form tự đóng, theo giờ Việt Nam. Nhập một hạn tương lai rồi xác nhận Lưu hạn đăng ký; đổi ô nhập hoặc mở trợ giúp không tự đổi Form. Mở lại Form quá hạn cũng cần hạn tương lai.</FieldHelp></div><input id="dashboard-deadline" type="datetime-local" enterKeyHint="done" aria-invalid={formAttempt>0&&Boolean(deadlineIssue)} aria-describedby={'dashboard-deadline-hint'+(formAttempt>0&&deadlineIssue?' dashboard-deadline-error':'')} value={deadline} disabled={busy} onChange={event => setDeadline(event.target.value)} /><small id="dashboard-deadline-hint">Chọn ngày và giờ tương lai theo giờ Việt Nam (UTC+7).</small>{formAttempt>0&&deadlineIssue&&<p id="dashboard-deadline-error" className="menu-inline-error">{deadlineIssue}</p>}</div><p className="dashboard-hint">Mở lại Form quá hạn cần chọn hạn tương lai. Lịch tự đóng dùng hạn mới; tuần chưa chỉnh vẫn khóa lúc 00:00 thứ Hai.</p><div className="actions">
-        <ExplainedButton disabled={busy || selectedWeek.formStatus !== 'closed'} reason={busy?'Đang cập nhật Form; hãy chờ xác nhận.':selectedWeek.formStatus==='open'?'Form đang mở, không cần mở lại.':'Chưa xác định trạng thái Form; hãy tải lại sổ tuần.'} onClick={() => void controlForm('open')}>Mở Form</ExplainedButton>
-        <ExplainedButton className="danger" disabled={busy || selectedWeek.formStatus !== 'open'} reason={busy?'Đang cập nhật Form; hãy chờ xác nhận.':selectedWeek.formStatus==='closed'?'Form đã đóng, không cần đóng lại.':'Chưa xác định trạng thái Form; hãy tải lại sổ tuần.'} onClick={() => void controlForm('close')}>Đóng Form</ExplainedButton>
-        <ExplainedButton className="secondary" disabled={busy || selectedWeek.formStatus === 'unknown'} reason={busy?'Đang cập nhật Form; hãy chờ xác nhận.':'Chưa xác định trạng thái Form; hãy tải lại sổ tuần trước khi đổi hạn.'} onClick={() => void controlForm('deadline')}>Lưu hạn đăng ký</ExplainedButton>
+      {selectedWeek ? <><p>Form: <strong>{selectedWeek.formStatus === 'open' ? 'Đang mở' : selectedWeek.formStatus === 'closed' ? 'Đã đóng' : 'Chưa xác định'}</strong></p><RegistrationDeadline lockAt={selectedWeek.lockAt} status={selectedWeek.formStatus} serverNow={overview.serverNow}/><div className="dashboard-deadline"><div className="field-label-row"><label htmlFor="dashboard-deadline">Hạn mới — giờ Việt Nam</label><FieldHelp label="Hạn đăng ký">Đây là thời điểm Form tự đóng, theo giờ Việt Nam. Nhập một hạn tương lai rồi xác nhận Lưu hạn đăng ký; đổi ô nhập hoặc mở trợ giúp không tự đổi Form. Mở lại Form quá hạn cũng cần hạn tương lai.</FieldHelp></div><input id="dashboard-deadline" type="datetime-local" enterKeyHint="done" aria-invalid={formAttempt>0&&Boolean(deadlineIssue)} aria-describedby={'dashboard-deadline-hint'+(formAttempt>0&&deadlineIssue?' dashboard-deadline-error':'')} value={deadline} disabled={busy||!online} onChange={event => setDeadline(event.target.value)} /><small id="dashboard-deadline-hint">Chọn ngày và giờ tương lai theo giờ Việt Nam (UTC+7).</small>{formAttempt>0&&deadlineIssue&&<p id="dashboard-deadline-error" className="menu-inline-error">{deadlineIssue}</p>}</div><p className="dashboard-hint">Mở lại Form quá hạn cần chọn hạn tương lai. Lịch tự đóng dùng hạn mới; tuần chưa chỉnh vẫn khóa lúc 00:00 thứ Hai.</p><div className="actions">
+        <ExplainedButton disabled={busy || !online || selectedWeek.formStatus !== 'closed'} reason={busy?'Đang cập nhật Form; hãy chờ xác nhận.':selectedWeek.formStatus==='open'?'Form đang mở, không cần mở lại.':'Chưa xác định trạng thái Form; hãy tải lại sổ tuần.'} onClick={() => void controlForm('open')}>Mở Form</ExplainedButton>
+        <ExplainedButton className="danger" disabled={busy || !online || selectedWeek.formStatus !== 'open'} reason={busy?'Đang cập nhật Form; hãy chờ xác nhận.':selectedWeek.formStatus==='closed'?'Form đã đóng, không cần đóng lại.':'Chưa xác định trạng thái Form; hãy tải lại sổ tuần.'} onClick={() => void controlForm('close')}>Đóng Form</ExplainedButton>
+        <ExplainedButton className="secondary" disabled={busy || !online || selectedWeek.formStatus === 'unknown'} reason={busy?'Đang cập nhật Form; hãy chờ xác nhận.':'Chưa xác định trạng thái Form; hãy tải lại sổ tuần trước khi đổi hạn.'} onClick={() => void controlForm('deadline')}>Lưu hạn đăng ký</ExplainedButton>
       </div></> : <p>Chọn một tuần đã đăng ký.</p>}
       <p className="dashboard-hint">Lịch sử các thay đổi nằm trong “Lượt gửi &amp; lịch sử” của tuần này.</p>
     </section>}
 
     {tab === 'reconcile' && <section className="dashboard-panel">
-      <div className="dashboard-section-title"><div className="field-label-row"><h2>Đối soát Form–Sheet</h2><FieldHelp label="Đối soát Form–Sheet">So sánh lượt Form với hàng trong Sheet của đúng tuần. Ghép duy nhất nghĩa là xác định được đúng một cặp tương ứng. Lượt lệch hoặc ghép không rõ chỉ được báo để kiểm tra, không tự xóa hay sửa.</FieldHelp></div>{weekPicker()}</div><p>Chỉ đọc: không tự sửa, ghép, khôi phục hoặc xóa dữ liệu.</p><ExplainedButton label="Đối soát tuần này" disabled={busy || reconciling || !weekKey} reason={busy?'Đang xử lý thao tác khác.':reconciling?'Đang đối soát Form–Sheet; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký trước khi đối soát.'} onClick={() => void reconcileWeek()}>{reconciling ? 'Đang đối soát…' : 'Đối soát tuần này'}</ExplainedButton>
-      {reconciliation && <><div className="reconciliation-counts"><p>Form <strong>{reconciliation.formCount}</strong></p><p>Sheet <strong>{reconciliation.sheetCount}</strong></p><p>Ghép duy nhất <strong>{reconciliation.matchedCount}</strong></p><p>Cần kiểm tra <strong>{reconciliation.issues.length}</strong></p></div><ul className="reconciliation-issues">{reconciliation.issues.map((issue, index) => <li key={`${weekKey}-${index}`}><strong>{({ 'form-only': 'Chỉ có trong Form', 'sheet-only': 'Chỉ có trong Sheet', ambiguous: 'Ghép không duy nhất' })[issue.kind]}</strong><p>{issue.name || '(Thiếu tên)'} · {formatTime(issue.timestamp)} · {issue.source === 'sheet' ? 'Sheet' : 'Form'}{issue.rows?.length ? ` · hàng ${issue.rows.join(', ')}` : ''}</p><p>{issue.meals.join(' · ')}</p><SheetRowButton weekKey={weekKey} source={issue.source} response={issue} request={request} disabled={busy} /></li>)}</ul>{!reconciliation.issues.length && <p role="status">Form và Sheet đang khớp duy nhất.</p>}</>}
+      <div className="dashboard-section-title"><div className="field-label-row"><h2>Đối soát Form–Sheet</h2><FieldHelp label="Đối soát Form–Sheet">So sánh lượt Form với hàng trong Sheet của đúng tuần. Ghép duy nhất nghĩa là xác định được đúng một cặp tương ứng. Lượt lệch hoặc ghép không rõ chỉ được báo để kiểm tra, không tự xóa hay sửa.</FieldHelp></div>{weekPicker()}</div><p>Chỉ đọc: không tự sửa, ghép, khôi phục hoặc xóa dữ liệu.</p><ExplainedButton label="Đối soát tuần này" disabled={busy || !online || reconciling || !weekKey} reason={busy?'Đang xử lý thao tác khác.':reconciling?'Đang đối soát Form–Sheet; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký trước khi đối soát.'} onClick={() => void reconcileWeek()}>{reconciling ? 'Đang đối soát…' : 'Đối soát tuần này'}</ExplainedButton>
+      {reconciliation && <><div className="reconciliation-counts"><p>Form <strong>{reconciliation.formCount}</strong></p><p>Sheet <strong>{reconciliation.sheetCount}</strong></p><p>Ghép duy nhất <strong>{reconciliation.matchedCount}</strong></p><p>Cần kiểm tra <strong>{reconciliation.issues.length}</strong></p></div><ul className="reconciliation-issues">{reconciliation.issues.map((issue, index) => <li key={`${weekKey}-${index}`}><strong>{({ 'form-only': 'Chỉ có trong Form', 'sheet-only': 'Chỉ có trong Sheet', ambiguous: 'Ghép không duy nhất' })[issue.kind]}</strong><p>{issue.name || '(Thiếu tên)'} · {formatTime(issue.timestamp)} · {issue.source === 'sheet' ? 'Sheet' : 'Form'}{issue.rows?.length ? ` · hàng ${issue.rows.join(', ')}` : ''}</p><p>{issue.meals.join(' · ')}</p><SheetRowButton weekKey={weekKey} source={issue.source} response={issue} request={request} disabled={busy||!online} /></li>)}</ul>{!reconciliation.issues.length && <p role="status">Form và Sheet đang khớp duy nhất.</p>}</>}
     </section>}
 
 {tab === 'branding' && overview.role === 'owner' && <section className="dashboard-panel">
@@ -801,7 +829,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     {brandAttempt>0&&<FormErrorSummary label="Lỗi cần sửa trước khi lưu thương hiệu" errors={brandErrors} attempt={brandAttempt}/>}
     <div className="branding-field-row"><div className="branding-name-control"><label>Tên trường<input id="brand-school-name" enterKeyHint="next" aria-label="Tên trường" aria-invalid={brandErrors.some(error=>error.field==='schoolName')} required maxLength={TEXT_LIMITS.schoolName} aria-describedby={nameCountId+' brand-school-name-hint'+(brandErrors.some(error=>error.field==='schoolName')?' brand-school-name-error':'')} value={brandDraft.schoolName} onChange={event => setBrandDraft({ ...brandDraft, schoolName: event.target.value })} /></label><small id="brand-school-name-hint">Tên hiển thị trên website, tối đa 100 ký tự.</small>{brandErrors.filter(error=>error.field==='schoolName').map(error=><p id="brand-school-name-error" className="menu-inline-error" key={error.field}>{error.message}</p>)}<CharacterCounter id={nameCountId} value={brandDraft.schoolName} limit={TEXT_LIMITS.schoolName} label="Tên trường"/></div><button type="button" className="secondary" aria-label="Dùng lại tên trường đã lưu" disabled={busy||brandDraft.schoolName===brandSaved.schoolName} onClick={()=>setBrandDraft(value=>({...value,schoolName:brandSaved.schoolName}))}>Dùng lại đã lưu</button></div>
     <div className="branding-field-row"><label>URL ảnh logo HTTPS (không bắt buộc)<input id="brand-logo-url" aria-label="URL ảnh logo HTTPS" type="url" inputMode="url" enterKeyHint="next" autoCapitalize="none" spellCheck={false} maxLength={512} placeholder="https://…/logo.png" value={brandDraft.logoUrl} aria-invalid={Boolean(logoIssue||brandDraft.logoUrl&&logoPhase==='error')} aria-describedby={logoFeedbackId+' '+logoFeedbackId+'-hint'} onChange={event => setBrandDraft({ ...brandDraft, logoUrl: event.target.value })} /><small id={logoFeedbackId+'-hint'}>Không bắt buộc. Dùng URL ảnh HTTPS công khai, tối đa 512 ký tự; không nhập khóa bí mật.</small></label><button type="button" className="secondary" aria-label="Dùng lại logo đã lưu" disabled={busy||brandDraft.logoUrl===(brandSaved.logoUrl||'')} onClick={()=>setBrandDraft(value=>({...value,logoUrl:brandSaved.logoUrl||''}))}>Dùng lại đã lưu</button></div>
-    <div id={logoFeedbackId} className="logo-input-feedback" data-state={logoIssue?'invalid':logoPhase}><p role="status" aria-label="Tình trạng logo">{logoMessage}</p>{brandDraft.logoUrl&&!logoIssue&&logoPhase==='error'&&<ExplainedButton type="button" className="secondary" disabled={busy} reason="Đang xử lý thao tác khác; hãy chờ hoàn tất." onClick={()=>setLogoAttempt(value=>value+1)}>Thử tải lại logo</ExplainedButton>}</div>
+    <div id={logoFeedbackId} className="logo-input-feedback" data-state={logoIssue?'invalid':logoPhase}><p role="status" aria-label="Tình trạng logo">{logoMessage}</p>{brandDraft.logoUrl&&!logoIssue&&logoPhase==='error'&&<ExplainedButton type="button" className="secondary" disabled={busy||!online} reason="Đang xử lý thao tác khác; hãy chờ hoàn tất." onClick={()=>setLogoAttempt(value=>value+1)}>Thử tải lại logo</ExplainedButton>}</div>
     <div className="branding-field-row"><label>Màu chủ đạo<input id="brand-color" type="color" value={brandDraft.primaryColor} onChange={event => setBrandDraft({ ...brandDraft, primaryColor: event.target.value })} /></label><button type="button" className="secondary" aria-label="Dùng lại màu đã lưu" disabled={busy||brandDraft.primaryColor===brandSaved.primaryColor} onClick={()=>setBrandDraft(value=>({...value,primaryColor:brandSaved.primaryColor}))}>Dùng lại đã lưu</button></div>
     <BrandingPreview draft={brandDraft} saved={brandSaved} logoAttempt={logoAttempt} onLogoStatus={receiveLogoStatus}/>
     <p className="dashboard-hint">Dùng ảnh HTTPS truy cập được công khai; chưa hỗ trợ tải ảnh lên. Không dán khóa API hoặc liên kết chứa thông tin bí mật.</p><ContextualSaveBar dirty={brandDirty} scope="thương hiệu" saveLabel="Lưu thương hiệu" busy={busy} onDiscard={()=>{setBrandDraft(brandSaved);setBrandAttempt(0);}}/>
@@ -813,7 +841,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <p>Gmail mới mặc định chỉ xem. Gmail cũ giữ quyền hiện có cho đến khi chủ chỉnh.</p>
       <form className="dashboard-access-form" onSubmit={event => { event.preventDefault(); void changeAllowedEmail('add-email'); }}>
         <label>Thêm Gmail<input type="email" inputMode="email" enterKeyHint="done" autoCapitalize="none" spellCheck={false} value={email} onChange={event => setEmail(event.target.value)} placeholder="ten@gmail.com" required /></label>
-        <button disabled={busy}>Cấp quyền</button>
+        <button disabled={busy||!online}>Cấp quyền</button>
       </form>
       <div className="member-discovery" role="search" aria-label="Tìm và lọc quyền Gmail">
         <label>Tìm Gmail đã cấp quyền<SearchInput label="Tìm Gmail đã cấp quyền" value={memberQuery} maxLength={254} placeholder="Nhập email cần tìm" onChange={event=>setMemberQuery(event.target.value)} onClear={()=>setMemberQuery('')}/></label>
@@ -822,12 +850,12 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <p className="member-discovery-result" role="status" aria-live="polite" aria-atomic="true" aria-label="Kết quả lọc quyền Gmail">Hiện {visibleMembers.length}/{members.length} tài khoản đã tải. Chỉ lọc hiển thị, không đổi quyền.</p>
       {!members.length?<p>Chưa có Gmail được cấp quyền.</p>:!visibleMembers.length&&<p>Không có Gmail khớp bộ lọc. Hãy xóa từ khóa hoặc chọn Tất cả quyền.</p>}
       <ul className="dashboard-email-list">{visibleMembers.map(member => <li key={member.email}>
-        <strong>{member.email}</strong><div className="member-permissions"><span>{member.permissions.view ? '✓ Xem' : 'Quyền lỗi'}</span>{[['create', 'OCR / tạo tuần'], ['manageResponses', 'Xóa / khôi phục']].map(([key, label]) => <label key={key}><input type="checkbox" checked={member.permissions[key] === true} disabled={busy} onChange={event => void changeAllowedEmail('set-permissions', member.email, { ...member.permissions, view: true, [key]: event.target.checked })} /> {label}</label>)}</div>
-        <button className="danger" disabled={busy} onClick={() => { if (window.confirm(`Gỡ quyền dashboard của ${member.email}?`)) void changeAllowedEmail('remove-email', member.email); }}>Gỡ quyền</button>
+        <strong>{member.email}</strong><div className="member-permissions"><span>{member.permissions.view ? '✓ Xem' : 'Quyền lỗi'}</span>{[['create', 'OCR / tạo tuần'], ['manageResponses', 'Xóa / khôi phục']].map(([key, label]) => <label key={key}><input type="checkbox" checked={member.permissions[key] === true} disabled={busy||!online} onChange={event => void changeAllowedEmail('set-permissions', member.email, { ...member.permissions, view: true, [key]: event.target.checked })} /> {label}</label>)}</div>
+        <button className="danger" disabled={busy||!online} onClick={() => { if (window.confirm(`Gỡ quyền dashboard của ${member.email}?`)) void changeAllowedEmail('remove-email', member.email); }}>Gỡ quyền</button>
       </li>)}</ul>
     </section>}
     <ActionToast message={toast?.message} kind={toast?.kind} onDismiss={dismissToast} />
-    {mergeBase&&<MultiImageReview fragments={mergeBase.fragments} images={mergeBase.images} base={mergeBase.menu} onClose={()=>setMergeBase(null)} onApply={next=>{if(images!==mergeBase.images||menu!==mergeBase.menu)throw new Error('Nháp/ảnh đã thay đổi; hãy đóng và đọc lại.');dispatchMenu({type:'apply',value:next});setAllowMissing(false);setMergeBase(null);setMessage('Đã áp dụng bản ghép. Hãy rà soát ngày/món trước khi tạo tuần.','info');}}/>}
+    {mergeBase&&<MultiImageReview fragments={mergeBase.fragments} images={mergeBase.images} base={mergeBase.menu} onClose={()=>setMergeBase(null)} onApply={next=>{if(images!==mergeBase.images||menu!==mergeBase.menu)throw new Error('Nháp/ảnh đã thay đổi; hãy đóng và đọc lại.');dispatchMenu({type:'apply',value:next});if(!originalMenu)setOriginalMenu(next);setAllowMissing(false);setMergeBase(null);setMessage('Đã áp dụng bản ghép. Hãy rà soát ngày/món trước khi tạo tuần.','info');}}/>}
     {regionBase && <RegionOcr image={regionBase.image} menu={regionBase.menu} request={request} onBusy={setBusy} onClose={() => setRegionBase(null)} onApply={(target,result) => {
       if (menu !== regionBase.menu || image !== regionBase.image) throw new Error('Nháp đã thay đổi; đóng cửa sổ và chọn vùng lại.');
       dispatchMenu({type:'edit',value:applyRegionResult(menu,target,result)});setAllowMissing(false);setRegionBase(null);

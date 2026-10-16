@@ -8,7 +8,7 @@ import useVisualViewport from './useVisualViewport.js';
 import {calendarDayChoices,isClosedDay} from './reading-ui.mjs';
 import useComposedSearch from './useComposedSearch.js';
 
-export function ComboSelect({ id, label, value, values, onChange, onSelect, disabled = false, placeholder, searchable = true, includeAll = true, className = '',optionGroups={},disabledOptions=[] }) {
+export function ComboSelect({ id, label, value, values, onChange, onSelect, disabled = false, placeholder, searchable = true, includeAll = true, className = '',optionGroups={},optionHints={},disabledOptions=[] }) {
   const root = useRef(null);
   const { open, closing, active, show, hide, toggle } = useDisclosureAnimation();
   const [query, setQuery] = useState('');
@@ -69,8 +69,8 @@ export function ComboSelect({ id, label, value, values, onChange, onSelect, disa
         {includeAll && <button className="combo-option" type="button" role="option" aria-selected={value === ALL} onMouseDown={event => event.preventDefault()} onClick={() => choose(ALL)}>{ALL}</button>}
         {matches.length ? matches.map((option,index) => <Fragment key={option}>{optionGroups[option]&&optionGroups[option]!==optionGroups[matches[index-1]]&&<div className="combo-group" role="presentation">{optionGroups[option]}</div>}<button
           key={option} className="combo-option" type="button" role="option"
-          disabled={disabledOptions.includes(option)} aria-disabled={disabledOptions.includes(option)} aria-selected={option === (onSelect ? value : inputValue)} onMouseDown={event => event.preventDefault()}
-          onClick={() => choose(option)}><SearchHighlight text={option} query={searchable?searchQuery:''}/>{disabledOptions.includes(option)&&' · Nghỉ'}</button></Fragment>) : <div className="combo-empty">Không tìm thấy</div>}
+          aria-label={optionHints[option]?option:undefined} aria-describedby={optionHints[option]?`${id}-hint-${index}`:undefined} disabled={disabledOptions.includes(option)} aria-disabled={disabledOptions.includes(option)} aria-selected={option === (onSelect ? value : inputValue)} onMouseDown={event => event.preventDefault()}
+          onClick={() => choose(option)}><SearchHighlight text={option} query={searchable?searchQuery:''}/>{disabledOptions.includes(option)&&' · Nghỉ'}{optionHints[option]&&<small id={`${id}-hint-${index}`} className="week-option-hint">{optionHints[option]}</small>}</button></Fragment>) : <div className="combo-empty">Không tìm thấy</div>}
       </div>
   </div>;
 }

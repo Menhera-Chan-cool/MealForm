@@ -6,6 +6,12 @@ const menu = { title: 'Tuần thử', days: [{ day: 'Thứ 2', date: '12/10/2026
 const saved = draft.normalizeOcrDraft({ version: 1, accountId: 'account-a', image: 'data:image/png;base64,AA==', filename: 'menu.png', menu, savedAt: 100, secret: 'never-save', allowMissing: true }, 'account-a');
 assert.equal(saved.menu.days[0].meals[1], '');
 assert.equal(saved.secret, undefined); assert.equal(saved.allowMissing, undefined);
+const compared=draft.normalizeOcrDraft({...saved,originalMenu:menu},'account-a');
+assert.deepEqual(compared.originalMenu,menu,'original comparison snapshot survives restore');
+assert.equal(draft.normalizeOcrDraft({...saved,originalMenu:{days:{}}},'account-a'),null,'malformed original cannot become a false baseline');
+const tableDraft=draft.normalizeOcrDraft({...saved,image:'',filename:'',source:'table',originalMenu:menu},'account-a');
+assert.deepEqual(tableDraft.menu,menu,'standalone pasted table remains an account-local draft');
+assert.equal(draft.normalizeOcrDraft({...saved,image:''},'account-a'),null,'empty image is not silently accepted for legacy image drafts');
 const imageEntries=[{dataUrl:saved.image,name:'same.png',label:'Phần đầu tuần'},{dataUrl:'data:image/png;base64,AQ==',name:'same.png',label:''}];
 const labeled=draft.normalizeOcrDraft({...saved,images:imageEntries},'account-a');
 assert.deepEqual(labeled.images,imageEntries,'secondary labels survive normalization without replacing filenames');

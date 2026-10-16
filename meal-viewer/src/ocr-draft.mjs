@@ -1,21 +1,19 @@
 import {imageDataBytes} from './image-import.mjs';
 export function normalizeOcrDraft(value, accountId) {
-  if (!accountId || value?.version !== 1 || value.accountId !== accountId || typeof value.image !== 'string' || value.image.length > 4_000_000 || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value.image)) return null;
+  const tableSource=value?.source==='table'&&value?.image==='';
+  if (!accountId || value?.version !== 1 || value.accountId !== accountId || typeof value.image !== 'string' || value.image.length > 4_000_000 || (!tableSource&&!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value.image))) return null;
   let images;
   if(value.images!==undefined){
     if(!Array.isArray(value.images)||!value.images.length||value.images.length>5)return null;
     try{images=value.images.map(entry=>{if(typeof entry.name!=='string'||entry.name.length>500||entry.label!==undefined&&(typeof entry.label!=='string'||entry.label.length>100))throw Error();imageDataBytes(entry.dataUrl);return{dataUrl:entry.dataUrl,name:entry.name,...(entry.label!==undefined?{label:entry.label}:{})};});if(images.reduce((sum,image)=>sum+imageDataBytes(image.dataUrl),0)>2800000||!images.some(entry=>entry.dataUrl===value.image))return null;}catch{return null;}
   }
-  if (value.menu) {
-    const days = value.menu.days;
-    if (!Array.isArray(days) || days.length > 5 || String(value.menu.title || '').length > 500) return null;
+  for(const candidate of [value.menu,value.originalMenu])if(candidate){
+    const days = candidate.days;
+    if (!Array.isArray(days) || days.length > 5 || String(candidate.title || '').length > 500) return null;
     if (days.some(day => !day || (day.closed !== undefined && typeof day.closed !== 'boolean') || String(day.day || '').length > 40 || String(day.date || '').length > 40 || !Array.isArray(day.meals) || day.meals.length > 3 || day.meals.some(meal => String(meal || '').length > 500))) return null;
   }
-  const menu = value.menu && Array.isArray(value.menu.days) && value.menu.days.length <= 5 ? {
-    title: String(value.menu.title || '').slice(0, 500),
-    days: value.menu.days.map(day => ({ day: String(day?.day || '').slice(0, 40), date: String(day?.date || '').slice(0, 40), meals: (Array.isArray(day?.meals) ? day.meals : []).slice(0, 3).map(meal => String(meal || '').slice(0, 500)), ...(day.closed === true ? { closed: true } : {}) }))
-  } : null;
-  return { version: 1, accountId, image: value.image, filename: String(value.filename || '').slice(0, 500), ...(images?{images}:{}), menu, savedAt: Number(value.savedAt) || 0 };
+  const normalizeMenu=menu=>menu?{title:String(menu.title||''),days:menu.days.map(day=>({day:String(day.day||''),date:String(day.date||''),meals:day.meals.map(meal=>String(meal||'')),...(day.closed?{closed:true}:{})}))}:null;
+  return { version: 1, accountId, image: value.image, filename: String(value.filename || '').slice(0, 500), ...(images?{images}:{}), menu:normalizeMenu(value.menu), ...(value.originalMenu!==undefined?{originalMenu:normalizeMenu(value.originalMenu)}:{}),...(tableSource?{source:'table'}:{}), savedAt: Number(value.savedAt) || 0 };
 }
 
 function transactDraft(mode, operation) {
