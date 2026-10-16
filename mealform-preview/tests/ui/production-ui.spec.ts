@@ -4,6 +4,108 @@ const navigationMenu={title:'Tuần thử',days:['19','20','21','22','23'].map((
 async function navigationImages(page:import('@playwright/test').Page,count=1){await page.locator('button.image-upload-target:not(:disabled)').waitFor();const pngs=await page.evaluate(count=>Array.from({length:count},(_,i)=>{const c=document.createElement('canvas');c.width=20;c.height=20;const ctx=c.getContext('2d')!;ctx.fillStyle=['red','blue','green'][i%3];ctx.fillRect(0,0,20,20);return c.toDataURL('image/png').split(',')[1];}),count);await page.locator('input[type=file]').first().setInputFiles(pngs.map((png,i)=>({name:`${i+1}.png`,mimeType:'image/png',buffer:Buffer.from(png,'base64')})));await expect(page.locator('.image-source')).toHaveCount(count);}
 async function navigationOcr(page:import('@playwright/test').Page,writes:object[]){await interceptMealServices(page,'owner','#357185',writes);await page.route('**/api/dashboard',route=>{const body=route.request().method()==='POST'?route.request().postDataJSON():null;if(body?.action!=='ocr')return route.fallback();writes.push({action:'ocr'});return route.fulfill({json:navigationMenu});});}
 
+const discoveryMembers=[
+  {email:'view@example.com',permissions:{view:true,create:false,manageResponses:false}},
+  {email:'ocr@example.com',permissions:{view:true,create:true,manageResponses:false}},
+  {email:'delete@example.com',permissions:{view:true,create:false,manageResponses:true}}
+];
+async function discoveryFixture(page:import('@playwright/test').Page,writes:object[]=[]){
+  await interceptMealServices(page,'owner','#357185',writes);
+  let members=discoveryMembers;
+  await page.route('**/api/dashboard**',route=>{
+    const request=route.request(),url=new URL(request.url());
+    if(request.method()==='POST'){
+      const body=request.postDataJSON();if(body.action!=='set-permissions')return route.fallback();
+      writes.push({method:'POST',...body});members=members.map(member=>member.email===body.email?{...member,permissions:body.permissions}:member);
+      return route.fulfill({json:{members,allowedEmails:members.map(member=>member.email)}});
+    }
+    return !url.search||url.searchParams.has('access')?route.fulfill({json:{accountId:'synthetic-owner',email:'admin@example.com',role:'owner',permissions:{view:true,create:true,manageResponses:true},weeks,members}}):route.fallback();
+  });
+}
+test.describe('ime-access-labels',()=>{
+  test.setTimeout(25000);
+  test('viewer name composition keeps old rows/options and caret until final accented query',async({page})=>{
+    const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/newest');
+    const search=page.getByRole('combobox',{name:'Họ tên',exact:true}),rows=page.locator('.detail-wrap tbody tr');
+    await expect(rows).toHaveCount(2);await search.focus();await search.dispatchEvent('compositionstart');
+    await search.fill('zz');await expect(search).toHaveValue('zz');await expect(rows).toHaveCount(2);await expect(page.getByRole('option',{name:'Minh Anh',exact:true})).toBeVisible();
+    await search.fill('Trường');await search.evaluate((node:HTMLInputElement)=>node.setSelectionRange(3,3));
+    await search.dispatchEvent('keydown',{key:'ArrowDown',isComposing:true,keyCode:229});await expect(search).toBeFocused();
+    expect(await search.evaluate((node:HTMLInputElement)=>node.selectionStart)).toBe(3);
+    await search.dispatchEvent('compositionend',{data:'Trường'});await expect(rows).toHaveCount(1);await expect(rows).toContainText('Trường An');
+    await page.getByRole('button',{name:'Xóa tìm kiếm Họ tên',exact:true}).click();await expect(search).toHaveValue('');await expect(rows).toHaveCount(2);expect(writes).toEqual([]);
+  });
+  test('selected week option query stays stable during composition and clear cancels pending text',async({page})=>{
+    await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');await page.locator('.ui-sidebar').getByRole('button',{name:'Thông báo tuần',exact:true}).click();
+    const search=page.getByRole('combobox',{name:'Tìm tuần',exact:true});await search.focus();const menu=page.locator('#'+await search.getAttribute('aria-controls'));
+    await expect(menu.getByRole('option')).toHaveCount(2);await search.dispatchEvent('compositionstart');await search.fill('không khớp');
+    await expect(menu.getByRole('option')).toHaveCount(2);await search.dispatchEvent('keydown',{key:'Escape',isComposing:true,keyCode:229});await expect(search).toHaveAttribute('aria-expanded','true');
+    await page.getByRole('button',{name:'Xóa tìm kiếm Tìm tuần',exact:true}).click();await expect(search).toHaveValue('');await expect(menu.getByRole('option')).toHaveCount(2);
+    await search.dispatchEvent('compositionstart');await search.fill('05/10');await search.dispatchEvent('compositionend');await expect(menu.getByRole('option')).toHaveCount(1);
+    await menu.getByRole('option').click();await expect(search).toHaveValue('Tuần 05/10/2026 - 09/10/2026');
+  });
+  test('shared OCR search never jumps focus on composing Enter and commits on blur',async({page})=>{
+    const writes:object[]=[];await navigationOcr(page,writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page);await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();
+    const search=page.getByRole('textbox',{name:'Tìm trong bản OCR',exact:true}),status=page.getByRole('status',{name:'Kết quả tìm OCR',exact:true});
+    await search.fill('com');await expect(status).toContainText('8 ô khớp');await search.dispatchEvent('compositionstart');await search.fill('xyz');
+    await expect(status).toContainText('8 ô khớp');await search.dispatchEvent('keydown',{key:'Enter',isComposing:true,keyCode:229});await expect(search).toBeFocused();
+    await page.getByRole('heading',{name:'Tạo tuần từ ảnh thực đơn',exact:true}).click();await expect(status).toContainText('0 ô khớp');
+    await search.fill('com');await search.dispatchEvent('keydown',{key:'Enter',isComposing:true,keyCode:229});await expect(search).toBeFocused();
+    await search.press('Enter');await expect(page.locator('#ocr-meal-0-0')).toBeFocused();await expect(page.locator('#ocr-meal-0-0')).toHaveValue('CƠM GÀ');expect(writes).toEqual([{action:'ocr'}]);
+  });
+  test('Gmail search intersects loaded permission filters without writes and preserves mutation identity',async({page})=>{
+    const writes:object[]=[];await discoveryFixture(page,writes);await page.goto('http://127.0.0.1:5175/dashboard');await page.locator('.ui-sidebar').getByRole('button',{name:'Quyền Gmail',exact:true}).click();
+    const list=page.locator('.dashboard-email-list'),filter=page.getByLabel('Lọc theo quyền',{exact:true}),search=page.getByRole('textbox',{name:'Tìm Gmail đã cấp quyền',exact:true});
+    await expect(list.locator('li')).toHaveCount(3);await filter.selectOption('create');await expect(list.locator('li')).toHaveCount(1);await expect(list).toContainText('ocr@example.com');
+    await search.fill('DELETE');await expect(list.locator('li')).toHaveCount(0);await expect(page.getByRole('status',{name:'Kết quả lọc quyền Gmail'})).toContainText('0/3');
+    await page.getByRole('button',{name:'Xóa tìm kiếm Tìm Gmail đã cấp quyền',exact:true}).click();await expect(filter).toHaveValue('create');await filter.selectOption('manageResponses');await expect(list).toContainText('delete@example.com');
+    await filter.selectOption('view');await expect(list.locator('li')).toHaveCount(3);await search.dispatchEvent('compositionstart');await search.fill('ocr');await expect(list.locator('li')).toHaveCount(3);await search.dispatchEvent('compositionend');await expect(list.locator('li')).toHaveCount(1);
+    expect(writes).toEqual([]);await list.getByRole('checkbox',{name:'Xóa / khôi phục',exact:true}).check();
+    await expect.poll(()=>writes.length).toBe(1);expect(writes).toEqual([{method:'POST',action:'set-permissions',email:'ocr@example.com',permissions:{view:true,create:true,manageResponses:true}}]);
+  });
+  test('image secondary labels follow reorder and local restore without renaming files or entering OCR payloads',async({page})=>{
+    const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);let submitted:Record<string,unknown>|null=null;await page.route('**/api/dashboard',route=>{const body=route.request().method()==='POST'?route.request().postDataJSON():null;if(body?.action!=='ocr-images')return route.fallback();submitted=body;return route.fulfill({json:{fragments:body.images.map((_:string,imageIndex:number)=>({imageIndex,title:'Minh họa',days:[]}))}});});
+    await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page,2);
+    await page.getByRole('textbox',{name:'Nhãn phụ ảnh 1',exact:true}).fill('Phần đầu tuần');await page.getByRole('textbox',{name:'Nhãn phụ ảnh 2',exact:true}).fill('Phần cuối tuần');
+    const sources=await page.locator('.image-source img').evaluateAll(nodes=>nodes.map(n=>(n as HTMLImageElement).src));
+    await page.getByRole('button',{name:'Di chuyển ảnh 1 xuống',exact:true}).click();await expect(page.getByRole('textbox',{name:'Nhãn phụ ảnh 1',exact:true})).toHaveValue('Phần cuối tuần');
+    await expect(page.locator('.image-source [data-image-choice]')).toHaveText(['Ảnh 1: 2.png','Ảnh 2: 1.png']);await expect(page.locator('.menu-image-filename')).toHaveText('1.png');expect(writes).toEqual([]);
+    await expect(page.locator('.draft-toolbar [role=status]')).toContainText('Đã lưu nháp');await page.reload();
+    await expect(page.getByRole('textbox',{name:'Nhãn phụ ảnh 2',exact:true})).toHaveValue('Phần đầu tuần');await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();
+    await expect.poll(()=>submitted).not.toBeNull();expect(submitted).toEqual({action:'ocr-images',images:[sources[1],sources[0]]});
+  });
+  test('labels survive append/remove and keep duplicate filename associations with original budget',async({page})=>{
+    const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page,2);
+    await page.getByRole('textbox',{name:'Nhãn phụ ảnh 1',exact:true}).fill('A');await page.getByRole('textbox',{name:'Nhãn phụ ảnh 2',exact:true}).fill('B');
+    const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Thêm ảnh',exact:true}).click();const png=await page.locator('.image-source img').first().getAttribute('src');await(await chooser).setFiles({name:'1.png',mimeType:'image/png',buffer:Buffer.from(png!.split(',')[1],'base64')});
+    await expect(page.locator('.image-source')).toHaveCount(3);await expect(page.getByRole('textbox',{name:'Nhãn phụ ảnh 3',exact:true})).toHaveValue('');await page.getByRole('textbox',{name:'Nhãn phụ ảnh 3',exact:true}).fill('C');
+    const budget=await page.getByRole('status',{name:'Dung lượng bộ ảnh'}).textContent();await page.getByRole('button',{name:'Di chuyển ảnh 3 lên',exact:true}).click();await expect(page.getByRole('status',{name:'Dung lượng bộ ảnh'})).toHaveText(budget!);
+    await expect(page.getByRole('textbox',{name:'Nhãn phụ ảnh 2',exact:true})).toHaveValue('C');await page.getByRole('button',{name:'Bỏ ảnh 1',exact:true}).click();
+    await expect(page.getByRole('textbox',{name:'Nhãn phụ ảnh 1',exact:true})).toHaveValue('C');await expect(page.getByRole('textbox',{name:'Nhãn phụ ảnh 2',exact:true})).toHaveValue('B');expect(writes).toEqual([]);
+  });
+  test('command palette waits for composition and raw IME Enter never navigates',async({page})=>{
+    const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/newest');await page.keyboard.press('Control+k');
+    const search=page.getByRole('combobox',{name:'Tìm lệnh hoặc tuần',exact:true}),list=page.getByRole('listbox',{name:'Kết quả lệnh',exact:true});await expect(search).toBeFocused();const before=await list.getByRole('option').count();
+    await search.dispatchEvent('compositionstart');await search.fill('Dashboard');await expect(list.getByRole('option')).toHaveCount(before);await search.dispatchEvent('keydown',{key:'Enter',isComposing:true,keyCode:229});await expect(search).toBeFocused();await expect(page).toHaveURL(/newest$/);
+    await search.dispatchEvent('compositionend');await expect(list.getByRole('option')).toHaveCount(1);await search.press('Enter');await expect(page).toHaveURL(/dashboard$/);expect(writes).toEqual([]);
+  });
+  test('empty member scope is honest and non-owners never gain permission discovery controls',async({page})=>{
+    await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');await page.locator('.ui-sidebar').getByRole('button',{name:'Quyền Gmail',exact:true}).click();await expect(page.getByRole('status',{name:'Kết quả lọc quyền Gmail'})).toContainText('0/0');await expect(page.getByText('Chưa có Gmail được cấp quyền.',{exact:true})).toBeVisible();
+    await interceptMealServices(page,'viewer');await page.goto('http://127.0.0.1:5175/dashboard');await expect(page.locator('.ui-sidebar').getByRole('button',{name:'Quyền Gmail',exact:true})).toHaveCount(0);await expect(page.getByRole('search',{name:'Tìm và lọc quyền Gmail'})).toHaveCount(0);
+  });
+  test('responsive batch keeps secondary labels and Gmail discovery readable in light/dark large text',async({page})=>{
+    test.setTimeout(90000);const writes:object[]=[],errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));await discoveryFixture(page,writes);
+    for(const width of [360,900,1440])for(const theme of ['light','dark']){
+      await page.setViewportSize({width,height:900});await page.addInitScript(({theme})=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme,motion:'off'}));localStorage.setItem('meal-text-size','large');},{theme});
+      await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page,2);await page.getByRole('textbox',{name:'Nhãn phụ ảnh 1',exact:true}).fill('Phần đầu tuần · đối chiếu ngày và món');await page.getByRole('textbox',{name:'Nhãn phụ ảnh 2',exact:true}).fill('Phần cuối tuần');
+      const capture=async(label:string)=>{await page.evaluate(()=>document.fonts.ready);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`review/ime-access-labels/${label}-${width}-${theme}.png`});};
+      await page.locator('.image-source-list').scrollIntoViewIfNeeded();await capture('labels');
+      if(width>700)await page.locator('.ui-sidebar').getByRole('button',{name:'Quyền Gmail',exact:true}).click();else{await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();await page.getByRole('dialog',{name:'Thêm chức năng',exact:true}).getByRole('button',{name:'Quyền Gmail',exact:true}).click();}
+      await page.getByLabel('Lọc theo quyền',{exact:true}).selectOption('create');await page.getByRole('search',{name:'Tìm và lọc quyền Gmail'}).scrollIntoViewIfNeeded();await capture('members');await expect(page.locator('.dashboard-email-list li')).toHaveCount(1);
+    }expect(errors).toEqual([]);expect(writes).toEqual([]);
+  });
+});
+
 test.describe('ocr-navigation',()=>{
   test.setTimeout(20000);
   test('foreign and cancelled drags do nothing while mobile order buttons keep boundaries',async({page})=>{
@@ -320,7 +422,7 @@ test('clarity-controls: deadline review retains the original reason and Form con
 });
 
 test('clarity-controls: PC resize supports pointer, keyboard and reset without changing data',async({page})=>{
-  await interceptMealServices(page);await page.setViewportSize({width:1440,height:960});await page.goto('http://127.0.0.1:5175/newest');const th=page.locator('.detail-wrap th').nth(1);await expect(th).toBeVisible();await page.evaluate(()=>document.fonts.ready);const before=(await th.boundingBox())!.width;const handle=th.getByRole('separator',{name:'Độ rộng cột Họ tên',exact:true});const box=(await handle.boundingBox())!;await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width/2+80,box.y+box.height/2);await page.mouse.up();expect((await th.boundingBox())!.width).toBeCloseTo(before+80,0);await handle.focus();await page.keyboard.press('ArrowRight');expect((await th.boundingBox())!.width).toBeCloseTo(before+96,0);await expect(page.getByRole('status',{name:'Kết quả lọc'})).toContainText('10 lựa chọn món');await page.getByRole('button',{name:'Cỡ cột mặc định',exact:true}).click();await expect(page.locator('.detail-wrap table')).toHaveCSS('table-layout','auto');expect(Math.abs((await th.boundingBox())!.width-before)).toBeLessThan(2);await page.setViewportSize({width:390,height:960});await expect(handle).toBeHidden();await expect(page.locator('.detail-wrap tbody tr').first().locator('td')).toHaveCount(7);
+  await interceptMealServices(page);await page.setViewportSize({width:1440,height:960});await page.goto('http://127.0.0.1:5175/newest');const th=page.locator('.detail-wrap th').nth(1);await expect(th).toBeVisible();await page.evaluate(()=>document.fonts.ready);await th.evaluate(node=>Promise.all(node.closest('dialog')!.getAnimations().map(animation=>animation.finished.catch(()=>{}))));const before=(await th.boundingBox())!.width;const handle=th.getByRole('separator',{name:'Độ rộng cột Họ tên',exact:true});const box=(await handle.boundingBox())!;await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width/2+80,box.y+box.height/2);await page.mouse.up();expect((await th.boundingBox())!.width).toBeCloseTo(before+80,0);await handle.focus();await page.keyboard.press('ArrowRight');expect((await th.boundingBox())!.width).toBeCloseTo(before+96,0);await expect(page.getByRole('status',{name:'Kết quả lọc'})).toContainText('10 lựa chọn món');await page.getByRole('button',{name:'Cỡ cột mặc định',exact:true}).click();await expect(page.locator('.detail-wrap table')).toHaveCSS('table-layout','auto');expect(Math.abs((await th.boundingBox())!.width-before)).toBeLessThan(2);await page.setViewportSize({width:390,height:960});await expect(handle).toBeHidden();await expect(page.locator('.detail-wrap tbody tr').first().locator('td')).toHaveCount(7);
 });
 
 test('clarity-controls: manual shortcut reference preserves Ctrl K and adds no delete shortcut',async({page})=>{

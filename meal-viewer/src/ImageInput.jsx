@@ -4,7 +4,7 @@ import {readMenuImages,IMAGE_LIMITS} from './image-import.mjs';
 import {imageBudget,decimalMB} from './operating-ui.mjs';
 import {moveImage} from './ocr-navigation.mjs';
 
-export default function ImageInput({images,activeImage,disabled,onImages,onChoose,onRemove,onBusy,onMessage,onReorder,reorderBlocked=''}){
+export default function ImageInput({images,activeImage,disabled,onImages,onChoose,onRemove,onBusy,onMessage,onReorder,onLabel,reorderBlocked=''}){
   const input=useRef(null),append=useRef(false);
   const list=useRef(null),drag=useRef(null),[dropTarget,setDropTarget]=useState(null);
   const limitsId=useId();
@@ -48,6 +48,7 @@ export default function ImageInput({images,activeImage,disabled,onImages,onChoos
       onDragLeave={event=>{if(!(event.relatedTarget instanceof Node)||!event.currentTarget.contains(event.relatedTarget))setDropTarget(null);}}
       onDrop={event=>{if(!drag.current)return;event.preventDefault();event.stopPropagation();const current=drag.current;drag.current=null;setDropTarget(null);if(current.images===images&&event.dataTransfer.getData('application/x-mealform-image-index')===String(current.from))reorder(current.from,i);}}>
       <button type="button" data-image-choice className="secondary" aria-pressed={activeImage===entry.dataUrl} disabled={disabled} onClick={()=>onChoose(entry)}><img src={entry.dataUrl} alt="" draggable="false"/><span>Ảnh {i+1}: {entry.name}</span></button>
+      {onLabel&&<label className="image-secondary-label">Nhãn phụ<input type="text" aria-label={`Nhãn phụ ảnh ${i+1}`} value={entry.label||''} maxLength={100} disabled={disabled} placeholder="Ví dụ: Phần đầu tuần" onChange={event=>onLabel(i,event.target.value)}/></label>}
       {images.length>1&&<div className="image-order-actions"><button type="button" className="secondary image-drag-handle" aria-label={`Kéo để đổi vị trí ảnh ${i+1}`} aria-describedby={orderId} disabled={!canOrder} draggable={canOrder}
         onDragStart={event=>{if(!canOrder){event.preventDefault();return;}drag.current={images,from:i};event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('application/x-mealform-image-index',String(i));}}
         onDragEnd={()=>{drag.current=null;setDropTarget(null);}} onKeyDown={event=>{if(event.key==='ArrowUp'||event.key==='ArrowDown'){event.preventDefault();reorder(i,i+(event.key==='ArrowUp'?-1:1));}}}><GripVertical size={18} aria-hidden="true"/></button>

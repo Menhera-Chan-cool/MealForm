@@ -6,6 +6,11 @@ const menu = { title: 'Tuần thử', days: [{ day: 'Thứ 2', date: '12/10/2026
 const saved = draft.normalizeOcrDraft({ version: 1, accountId: 'account-a', image: 'data:image/png;base64,AA==', filename: 'menu.png', menu, savedAt: 100, secret: 'never-save', allowMissing: true }, 'account-a');
 assert.equal(saved.menu.days[0].meals[1], '');
 assert.equal(saved.secret, undefined); assert.equal(saved.allowMissing, undefined);
+const imageEntries=[{dataUrl:saved.image,name:'same.png',label:'Phần đầu tuần'},{dataUrl:'data:image/png;base64,AQ==',name:'same.png',label:''}];
+const labeled=draft.normalizeOcrDraft({...saved,images:imageEntries},'account-a');
+assert.deepEqual(labeled.images,imageEntries,'secondary labels survive normalization without replacing filenames');
+assert.deepEqual(draft.normalizeOcrDraft({...saved,images:[{dataUrl:saved.image,name:'old.png'}]},'account-a').images,[{dataUrl:saved.image,name:'old.png'}],'old drafts need no label');
+for(const label of [null,5,{},'x'.repeat(101)])assert.equal(draft.normalizeOcrDraft({...saved,images:[{...imageEntries[0],label}]},'account-a'),null,'invalid metadata cannot silently lose edits');
 assert.equal(draft.normalizeOcrDraft(saved, 'account-b'), null);
 assert.equal(draft.normalizeOcrDraft({ ...saved, version: 9 }, 'account-a'), null);
 assert.equal(draft.normalizeOcrDraft({ ...saved, image: 'javascript:alert(1)' }, 'account-a'), null);

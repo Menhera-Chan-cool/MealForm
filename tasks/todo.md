@@ -158,3 +158,8 @@
 - [x] Share template/spec synchronization; main/template full regression.
 - [x] Live Apps Script backup/merge/deploy; Vercel deploy; read-only production checks.
 - [x] Verified main/template tests and read-only production evidence; GitHub delivery included with this snapshot.
+- [x] ime-search: shared buffering/keys, real UI RED/GREEN across live filters, option query and OCR find.
+- [x] access-discovery: readonly email/permission intersection; original member mutation identity preserved.
+- [x] image-labels: optional bounded local metadata; association and draft compatibility RED/GREEN.
+- [x] Full regression (132/132), bounded responsive review, both native suites, preview builds/compatibility, canonical source sync.
+- [ ] Pinned main merge, exact artifact promotion and readonly live verification.
