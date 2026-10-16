@@ -1,4 +1,4 @@
-import { Fragment,useCallback, useEffect,useId, useMemo, useReducer, useRef, useState } from 'react';
+import { Fragment,useCallback, useEffect,useId,useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { errorMessage, mealRegistrationTarget, foldSearchText } from './viewer-model.mjs';
 import { inspectMenu, describeHistoryNote, countNewResponseIds, menuCalendarKey, fillMenuMonday, accountRoleLabel, filterAuditHistory, applyRegionResult, dashboardCommands,compareResponseVersions,isAppsScriptPermissionError } from './dashboard-model.mjs';
 import {SetupInstructions} from './SetupChecklist.jsx';
@@ -24,7 +24,7 @@ import MultiImageReview from './MultiImageReview.jsx';
 import {buildImageMerge} from './image-import.mjs';
 import './import-appearance.css';
 import {useQuickCommands,DisplayPreferencesSlot} from './ComfortProvider.jsx';
-import {DashboardLayout,DashboardOverview} from './DashboardLayout.jsx';
+import {DashboardLayout,DashboardOverview,allowedDashboardSections} from './DashboardLayout.jsx';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
 import WeekNoticeEditor from './WeekNoticeEditor.jsx';
 import WeekNotice from './WeekNotice.jsx';
@@ -54,6 +54,13 @@ import SystemReport from './SystemReport.jsx';
 import {TEXT_LIMITS,healthCounts} from './operating-ui.mjs';
 import OcrFindBar from './OcrFindBar.jsx';
 import {findOcrFields} from './ocr-navigation.mjs';
+import FormErrorSummary from './FormErrorSummary.jsx';
+import OcrWorkspace from './OcrWorkspace.jsx';
+import ContextualSaveBar from './ContextualSaveBar.jsx';
+import {brandFieldErrors} from './operate-accessibility.mjs';
+import CreationReceipt from './CreationReceipt.jsx';
+import useDashboardHistory from './useDashboardHistory.js';
+import {readDashboardLocation} from './dashboard-navigation.mjs';
 
 const MEAL_SLOTS = [0, 1, 2];
 
@@ -104,12 +111,10 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     finally{if(ticket)reads.finish(ticket);}
   };
   const [savedWeek] = useState(() => lastDashboardWeek(initialData?.accountId, (initialData?.weeks || []).map(week => week.weekKey)));
-  const initialWeek = savedWeek || initialData?.weeks?.[0]?.weekKey || '';
+  const initialLocation=readDashboardLocation(window.location.search,allowedDashboardSections(initialData?.role,initialData?.permissions||{create:true}).map(section=>section.id),initialData?.weeks||[],{tab:savedWeek?'delete':'overview',week:savedWeek||initialData?.weeks?.[0]?.weekKey||''});
+  const initialWeek = initialLocation.week;
   const [overview, setOverview] = useState(initialData || { role: '', weeks: [], allowedEmails: [] });
-  const [tab, setTabState] = useState(() => {
-    const initialTab = new URLSearchParams(window.location.search).get('tab');
-    return ['create', 'health'].includes(initialTab) ? initialTab : savedWeek ? 'delete' : 'overview';
-  });
+  const [tab, setTabState] = useState(initialLocation.tab);
   const [weekKey, setWeekKey] = useState(initialWeek);
   const tabTitle=({overview:'Tổng quan',create:'Tạo tuần bằng OCR',delete:'Lượt gửi',form:'Điều khiển Form',notice:'Thông báo tuần',reconcile:'Đối soát',branding:'Thương hiệu',health:'Hệ thống',access:'Quyền Gmail'})[tab]||'Quản trị';
   usePageTitle(`${tabTitle} · Dashboard`);
@@ -124,6 +129,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const verifiedBaseline=useRef(null);
   const [pollError, setPollError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
+  const followDeleteFocus=useRef(null);
   const [quickResponse, setQuickResponse] = useState(null);
   const [regionBase, setRegionBase] = useState(null);
   const [highlightIds, setHighlightIds] = useState([]);
@@ -144,6 +150,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [ocrQuery,setOcrQuery]=useState(''),[ocrActive,setOcrActive]=useState('');
   const setMenu = value => {setReviewEpoch(epoch=>epoch+1);setOcrQuery('');setOcrActive('');dispatchMenu({ type: 'reset', value });};
   const [creationState,setCreationState]=useState('idle');
+  const [createdWeek,setCreatedWeek]=useState(null);
+  const [ocrAttempt,setOcrAttempt]=useState(0),ocrWorkspace=useRef(null);
   const [allowMissing, setAllowMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -165,6 +173,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [health, setHealth] = useState(null);
   const [healthBusy, setHealthBusy] = useState(false);
   const [deadline, setDeadline] = useState('');
+  const [formAttempt,setFormAttempt]=useState(0);
+  const deadlineIssue=!deadline||!Number.isFinite(Date.parse(`${deadline}:00+07:00`))||Date.parse(`${deadline}:00+07:00`)<=Date.now()?'Chọn hạn đăng ký hợp lệ ở tương lai.':'';
   const [reconciliation, setReconciliation] = useState(null);
   const [reconciling,setReconciling]=useState(false);
   const warningRevision=useRef(0),healthRequest=useRef(0),nameCountId=useId();
@@ -173,6 +183,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   if(!healthBusy&&health?.uiWeekKey===weekKey){const counts=healthCounts(health.checks);const count=counts.warning+counts.error+counts.unknown;if(count)warnings.health={count,description:`Đã tải ${formatTime(health.readAt)} · ${selectedWarningWeek()}`,details:health.checks.filter(check=>check.status!=='ok').map(check=>check.label||'Mục chưa xác định').join(' · ')};}
   function selectedWarningWeek(){return (overview.weeks||[]).find(week=>week.weekKey===weekKey)?.name||'Tuần đang chọn';}
   const [brandDraft, setBrandDraft] = useState(branding);
+  const [brandAttempt,setBrandAttempt]=useState(0);
+  const brandErrors=brandFieldErrors(brandDraft).map(error=>({...error,id:({schoolName:'brand-school-name',logoUrl:'brand-logo-url',primaryColor:'brand-color'})[error.field]}));
   const logoFeedbackId=useId(),[logoAttempt,setLogoAttempt]=useState(0),[logoState,setLogoState]=useState(null),logoRequest=useRef(null);
   logoRequest.current={url:brandDraft.logoUrl,attempt:logoAttempt};
   function receiveLogoStatus(value){if(value.url===logoRequest.current.url&&value.attempt===logoRequest.current.attempt)setLogoState(value);}
@@ -183,7 +195,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const confirmDiscard=useUnsavedChanges(brandDirty||noticeDirty);
   function leaveDrafts(){
     if(!confirmDiscard())return false;
-    if(brandDirty){setBrandDraft(branding);setBrandSaved(branding);}
+    if(brandDirty){setBrandDraft(brandSaved);setBrandAttempt(0);}
     noticeEditor.current?.discard();setNoticeDirty(false);return true;
   }
   const selectedWeek = (overview.weeks || []).find(week => week.weekKey === weekKey);
@@ -197,13 +209,15 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const query = viewState.view.query, responseSort = viewState.view.sort;
   const setQuery = value => viewState.update({ query: value });
   const setResponseSort = value => viewState.update({ sort: value });
-  function navigate(nextTab=tab,nextWeek=weekKey){
-    if(nextTab===tab&&nextWeek===weekKey)return true;
-    if((busy&&['branding','notice'].includes(tab))||!leaveDrafts())return false;
-    viewState.save();setTabState(nextTab);
+  function navigate(nextTab=tab,nextWeek=weekKey,recordHistory=true,restored){
+    if(nextTab===tab&&nextWeek===weekKey&&!restored)return true;
+    if(busy||document.querySelector('dialog:modal:not(.quick-dialog)')||!leaveDrafts())return false;
+    viewState.save();if(recordHistory)navigationHistory.push(nextTab,nextWeek);setTabState(nextTab);
+    if(restored){viewState.restore(restored.view,nextWeek);setAuditFilters(restored.auditFilters);setAuditLimit(restored.auditLimit);}
     if(nextWeek!==weekKey){setQuickResponse(null);setWeekKey(nextWeek);}return true;
   }
   const setTab=next=>navigate(next,weekKey),selectWeek=next=>navigate(tab,next);
+  const navigationHistory=useDashboardHistory({account:overview.accountId,tab,week:weekKey,tabs:allowedDashboardSections(overview.role,permissions).map(section=>section.id),weeks:overview.weeks||[],capture:()=>({view:viewState.save()||viewState.view,auditFilters:{...auditFilters},auditLimit}),onNavigate:(nextTab,nextWeek,snapshot)=>navigate(nextTab,nextWeek,false,snapshot)});
   const quickCommands=useMemo(()=>dashboardCommands(overview),[overview]);
   useQuickCommands(quickCommands,busy||signingOut||Boolean(regionBase)||Boolean(mergeBase)||Boolean(confirmation),async command=>{
     if(!leaveDrafts())return false;
@@ -228,8 +242,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   function ocrFieldClass(id,existing=''){return [existing,ocrMatches.some(hit=>hit.id===id)?'ocr-search-hit':'',ocrIndex>=0&&ocrActive===id?'ocr-search-current':''].filter(Boolean).join(' ');}
   function jumpToReview(id){
     if(busy)return;const target=document.getElementById(id);if(!target)return;
-    if(target.closest('.ocr-day-fields')?.hidden)target.closest('.menu-day')?.querySelector('[data-open-review-day]')?.click();
-    requestAnimationFrame(()=>{target.scrollIntoView({block:'center'});target.focus({preventScroll:true});});
+    const focus=()=>{target.scrollIntoView({block:'center'});target.focus({preventScroll:true});};
+    if(ocrWorkspace.current)ocrWorkspace.current.showEditor(focus);else requestAnimationFrame(focus);
   }
   const existingWeek = (overview.weeks || []).find(week => week.weekKey === menuCalendarKey(menu));
   const existingFormUrl = mealRegistrationTarget(existingWeek).formUrl;
@@ -244,6 +258,17 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       return responseSort === 'oldest' ? difference : -difference;
     });
   const quickMatches=quickResponse?.responseId?visibleResponses.flatMap((response,index)=>response.responseId===quickResponse.responseId?[index]:[]):[];
+  useLayoutEffect(()=>{
+    const pending=followDeleteFocus.current;
+    if(!pending)return;
+    if(pending.week!==weekKey){followDeleteFocus.current=null;return;}
+    if(!displayedWeek||displayedWeek.responses.some(item=>item.responseId===pending.removed))return;
+    followDeleteFocus.current=null;
+    if(document.activeElement===document.body){
+      const target=pending.neighbor?document.querySelector(`[data-response-id="${CSS.escape(pending.neighbor)}"] .dashboard-row-actions button:not(:disabled)`):null;
+      (target||document.getElementById('dashboard-name-search'))?.focus();
+    }
+  },[displayedWeek,weekKey]);
   const quickIndex=quickMatches.length===1?quickMatches[0]:-1;
   const restoreAttempts = new Set((displayedWeek?.history || []).filter(event => /^restore-/.test(event.action) || event.action === 'restored').map(event => event.entryId));
   const filteredHistory = filterAuditHistory(displayedWeek?.history || [], auditFilters);
@@ -385,9 +410,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   async function controlForm(mode, reason) {
     if (overview.role !== 'owner' || !selectedWeek) return;
     const lockAt = mode === 'close' ? selectedWeek.lockAt : `${deadline}:00+07:00`;
-    if (mode !== 'close' && (!deadline || !Number.isFinite(Date.parse(lockAt)) || Date.parse(lockAt) <= Date.now())) { setMessage('Chọn hạn đăng ký hợp lệ ở tương lai.'); return; }
+    if (mode !== 'close' && deadlineIssue) { setFormAttempt(value=>value+1);setMessage(deadlineIssue); return; }
     const verb = mode === 'open' ? 'Mở lại' : mode === 'close' ? 'Đóng' : 'Đổi hạn đăng ký cho';
-    if (reason === undefined) { const status=value=>value==='open'?'Đang mở':value==='closed'?'Đã đóng':'Chưa xác định';setConfirmation({ message: `${verb} Form ${selectedWeek.name}?${mode === 'close' ? ' Người dùng sẽ không gửi được lượt mới.' : ` Hạn mới: ${deadline.replace('T', ' ')} (giờ Việt Nam).`} Thao tác được ghi lịch sử.`,changes:reviewChanges({status:status(selectedWeek.formStatus),deadline:formatTime(Date.parse(selectedWeek.lockAt))},{status:status(mode==='open'?'open':mode==='close'?'closed':selectedWeek.formStatus),deadline:formatTime(Date.parse(lockAt))},{status:'Trạng thái Form',deadline:'Hạn đăng ký (giờ Việt Nam)'}), run: note => controlForm(mode, note) }); return; }
+    if (reason === undefined) { const status=value=>value==='open'?'Đang mở':value==='closed'?'Đã đóng':'Chưa xác định';setConfirmation({ confirmLabel:mode==='open'?'Mở lại Form':mode==='close'?'Đóng Form':'Đổi hạn đăng ký', message: `${verb} Form ${selectedWeek.name}?${mode === 'close' ? ' Người dùng sẽ không gửi được lượt mới.' : ` Hạn mới: ${deadline.replace('T', ' ')} (giờ Việt Nam).`} Thao tác được ghi lịch sử.`,changes:reviewChanges({status:status(selectedWeek.formStatus),deadline:formatTime(Date.parse(selectedWeek.lockAt))},{status:status(mode==='open'?'open':mode==='close'?'closed':selectedWeek.formStatus),deadline:formatTime(Date.parse(lockAt))},{status:'Trạng thái Form',deadline:'Hạn đăng ký (giờ Việt Nam)'}), run: note => controlForm(mode, note) }); return; }
     clearDashboardCache(undefined, true); setWeekVerified(false);
     setBusy(true); setMessage('Đang cập nhật Form…');
     try {
@@ -415,11 +440,14 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   async function saveBranding(event,proposal) {
     event?.preventDefault();
     if (overview.role !== 'owner'||busy) return;
-    if(!proposal){const snapshot={draft:{...brandDraft},revision:brandSaved.updatedAt};setConfirmation({message:'Áp dụng tên trường, logo và màu này cho toàn bộ web?',changes:reviewChanges(brandSaved,snapshot.draft,{schoolName:'Tên trường',logoUrl:'URL logo',primaryColor:'Màu chủ đạo'}),showReason:false,run:()=>saveBranding(null,snapshot)});return;}
+    if(!proposal&&brandErrors.length){setBrandAttempt(value=>value+1);return;}
+    if(!proposal){const snapshot={draft:{...brandDraft},revision:brandSaved.updatedAt};setConfirmation({confirmLabel:'Lưu thương hiệu',message:'Áp dụng tên trường, logo và màu này cho toàn bộ web?',changes:reviewChanges(brandSaved,snapshot.draft,{schoolName:'Tên trường',logoUrl:'URL logo',primaryColor:'Màu chủ đạo'}),showReason:false,run:()=>saveBranding(null,snapshot)});return;}
     setBusy(true); setMessage('Đang lưu thương hiệu…');
     try {
       const result = await request('/api/dashboard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'set-branding', branding: proposal.draft, expectedUpdatedAt: proposal.revision }) });
+      if(typeof result?.schoolName!=='string'||typeof result.logoUrl!=='string'||brandFieldErrors(result).length||!Number.isFinite(result.updatedAt)||result.updatedAt<0)throw new Error('Chưa nhận được xác nhận lưu thương hiệu hợp lệ. Bản đang sửa được giữ; hãy kiểm tra trước khi thử lưu lại.');
       setBrandDraft(result);setBrandSaved(result);
+      setBrandAttempt(0);
       window.dispatchEvent(new CustomEvent('meal-branding-changed', { detail: result }));
       setMessage('Đã cập nhật thương hiệu.');
     } catch (error) { setMessage(error.message); }
@@ -502,6 +530,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     event.preventDefault();
     if (existingWeek) { setMessage('Tuần này đã có Form; dùng liên kết hiện có hoặc tải lại sổ tuần. Không ghi đè.', 'info'); return; }
     if (!validation.canCreate) {
+      setOcrAttempt(value=>value+1);
       setMessage(validation.dateError || validation.servingError || (validation.invalidMealDays.length ? 'Mỗi ngày cần ít nhất 2 món và tối đa 3 món.' : 'Xác nhận tiếp tục với ngày thiếu món.'));
       return;
     }
@@ -515,25 +544,29 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'create', menu: payload })
       });
-      setCreationState('done');
+      const createdKey=menuCalendarKey(payload),receipt={...result,weekKey:createdKey,weekFolderName:result.weekFolderName||`Tuần ${payload.days[0]?.date||''} - ${payload.days.at(-1)?.date||''}`};
+      setCreatedWeek(receipt);setCreationState('done');
       if (result.alreadyExists) setMessage('Tuần này đã có Form. Mình đã lấy lại các liên kết hiện có.');
       else setMessage('Đã tạo Form, Spreadsheet và thư mục tuần.');
       try { await draft.clear(); } catch { setMessage('Tuần đã tạo nhưng chưa xóa được nháp trên thiết bị. Hãy xóa nháp thủ công.'); }
       setMenu(null); setImages([]); setImage(''); setFile(null); setAllowMissing(false);
       const next = await refreshOverview();
-      if (next?.weeks?.[0]) setWeekKey(next.weeks[0].weekKey);
+      const registered=next?.weeks?.find(week=>week.weekKey===createdKey);
+      if(registered){setWeekKey(createdKey);setCreatedWeek({...registered,...receipt,registered:true});}
       setWeekData(null);
     } catch (error) { setCreationState('idle');setMessage(error.message); }
     finally { setBusy(false); }
   }
 
   async function deleteResponse(response, reason) {
+    const focusIndex=visibleResponses.findIndex(item=>item.responseId===response.responseId);
+    const neighbor=visibleResponses[focusIndex+1]||visibleResponses[focusIndex-1];
     const time = formatTime(response.timestamp);
     if (!weekReady || !response.deletable || !response.deleteToken) return;
     const prompt = response.partial
       ? `Form đã xóa lượt của ${response.name} lúc ${time}, nhưng Sheet còn hàng dữ liệu. Xóa nốt hàng Sheet này?`
       : `Xóa lượt gửi của ${response.name} lúc ${time} khỏi Form và Sheet?`;
-    if (reason === undefined) { setConfirmation({ message: prompt, run: note => deleteResponse(response, note) }); return; }
+    if (reason === undefined) { setConfirmation({ message: prompt, confirmLabel:response.partial?'Xóa hàng Sheet còn sót':'Xóa lượt gửi này', run: note => deleteResponse(response, note) }); return; }
     clearDashboardCache(undefined, true); setWeekVerified(false);
     setPendingRow({ action: 'delete', id: response.responseId });
     setBusy(true); setMessage('Đang xóa lượt gửi…');
@@ -542,6 +575,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ weekKey, responseId: response.responseId, deleteToken: response.deleteToken, reason })
       });
+      followDeleteFocus.current={week:weekKey,removed:response.responseId,neighbor:neighbor?.responseId};
       await refreshOverview();
       await loadWeek(weekKey);
       setMessage(response.partial
@@ -655,47 +689,44 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     {tab === 'create' && permissions.create && <section className="dashboard-panel">
       <div className="field-label-row"><h2>Tạo tuần từ ảnh thực đơn</h2><FieldHelp label="OCR">OCR đọc chữ và món từ ảnh. Kết quả có thể sai; hãy đối chiếu ảnh, sửa ngày và món trước khi bấm Tạo Form và Sheet. Đọc ảnh không tự tạo tuần.</FieldHelp></div>
       <OcrProgress menu={menu} state={creationState}/>
+      <CreationReceipt week={createdWeek} onResponses={key=>navigate('delete',key)} onNew={()=>{setCreatedWeek(null);setCreationState('idle');document.querySelector('.image-upload-target')?.focus();}}/>
       <div className="draft-toolbar"><p role="status">{draft.status || 'Nháp lưu riêng trên thiết bị này, không đồng bộ giữa các máy.'}</p><ExplainedButton type="button" className="secondary" disabled={busy || !draft.ready} reason={busy?'Đang xử lý yêu cầu; không xóa nháp trong lúc này.':'Chưa đọc xong nháp trên thiết bị; hãy chờ.'} onClick={()=>void clearDraft()}>Xóa nháp</ExplainedButton></div>
       <ImageInput onLabel={(index,label)=>{if(!busy&&draft.ready&&!mergeBase&&!regionBase)setImages(current=>current.map((entry,i)=>i===index?{...entry,label}:entry));}} onReorder={next=>{if(!busy&&draft.ready&&!imageOrderBlocked)setImages(next);}} reorderBlocked={imageOrderBlocked} images={images} activeImage={image} disabled={busy||!draft.ready} onBusy={setBusy} onMessage={setMessage} onChoose={chooseImage} onRemove={removeImage} onImages={(next,append)=>{setCreationState('idle');setImages(next);chooseImage(next[0]);if(!append){setMenu(null);setAllowMissing(false);}setMergeBase(null);}}/>
       {image && file?.name && !file.type && <p className="menu-image-hint">Ảnh đã khôi phục: {file.name}. Không cần chọn lại để tiếp tục OCR hoặc sửa món.</p>}
-      <ExplainedButton label="Đọc thực đơn" disabled={busy || !image} reason={busy?'Đang xử lý yêu cầu khác; hãy chờ hoàn tất.':'Chọn ảnh thực đơn trước khi đọc OCR.'} onClick={() => void runOcr()}>{busy ? 'Đang xử lý…' : 'Đọc thực đơn'}</ExplainedButton>
+      <ExplainedButton label="Đọc thực đơn" className={menu?'secondary':''} disabled={busy || !image} reason={busy?'Đang xử lý yêu cầu khác; hãy chờ hoàn tất.':'Chọn ảnh thực đơn trước khi đọc OCR.'} onClick={() => void runOcr()}>{busy ? 'Đang xử lý…' : 'Đọc thực đơn'}</ExplainedButton>
       {image&&(menu||menuHistory.past.length>0||menuHistory.future.length>0)&&<div className="menu-history-tools"><ExplainedButton type="button" className="secondary" disabled={busy || !menuHistory.past.length} reason={busy?'Đang xử lý yêu cầu.':'Chưa có bước sửa trước đó để hoàn tác trong lần mở này.'} onClick={() => moveMenuHistory('undo')}>Hoàn tác</ExplainedButton><ExplainedButton type="button" className="secondary" disabled={busy || !menuHistory.future.length} reason={busy?'Đang xử lý yêu cầu.':'Chưa có bước đã hoàn tác để làm lại.'} onClick={() => moveMenuHistory('redo')}>Làm lại</ExplainedButton><small>Ctrl/⌘ Z · Ctrl/⌘ Shift Z. Lịch sử sửa chỉ giữ trong lần mở này.</small></div>}
-      {image && <div className={`menu-review-layout${menu ? '' : ' image-only'}`}>
-      <MenuImagePreview src={image} name={file?.name} regionDisabled={busy || !menu} onRegion={menu ? () => setRegionBase({image,menu}) : undefined} />
+      {image && <OcrWorkspace ref={ocrWorkspace} hasMenu={Boolean(menu)} source={<MenuImagePreview src={image} name={file?.name} regionDisabled={busy || !menu} onRegion={menu ? () => setRegionBase({image,menu}) : undefined} />}>
       {menu && <form className="menu-review" onSubmit={createWeek} onBlur={() => dispatchMenu({ type: 'commit' })} onKeyDown={event => {
         if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'z' && !busy) { event.preventDefault(); moveMenuHistory(event.shiftKey ? 'redo' : 'undo'); }
       }}>
         <OcrFindBar query={ocrQuery} onQuery={queryOcr} matches={ocrMatches} index={ocrIndex} disabled={busy} onMove={moveOcrMatch}/>
-        <label>Tiêu đề tuần<input id="ocr-title" className={ocrFieldClass('ocr-title')} value={menu.title || ''} maxLength={500} disabled={busy} onChange={event => dispatchMenu({ type: 'edit', group: 'title', value: current => ({ ...current, title: event.target.value }) })} /></label>
+        <label>Tiêu đề tuần (không bắt buộc)<input id="ocr-title" aria-label="Tiêu đề tuần" enterKeyHint="next" className={ocrFieldClass('ocr-title')} value={menu.title || ''} maxLength={500} disabled={busy} onChange={event => dispatchMenu({ type: 'edit', group: 'title', value: current => ({ ...current, title: event.target.value }) })} /></label>
         <label>Chọn thứ Hai<input id="ocr-monday" aria-label="Chọn thứ Hai" type="date" value={/^\d{2}\/\d{2}\/\d{4}$/.test(menu.days?.[0]?.date || '') ? menu.days[0].date.split('/').reverse().join('-') : ''} disabled={busy} onChange={event => chooseMonday(event.target.value)} /><small>Tự điền 5 ngày, giữ món/ngày nghỉ. Hoàn tác khôi phục cả tuần.</small></label>
         {existingWeek && <div className="existing-week-warning" role="status"><strong>Tuần này đã có Form — không tạo hoặc ghi đè tuần mới.</strong><div className="dashboard-links">{existingFormUrl && <ExternalLink href={existingFormUrl}>Mở Form</ExternalLink>}{existingSheetUrl && <ExternalLink href={existingSheetUrl}>Mở Sheet</ExternalLink>}<button type="button" className="secondary" disabled={busy} onClick={() => void refreshOverview()}>Tải lại sổ tuần</button></div></div>}
         <h3>Rà soát 5 ngày</h3>
-        {reviewLinks.length>0&&<section className="ocr-issue-list" role="region" aria-label="Cần đối chiếu OCR"><h3>Cần đối chiếu OCR</h3><p>Bấm mục cần kiểm tra để tới ô tương ứng. Không tự sửa nội dung.</p><ul>{reviewLinks.map(link=><li key={link.id} data-blocking={link.blocking}><button className="secondary" type="button" disabled={busy} onClick={()=>jumpToReview(link.id)}>{link.label}: {link.message}</button><small>{link.blocking?'Cần xử lý trước khi tạo':'Cảnh báo · đã cho phép thiếu món'}</small></li>)}</ul></section>}
+        {reviewLinks.length>0&&<div className="ocr-issue-list" role="region" aria-label="Cần đối chiếu OCR"><FormErrorSummary label="Lỗi cần sửa trước khi tạo tuần" errors={reviewLinks} attempt={ocrAttempt} onJump={jumpToReview}/></div>}
         {menu.days.map((day, dayIndex) => {
           const issue = validation.dayIssues[dayIndex];
           const status = issue.dateError || issue.mealError ? 'error' : issue.missingMealSlots.length ? 'warning' : 'ok';
           const dateNote = `menu-date-note-${dayIndex}`;
-          const mealNote = `menu-meal-note-${dayIndex}`;
           return <OcrReviewDay day={day} issue={issue} allowMissing={allowMissing} busy={busy} status={status} key={`${reviewEpoch}-${dayIndex}`} legend={<>{day.day || `Thứ ${dayIndex + 2}`} {status !== 'ok' && <span className="menu-review-badge">{status === 'error' ? 'Cần sửa' : `Thiếu ${issue.missingMealSlots.length} món`}</span>}</>}>
-            <label>Ngày<input id={`ocr-date-${dayIndex}`} className={ocrFieldClass(`ocr-date-${dayIndex}`)} value={day.date || ''} maxLength={40} placeholder="dd/mm/yyyy" aria-invalid={Boolean(issue.dateError)} aria-describedby={issue.dateError ? dateNote : undefined} onChange={event => editDay(dayIndex, 'date', event.target.value)} /></label>
+            <label>Ngày<input id={`ocr-date-${dayIndex}`} aria-label="Ngày" enterKeyHint="next" className={ocrFieldClass(`ocr-date-${dayIndex}`)} value={day.date || ''} maxLength={40} placeholder="dd/mm/yyyy" aria-invalid={Boolean(issue.dateError)} aria-describedby={`${dateNote}-hint${issue.dateError?' '+dateNote:''}`} onChange={event => editDay(dayIndex, 'date', event.target.value)} /><small id={dateNote+'-hint'}>Ngày/tháng/năm, ví dụ 19/10/2026. Đối chiếu đúng thứ trên ảnh.</small></label>
             {issue.dateError && <p id={dateNote} className="menu-inline-error">{issue.dateError}</p>}
             <label className="menu-closed-toggle"><input id={`ocr-closed-${dayIndex}`} type="checkbox" checked={day.closed === true} onChange={event => editDay(dayIndex, 'closed', event.target.checked)} />Không phục vụ ngày này</label>
             {day.closed === true ? <p className="menu-closed-note">Ngày nghỉ — không tạo câu hỏi chọn món. Món đã nhập vẫn giữ để bỏ đánh dấu hoặc hoàn tác.</p> : <div className="dashboard-meals">{MEAL_SLOTS.map(slot => {
               const missing = issue.missingMealSlots.includes(slot);
-              return <label key={slot}>Món {slot + 1}<input id={`ocr-meal-${dayIndex}-${slot}`} value={day.meals?.[slot] || ''} maxLength={500} className={ocrFieldClass(`ocr-meal-${dayIndex}-${slot}`,missing ? 'menu-meal-missing' : '')} placeholder={missing ? 'Đối chiếu món này với ảnh' : ''} aria-invalid={Boolean(missing && issue.mealError)} aria-describedby={missing ? mealNote : undefined} onChange={event => editDay(dayIndex, 'meal', event.target.value, slot)} /></label>;
+              const id=`ocr-meal-${dayIndex}-${slot}`,feedback=reviewLinks.find(link=>link.id===id);
+              return <label key={slot}>Món {slot + 1}<input id={id} aria-label={'Món '+(slot+1)} enterKeyHint="next" value={day.meals?.[slot] || ''} maxLength={500} className={ocrFieldClass(id,missing ? 'menu-meal-missing' : '')} placeholder={missing ? 'Đối chiếu món này với ảnh' : ''} aria-invalid={Boolean(feedback?.blocking)} aria-describedby={feedback?id+'-error':undefined} onChange={event => editDay(dayIndex, 'meal', event.target.value, slot)} />{feedback&&<small id={id+'-error'} className={feedback.blocking?'menu-inline-error':'menu-inline-warning'}>{feedback.message}</small>}</label>;
             })}</div>}
-            {issue.missingMealSlots.length > 0 && <p id={mealNote} className={issue.mealError ? 'menu-inline-error' : 'menu-inline-warning'}>
-              Chưa có {issue.missingMealSlots.map(slot => `Món ${slot + 1}`).join(', ')}. {issue.mealError || 'Nếu ảnh chỉ có 2 món, hãy xác nhận ở cuối bảng.'}
-            </p>}
           </OcrReviewDay>;
         })}
         {validation.dateError && <p className="dashboard-warning" role="alert">{validation.dateError}</p>}
         {validation.servingError && <p className="dashboard-warning" role="alert">{validation.servingError}</p>}
         {validation.invalidMealDays.length > 0 && <p className="dashboard-warning" role="alert">Mỗi ngày cần ít nhất 2 món và tối đa 3 món: {validation.invalidMealDays.join(', ')}.</p>}
         {validation.missingMealDays.length > 0 && <label className="dashboard-confirm-missing"><input type="checkbox" checked={allowMissing} disabled={busy} onChange={event => setAllowMissing(event.target.checked)} /> Tôi xác nhận các ngày sau có ít hơn 3 món: {validation.missingMealDays.join(', ')}</label>}
-        <ExplainedButton type="submit" disabled={busy || !validation.canCreate || Boolean(existingWeek)} reason={busy?'Đang xử lý yêu cầu; chưa thể tạo thêm.':existingWeek?'Tuần này đã có Form và Sheet. Mở liên kết hiện có hoặc sửa ngày; không tạo trùng.':validation.dateError||validation.servingError||(validation.invalidMealDays.length?'Sửa các ngày chưa đủ 2 món hoặc vượt quá 3 món.':'Đối chiếu và xác nhận các ngày có ít hơn 3 món ở cuối bảng.')}>Tạo Form và Sheet</ExplainedButton>
+        <ExplainedButton type="submit" disabled={busy || Boolean(existingWeek)} reason={busy?'Đang xử lý yêu cầu; chưa thể tạo thêm.':existingWeek?'Tuần này đã có Form và Sheet. Mở liên kết hiện có hoặc sửa ngày; không tạo trùng.':validation.dateError||validation.servingError||(validation.invalidMealDays.length?'Sửa các ngày chưa đủ 2 món hoặc vượt quá 3 món.':'Đối chiếu và xác nhận các ngày có ít hơn 3 món ở cuối bảng.')}>Tạo Form và Sheet</ExplainedButton>
       </form>}
-      </div>}
+      </OcrWorkspace>}
     </section>}
 
     {tab === 'delete' && <section className="dashboard-panel">
@@ -703,6 +734,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <div className="dashboard-section-title"><h2>Lượt gửi và lịch sử thao tác</h2></div>
       <WeekNotice notice={displayedWeek?.week?.weekNotice} serverNow={displayedWeek?.week?.serverNow}/>
 <div className="dashboard-sticky-tools" ref={viewState.toolbarRef}>{weekPicker()}<div className="dashboard-refresh-bar"><ExplainedButton label="Tải lại dữ liệu" className="secondary" disabled={busy || weekLoading || !weekKey} reason={busy?'Đang xử lý thao tác; hãy chờ hoàn tất.':weekLoading?'Đang tải lượt gửi; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký để tải lượt gửi.'} aria-busy={weekLoading} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</ExplainedButton>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div><label className="dashboard-search">Tìm theo họ tên<SearchInput id="dashboard-name-search" label="Tìm theo họ tên" maxLength={200} value={query} onClear={()=>setQuery('')} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label></div>
+      {displayedWeek&&<p className="dashboard-filter-result" role="status" aria-live="polite" aria-atomic="true" aria-label="Kết quả lọc lượt gửi">Còn {visibleResponses.length} lượt gửi trong phần đã tải.{!weekReady&&' Bản đang xem chưa được xác minh.'}</p>}
       {displayedWeek && !weekReady && <p className="dashboard-cache-status" role="status">{cacheTime ? `Bản lưu lúc ${formatTime(cacheTime)}. ` : 'Dữ liệu lần xem trước. '}{weekLoading ? 'Đang xác minh…' : 'Chưa xác minh được; chỉ xem, hãy tải lại trước khi thao tác.'}</p>}
       {displayedWeek && weekReady && <p className="dashboard-hint">Dữ liệu đã xác minh. Tự kiểm tra lượt mới mỗi phút khi tab đang mở; bảng chỉ đổi khi tải lại.</p>}
       {reloadChanges&&weekReady&&<p className="reload-changes" role="status">Thay đổi lượt Form toàn tuần so với lần xác minh trước: <strong>{reloadChanges.added} mới · {reloadChanges.missing} đã mất · {reloadChanges.changed} thay đổi</strong>. Chỉ thông báo, không tự sửa/xóa.</p>}
@@ -719,7 +751,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       {weekLoading && !displayedWeek ? <ContentSkeleton label="Đang tải lượt gửi…" kind="table"/> : <TableScroll className="dashboard-response-list" ref={viewState.listRef} data-week-key={weekKey}><table className="dashboard-table dashboard-response-table" role="table"><thead><tr>{['Thời điểm','Họ tên','Món đã chọn','Thao tác'].map((label,index)=><th key={label}>{label}<ColumnResizeHandle index={index} label={label}/></th>)}</tr></thead><tbody>
         {visibleResponses.length ? visibleResponses.map(response => <tr key={response.responseId || response.rowNumber || `${response.timestamp}-${response.name}`} data-response-id={response.responseId} className={highlightIds.includes(response.responseId) ? 'new-response' : ''}>
           <td data-label="Thời điểm"><FriendlyTime value={response.timestamp}/></td><td data-label="Họ tên"><strong><SearchHighlight text={response.name} query={query}/></strong>{highlightIds.includes(response.responseId) && <span className="new-response-label">Mới</span>}{response.partial && <strong className="dashboard-partial"> · Form đã xóa, Sheet còn hàng</strong>}</td><td data-label="Món đã chọn"><ResponseMeals response={response} week={displayedWeek?.week} /></td>
-          <td data-label="Thao tác"><div className="dashboard-row-actions"><button type="button" className="secondary" onClick={() => setQuickResponse(response)}>Xem nhanh</button><RowActionMenu label="Thao tác lượt gửi">{permissions.manageResponses && (response.deletable || !weekReady) ? <ExplainedButton label="Xóa lượt này" type="button" data-close-row-menu className="danger" disabled={busy || !weekReady} reason={busy?'Đang xử lý một thao tác; chưa thể xóa tiếp.':'Dữ liệu hiện tại chưa được xác minh; hãy tải lại dữ liệu trước khi xóa.'} aria-busy={pendingRow?.action === 'delete' && pendingRow.id === response.responseId} onClick={() => void deleteResponse(response)}>{pendingRow?.action === 'delete' && pendingRow.id === response.responseId ? 'Đang xóa…' : response.partial ? 'Xóa nốt hàng Sheet' : 'Xóa lượt này'}</ExplainedButton> : <span title={response.note}>{!permissions.manageResponses ? 'Chỉ xem' : response.partial ? 'Cần kiểm tra thủ công' : 'Không đối chiếu được'}</span>}<SheetRowButton key={`${weekKey}-${weekRequest.current}-${response.responseId}`} weekKey={weekKey} source={response.partial ? 'sheet' : 'form'} response={response} request={request} disabled={busy || !weekReady} /></RowActionMenu></div></td>
+          <td data-label="Thao tác"><div className="dashboard-row-actions"><button type="button" className="secondary" onClick={() => setQuickResponse(response)}>Xem nhanh</button><RowActionMenu label="Thao tác lượt gửi"><div role="group" aria-label="Kiểm tra lượt gửi"><SheetRowButton key={`${weekKey}-${weekRequest.current}-${response.responseId}`} weekKey={weekKey} source={response.partial ? 'sheet' : 'form'} response={response} request={request} disabled={busy || !weekReady} /></div><div className="row-menu-danger" role="group" aria-label="Thao tác xóa">{permissions.manageResponses && (response.deletable || !weekReady) ? <ExplainedButton label="Xóa lượt này" type="button" data-close-row-menu className="danger" disabled={busy || !weekReady} reason={busy?'Đang xử lý một thao tác; chưa thể xóa tiếp.':'Dữ liệu hiện tại chưa được xác minh; hãy tải lại dữ liệu trước khi xóa.'} aria-busy={pendingRow?.action === 'delete' && pendingRow.id === response.responseId} onClick={() => void deleteResponse(response)}>{pendingRow?.action === 'delete' && pendingRow.id === response.responseId ? 'Đang xóa…' : response.partial ? 'Xóa nốt hàng Sheet' : 'Xóa lượt này'}</ExplainedButton> : <span title={response.note}>{!permissions.manageResponses ? 'Chỉ xem' : response.partial ? 'Cần kiểm tra thủ công' : 'Không đối chiếu được'}</span>}</div></RowActionMenu></div></td>
         </tr>) : <tr><td className="empty" colSpan="4">{!displayedWeek?'Chưa có dữ liệu đã xác minh. Hãy tải lại dữ liệu.':weekLoading?'Đang đọc kết quả lọc…':<FilterEmptyState title={responseConditions.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={responseConditions} onClear={()=>{setQuery('');document.getElementById('dashboard-name-search')?.focus();}}/>}</td></tr>}
       </tbody></table></TableScroll>}
       {displayedWeek?.page && <div className="dashboard-batch-tools"><p role="status">Đã tải {displayedWeek.responses.length} / {displayedWeek.page.matchedCount} lượt phù hợp · tổng {displayedWeek.page.total} lượt. Bản đối chiếu lúc {formatTime(displayedWeek.page.snapshotAt)}.</p>{displayedWeek.page.nextOffset != null && <ExplainedButton label="Tải thêm lượt gửi" type="button" className="secondary" disabled={!weekReady || busy || weekLoading || moreLoading} reason={busy?'Đang xử lý thao tác.':weekLoading||moreLoading?'Đang đọc lượt gửi.':'Bản đang xem chưa được xác minh; hãy tải lại dữ liệu trước.'} onClick={() => void loadMoreResponses()}>{moreLoading ? 'Đang tải thêm…' : 'Tải thêm lượt gửi'}</ExplainedButton>}</div>}
@@ -749,7 +781,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
     {tab === 'form' && overview.role === 'owner' && <section className="dashboard-panel">
       <div className="dashboard-section-title"><h2>Trạng thái và hạn đăng ký</h2>{weekPicker()}</div>
-      {selectedWeek ? <><p>Form: <strong>{selectedWeek.formStatus === 'open' ? 'Đang mở' : selectedWeek.formStatus === 'closed' ? 'Đã đóng' : 'Chưa xác định'}</strong></p><RegistrationDeadline lockAt={selectedWeek.lockAt} status={selectedWeek.formStatus} serverNow={overview.serverNow}/><div className="dashboard-deadline"><div className="field-label-row"><label htmlFor="dashboard-deadline">Hạn mới — giờ Việt Nam</label><FieldHelp label="Hạn đăng ký">Đây là thời điểm Form tự đóng, theo giờ Việt Nam. Nhập một hạn tương lai rồi xác nhận Lưu hạn đăng ký; đổi ô nhập hoặc mở trợ giúp không tự đổi Form. Mở lại Form quá hạn cũng cần hạn tương lai.</FieldHelp></div><input id="dashboard-deadline" type="datetime-local" value={deadline} disabled={busy} onChange={event => setDeadline(event.target.value)} /></div><p className="dashboard-hint">Mở lại Form quá hạn cần chọn hạn tương lai. Lịch tự đóng dùng hạn mới; tuần chưa chỉnh vẫn khóa lúc 00:00 thứ Hai.</p><div className="actions">
+      {formAttempt>0&&deadlineIssue&&<FormErrorSummary label="Lỗi cần sửa trước khi đổi hạn Form" attempt={formAttempt} errors={[{id:'dashboard-deadline',label:'Hạn mới — giờ Việt Nam',message:deadlineIssue}]}/>}
+      {selectedWeek ? <><p>Form: <strong>{selectedWeek.formStatus === 'open' ? 'Đang mở' : selectedWeek.formStatus === 'closed' ? 'Đã đóng' : 'Chưa xác định'}</strong></p><RegistrationDeadline lockAt={selectedWeek.lockAt} status={selectedWeek.formStatus} serverNow={overview.serverNow}/><div className="dashboard-deadline"><div className="field-label-row"><label htmlFor="dashboard-deadline">Hạn mới — giờ Việt Nam</label><FieldHelp label="Hạn đăng ký">Đây là thời điểm Form tự đóng, theo giờ Việt Nam. Nhập một hạn tương lai rồi xác nhận Lưu hạn đăng ký; đổi ô nhập hoặc mở trợ giúp không tự đổi Form. Mở lại Form quá hạn cũng cần hạn tương lai.</FieldHelp></div><input id="dashboard-deadline" type="datetime-local" enterKeyHint="done" aria-invalid={formAttempt>0&&Boolean(deadlineIssue)} aria-describedby={'dashboard-deadline-hint'+(formAttempt>0&&deadlineIssue?' dashboard-deadline-error':'')} value={deadline} disabled={busy} onChange={event => setDeadline(event.target.value)} /><small id="dashboard-deadline-hint">Chọn ngày và giờ tương lai theo giờ Việt Nam (UTC+7).</small>{formAttempt>0&&deadlineIssue&&<p id="dashboard-deadline-error" className="menu-inline-error">{deadlineIssue}</p>}</div><p className="dashboard-hint">Mở lại Form quá hạn cần chọn hạn tương lai. Lịch tự đóng dùng hạn mới; tuần chưa chỉnh vẫn khóa lúc 00:00 thứ Hai.</p><div className="actions">
         <ExplainedButton disabled={busy || selectedWeek.formStatus !== 'closed'} reason={busy?'Đang cập nhật Form; hãy chờ xác nhận.':selectedWeek.formStatus==='open'?'Form đang mở, không cần mở lại.':'Chưa xác định trạng thái Form; hãy tải lại sổ tuần.'} onClick={() => void controlForm('open')}>Mở Form</ExplainedButton>
         <ExplainedButton className="danger" disabled={busy || selectedWeek.formStatus !== 'open'} reason={busy?'Đang cập nhật Form; hãy chờ xác nhận.':selectedWeek.formStatus==='closed'?'Form đã đóng, không cần đóng lại.':'Chưa xác định trạng thái Form; hãy tải lại sổ tuần.'} onClick={() => void controlForm('close')}>Đóng Form</ExplainedButton>
         <ExplainedButton className="secondary" disabled={busy || selectedWeek.formStatus === 'unknown'} reason={busy?'Đang cập nhật Form; hãy chờ xác nhận.':'Chưa xác định trạng thái Form; hãy tải lại sổ tuần trước khi đổi hạn.'} onClick={() => void controlForm('deadline')}>Lưu hạn đăng ký</ExplainedButton>
@@ -764,14 +797,14 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
 {tab === 'branding' && overview.role === 'owner' && <section className="dashboard-panel">
   <h2>Thương hiệu trường</h2><p>Áp dụng cho trang xem, kho tuần, Dashboard và cài đặt. Chỉ lưu thông tin hiển thị công khai.</p>
-  {brandDirty&&<p className="unsaved-state" role="status" aria-label="Chưa lưu thương hiệu">Chưa lưu · Thương hiệu đang sửa chưa áp dụng lên web.</p>}
-  <form className="branding-form" onSubmit={event => void saveBranding(event)}>
-    <div className="branding-field-row"><div className="branding-name-control"><label>Tên trường<input required maxLength={TEXT_LIMITS.schoolName} aria-describedby={nameCountId} value={brandDraft.schoolName} onChange={event => setBrandDraft({ ...brandDraft, schoolName: event.target.value })} /></label><CharacterCounter id={nameCountId} value={brandDraft.schoolName} limit={TEXT_LIMITS.schoolName} label="Tên trường"/></div><button type="button" className="secondary" aria-label="Dùng lại tên trường đã lưu" disabled={busy||brandDraft.schoolName===brandSaved.schoolName} onClick={()=>setBrandDraft(value=>({...value,schoolName:brandSaved.schoolName}))}>Dùng lại đã lưu</button></div>
-    <div className="branding-field-row"><label>URL ảnh logo HTTPS<input type="url" maxLength={512} placeholder="https://…/logo.png" value={brandDraft.logoUrl} aria-invalid={Boolean(logoIssue||brandDraft.logoUrl&&logoPhase==='error')} aria-describedby={logoFeedbackId} onChange={event => setBrandDraft({ ...brandDraft, logoUrl: event.target.value })} /></label><button type="button" className="secondary" aria-label="Dùng lại logo đã lưu" disabled={busy||brandDraft.logoUrl===(brandSaved.logoUrl||'')} onClick={()=>setBrandDraft(value=>({...value,logoUrl:brandSaved.logoUrl||''}))}>Dùng lại đã lưu</button></div>
+  <form noValidate className="branding-form" onSubmit={event => void saveBranding(event)}>
+    {brandAttempt>0&&<FormErrorSummary label="Lỗi cần sửa trước khi lưu thương hiệu" errors={brandErrors} attempt={brandAttempt}/>}
+    <div className="branding-field-row"><div className="branding-name-control"><label>Tên trường<input id="brand-school-name" enterKeyHint="next" aria-label="Tên trường" aria-invalid={brandErrors.some(error=>error.field==='schoolName')} required maxLength={TEXT_LIMITS.schoolName} aria-describedby={nameCountId+' brand-school-name-hint'+(brandErrors.some(error=>error.field==='schoolName')?' brand-school-name-error':'')} value={brandDraft.schoolName} onChange={event => setBrandDraft({ ...brandDraft, schoolName: event.target.value })} /></label><small id="brand-school-name-hint">Tên hiển thị trên website, tối đa 100 ký tự.</small>{brandErrors.filter(error=>error.field==='schoolName').map(error=><p id="brand-school-name-error" className="menu-inline-error" key={error.field}>{error.message}</p>)}<CharacterCounter id={nameCountId} value={brandDraft.schoolName} limit={TEXT_LIMITS.schoolName} label="Tên trường"/></div><button type="button" className="secondary" aria-label="Dùng lại tên trường đã lưu" disabled={busy||brandDraft.schoolName===brandSaved.schoolName} onClick={()=>setBrandDraft(value=>({...value,schoolName:brandSaved.schoolName}))}>Dùng lại đã lưu</button></div>
+    <div className="branding-field-row"><label>URL ảnh logo HTTPS (không bắt buộc)<input id="brand-logo-url" aria-label="URL ảnh logo HTTPS" type="url" inputMode="url" enterKeyHint="next" autoCapitalize="none" spellCheck={false} maxLength={512} placeholder="https://…/logo.png" value={brandDraft.logoUrl} aria-invalid={Boolean(logoIssue||brandDraft.logoUrl&&logoPhase==='error')} aria-describedby={logoFeedbackId+' '+logoFeedbackId+'-hint'} onChange={event => setBrandDraft({ ...brandDraft, logoUrl: event.target.value })} /><small id={logoFeedbackId+'-hint'}>Không bắt buộc. Dùng URL ảnh HTTPS công khai, tối đa 512 ký tự; không nhập khóa bí mật.</small></label><button type="button" className="secondary" aria-label="Dùng lại logo đã lưu" disabled={busy||brandDraft.logoUrl===(brandSaved.logoUrl||'')} onClick={()=>setBrandDraft(value=>({...value,logoUrl:brandSaved.logoUrl||''}))}>Dùng lại đã lưu</button></div>
     <div id={logoFeedbackId} className="logo-input-feedback" data-state={logoIssue?'invalid':logoPhase}><p role="status" aria-label="Tình trạng logo">{logoMessage}</p>{brandDraft.logoUrl&&!logoIssue&&logoPhase==='error'&&<ExplainedButton type="button" className="secondary" disabled={busy} reason="Đang xử lý thao tác khác; hãy chờ hoàn tất." onClick={()=>setLogoAttempt(value=>value+1)}>Thử tải lại logo</ExplainedButton>}</div>
-    <div className="branding-field-row"><label>Màu chủ đạo<input type="color" value={brandDraft.primaryColor} onChange={event => setBrandDraft({ ...brandDraft, primaryColor: event.target.value })} /></label><button type="button" className="secondary" aria-label="Dùng lại màu đã lưu" disabled={busy||brandDraft.primaryColor===brandSaved.primaryColor} onClick={()=>setBrandDraft(value=>({...value,primaryColor:brandSaved.primaryColor}))}>Dùng lại đã lưu</button></div>
+    <div className="branding-field-row"><label>Màu chủ đạo<input id="brand-color" type="color" value={brandDraft.primaryColor} onChange={event => setBrandDraft({ ...brandDraft, primaryColor: event.target.value })} /></label><button type="button" className="secondary" aria-label="Dùng lại màu đã lưu" disabled={busy||brandDraft.primaryColor===brandSaved.primaryColor} onClick={()=>setBrandDraft(value=>({...value,primaryColor:brandSaved.primaryColor}))}>Dùng lại đã lưu</button></div>
     <BrandingPreview draft={brandDraft} saved={brandSaved} logoAttempt={logoAttempt} onLogoStatus={receiveLogoStatus}/>
-    <p className="dashboard-hint">Dùng ảnh HTTPS truy cập được công khai; chưa hỗ trợ tải ảnh lên. Không dán khóa API hoặc liên kết chứa thông tin bí mật.</p><ExplainedButton disabled={busy} reason="Đang xử lý yêu cầu; hãy chờ kết quả trước khi lưu tiếp.">Lưu thương hiệu</ExplainedButton>
+    <p className="dashboard-hint">Dùng ảnh HTTPS truy cập được công khai; chưa hỗ trợ tải ảnh lên. Không dán khóa API hoặc liên kết chứa thông tin bí mật.</p><ContextualSaveBar dirty={brandDirty} scope="thương hiệu" saveLabel="Lưu thương hiệu" busy={busy} onDiscard={()=>{setBrandDraft(brandSaved);setBrandAttempt(0);}}/>
   </form>
 </section>}
 
@@ -779,14 +812,14 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <div className="field-label-row"><h2>Gmail được phép quản trị</h2><FieldHelp label="Quyền quản trị">Chỉ chủ sở hữu chỉnh quyền. Xem cho phép mở Dashboard; OCR/tạo tuần và Xóa/khôi phục là hai quyền riêng. Bật/tắt ô quyền sẽ cập nhật quyền; gỡ Gmail cần xác nhận. Gỡ quyền không chuyển quyền sở hữu hay xóa dữ liệu. Mở trợ giúp không đổi quyền.</FieldHelp></div>
       <p>Gmail mới mặc định chỉ xem. Gmail cũ giữ quyền hiện có cho đến khi chủ chỉnh.</p>
       <form className="dashboard-access-form" onSubmit={event => { event.preventDefault(); void changeAllowedEmail('add-email'); }}>
-        <label>Thêm Gmail<input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="ten@gmail.com" required /></label>
+        <label>Thêm Gmail<input type="email" inputMode="email" enterKeyHint="done" autoCapitalize="none" spellCheck={false} value={email} onChange={event => setEmail(event.target.value)} placeholder="ten@gmail.com" required /></label>
         <button disabled={busy}>Cấp quyền</button>
       </form>
       <div className="member-discovery" role="search" aria-label="Tìm và lọc quyền Gmail">
         <label>Tìm Gmail đã cấp quyền<SearchInput label="Tìm Gmail đã cấp quyền" value={memberQuery} maxLength={254} placeholder="Nhập email cần tìm" onChange={event=>setMemberQuery(event.target.value)} onClear={()=>setMemberQuery('')}/></label>
         <label>Lọc theo quyền<select aria-label="Lọc theo quyền" value={memberPermission} onChange={event=>setMemberPermission(event.target.value)}><option value="">Tất cả quyền</option><option value="view">Có quyền Xem</option><option value="create">Có quyền OCR / tạo tuần</option><option value="manageResponses">Có quyền Xóa / khôi phục</option></select></label>
       </div>
-      <p className="member-discovery-result" role="status" aria-label="Kết quả lọc quyền Gmail">Hiện {visibleMembers.length}/{members.length} tài khoản đã tải. Chỉ lọc hiển thị, không đổi quyền.</p>
+      <p className="member-discovery-result" role="status" aria-live="polite" aria-atomic="true" aria-label="Kết quả lọc quyền Gmail">Hiện {visibleMembers.length}/{members.length} tài khoản đã tải. Chỉ lọc hiển thị, không đổi quyền.</p>
       {!members.length?<p>Chưa có Gmail được cấp quyền.</p>:!visibleMembers.length&&<p>Không có Gmail khớp bộ lọc. Hãy xóa từ khóa hoặc chọn Tất cả quyền.</p>}
       <ul className="dashboard-email-list">{visibleMembers.map(member => <li key={member.email}>
         <strong>{member.email}</strong><div className="member-permissions"><span>{member.permissions.view ? '✓ Xem' : 'Quyền lỗi'}</span>{[['create', 'OCR / tạo tuần'], ['manageResponses', 'Xóa / khôi phục']].map(([key, label]) => <label key={key}><input type="checkbox" checked={member.permissions[key] === true} disabled={busy} onChange={event => void changeAllowedEmail('set-permissions', member.email, { ...member.permissions, view: true, [key]: event.target.checked })} /> {label}</label>)}</div>
@@ -800,7 +833,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       dispatchMenu({type:'edit',value:applyRegionResult(menu,target,result)});setAllowMissing(false);setRegionBase(null);
     }} />}
     {quickResponse && <ResponseQuickView response={currentQuickResponse || quickResponse} week={displayedWeek?.week} verified={weekReady && Boolean(currentQuickResponse)} navigation={{index:quickIndex,total:visibleResponses.length,previous:quickIndex>0?visibleResponses[quickIndex-1]:null,next:quickIndex>=0?visibleResponses[quickIndex+1]:null}} onSelect={response=>{const current=visibleResponses.find(item=>item.responseId===response?.responseId);if(current)setQuickResponse(current);}} onClose={() => setQuickResponse(null)} />}
-    {confirmation && <ActionConfirmation message={confirmation.message} changes={confirmation.changes} showReason={confirmation.showReason} onCancel={() => setConfirmation(null)} onConfirm={reason => { const action = confirmation.run; setConfirmation(null); void action(reason); }} />}
+    {confirmation && <ActionConfirmation confirmLabel={confirmation.confirmLabel} message={confirmation.message} changes={confirmation.changes} showReason={confirmation.showReason} onCancel={() => setConfirmation(null)} onConfirm={reason => { const action = confirmation.run; setConfirmation(null); void action(reason); }} />}
   </main></DashboardLayout>;
 }
 

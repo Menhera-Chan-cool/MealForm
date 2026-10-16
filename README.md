@@ -1,5 +1,11 @@
 # MealForm
 
+## Giao diện dễ thao tác và hỗ trợ tiếp cận — 16/10/2026
+
+Hoàn thiện 30 mục đã duyệt: ảnh–OCR cạnh nhau trên PC, tab Ảnh/Bản sửa trên mobile; lỗi sát ô nhập và danh sách lỗi dẫn tới đúng ô; bỏ nút “Đã rà soát Thứ…” nhưng giữ kiểm tra ngày/món và Undo. Thương hiệu/thông báo có thanh Lưu/Bỏ thay đổi chỉ khi sửa, giữ nháp khi lưu lỗi hoặc máy chủ chưa xác nhận. Xác nhận xóa bắt đầu ở Hủy, nhãn hành động cụ thể; có chỉnh cỡ cột bằng nút/ô số, tên tệp đầy đủ, kết quả tạo tuần còn lại trên màn hình và Back/Forward theo tab/tuần.
+
+Rà soát bố cục hẹp/tương đương zoom 400%, màn hình ngang thấp, giãn chữ/dòng và tương phản cao; giữ màu Settings và các tùy chọn hiệu ứng. Chỉ đổi UI/tương tác, không đổi API/GAS, quyền hay dữ liệu Form/Sheet, không thêm dependency. Chi tiết phạm vi và bằng chứng: `CAPABILITY-MAP-operate-accessibility.md`, `VERIFICATION-operate-accessibility-2026-10-16.md`. Tình trạng phát hành được ghi trong hồ sơ sau khi kiểm thử và chuyển production xong; không coi bản mã đang sửa là đã deploy.
+
 ## Tìm kiếm ổn định, lọc quyền Gmail và nhãn ảnh — 16/10/2026
 
 Ô tìm kiếm giữ kết quả cũ trong lúc ghép dấu tiếng Việt rồi áp dụng chữ hoàn chỉnh; không nhảy kết quả OCR/lệnh nhanh khi Enter còn thuộc bộ gõ. Mục Quyền Gmail có tìm email và lọc Xem/OCR/Xóa trên danh sách đã tải, không tự chỉnh quyền. Ảnh thực đơn có nhãn phụ tối đa 100 ký tự dưới tên tệp gốc; nhãn đi cùng ảnh khi sắp xếp và lưu trong nháp riêng của tài khoản trên trình duyệt, không gửi lên OCR.

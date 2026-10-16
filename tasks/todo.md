@@ -163,3 +163,10 @@
 - [x] image-labels: optional bounded local metadata; association and draft compatibility RED/GREEN.
 - [x] Full regression (132/132), bounded responsive review, both native suites, preview builds/compatibility, canonical source sync.
 - [x] PR #16 pinned main merge, exact artifact promotion and readonly live verification; release docs, no RAR rebuild.
+- [x] operate-accessibility: responsive foundations and layout/forced-colors/spacing/landscape tests.
+- [x] interaction-safety: focus/confirm/menu/touch/table/tooltip/read-only/pointer behaviors.
+- [x] input-and-status: native-safe error summaries, hints, keyboards, result announcements/status tags.
+- [x] ocr-workspace: comparison panes, always-visible days, precise inline errors, filenames, creation receipt.
+- [x] settings-workflow: dirty-only save/discard, failed/conflicted save preservation and field errors.
+- [x] navigation-context: native Back/Forward with dirty/busy guards and exact validated week/tab.
+- [ ] Full integration, canonical sync, immutable artifact checks, pinned main merge/promotion, docs and readonly live smoke.

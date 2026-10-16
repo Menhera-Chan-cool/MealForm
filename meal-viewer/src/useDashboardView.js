@@ -31,6 +31,14 @@ export default function useDashboardView(account, week, tab, data, verified) {
     const state = current.current;
     setRecord({ account: state.account, week: state.week, view: { ...state.view, ...patch } });
   }
+  function restore(value,nextWeek){
+    const state=current.current;
+    writeDashboardView(state.account,nextWeek,value);
+    const next=readDashboardView(state.account,nextWeek)||{...DEFAULT_DASHBOARD_VIEW,...value};
+    scope.current={account:state.account,week:nextWeek};
+    pending.current={account:state.account,week:nextWeek,view:next,cached:false,fresh:false,interacted:false};
+    setRecord({account:state.account,week:nextWeek,view:next});
+  }
 
   useLayoutEffect(() => {
     if (scope.current.account === account && scope.current.week === week) return;
@@ -77,5 +85,5 @@ export default function useDashboardView(account, week, tab, data, verified) {
     window.addEventListener('touchstart', interact, { passive: true });
     return () => { clearTimeout(timer); window.removeEventListener('scroll', changed, true); window.removeEventListener('pagehide', save); window.removeEventListener('wheel', interact); window.removeEventListener('touchstart', interact); };
   }, [account, week, tab]);
-  return { view, update, save, listRef, toolbarRef };
+  return { view, update, restore, save, listRef, toolbarRef };
 }

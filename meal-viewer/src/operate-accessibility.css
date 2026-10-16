@@ -1,0 +1,93 @@
+.form-error-summary {padding:16px;margin:16px 0;border:1px solid var(--meal-ui-border);border-radius:12px;background:var(--meal-ui-muted);overflow-wrap:anywhere;}
+.form-error-summary h3 {margin:0 0 12px;}
+.form-error-summary ul {margin:0;padding-inline-start:20px;}
+.form-error-summary li {margin-block:8px;}
+.form-error-summary li button {text-align:start;white-space:normal;max-width:100%;}
+.form-error-summary small {display:block;margin-top:4px;color:var(--meal-ui-muted-foreground);}
+.contextual-save-bar {position:sticky;bottom:12px;z-index:8;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:20px;padding:16px;border:1px solid var(--meal-ui-border);border-radius:12px;background:var(--meal-ui-card);color:var(--meal-ui-foreground);}
+.contextual-save-bar p {margin:0;font-weight:700;}
+.contextual-save-bar p span {font-weight:400;}
+.contextual-save-bar .actions {margin:0;flex-wrap:wrap;min-width:0;}
+.creation-receipt {padding-block:20px;margin-block:16px;border-block:1px solid var(--meal-ui-border);overflow-wrap:anywhere;}
+.creation-receipt h3 {margin:0;}
+.creation-receipt>label {display:grid;gap:6px;margin-block:12px;max-width:100%;}
+.creation-receipt input {width:100%;min-width:0;user-select:text;}
+.ocr-workspace,.ocr-source-panel,.ocr-edit-panel,.menu-day,.branding-name-control,.branding-field-row {min-width:0;}
+.ocr-pane-tabs {position:sticky;top:0;z-index:18;display:flex;gap:8px;margin-block:16px;padding-block:8px;background:var(--meal-ui-card);border-bottom:1px solid var(--meal-ui-border);}
+.ocr-pane-tabs button {flex:1;min-width:0;}
+.ocr-source-panel {position:sticky;top:12px;align-self:start;}
+.ocr-source-panel .menu-image-pane {position:static;}
+.ocr-source-panel .menu-image-pane>.menu-image-stage>.menu-image-viewport {height:clamp(180px,48dvh,520px);max-height:60dvh;}
+.ocr-workspace .menu-review-layout {align-items:start;}
+.menu-day legend {max-width:100%;white-space:normal;overflow-wrap:anywhere;}
+.menu-review label>small {font-weight:400;line-height:1.6;}
+.ocr-issue-list {padding:0;border:0;}
+.action-toast {bottom:calc(24px + var(--meal-save-bar-height,0px));}
+.row-menu-danger {margin-top:12px;padding-top:12px;border-top:1px solid var(--meal-ui-border);}
+.row-menu-danger>span {display:block;}
+.column-choice {min-width:0;padding-block:8px;border-bottom:1px solid var(--meal-ui-border);}
+.column-width-controls {display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:end;gap:8px;min-width:0;margin-bottom:8px;}
+.column-width-controls button {min-width:44px;min-height:44px;padding:8px;}
+:root .meal-ui .column-width-controls label {display:grid;gap:4px;min-width:0;min-height:0;font-size:.8rem;}
+:root .meal-ui .column-width-controls input {width:100%;min-width:0;min-height:44px;padding:8px;font:inherit;}
+.source-filename-text {max-width:100%;overflow-wrap:anywhere;}
+.source-filename-full {user-select:text;overflow-wrap:anywhere;white-space:normal;}
+.source-filename-details {min-width:0;max-width:100%;font-size:.875rem;}
+.source-filename-details summary {min-height:44px;padding:8px 0;cursor:pointer;overflow-wrap:anywhere;}
+.source-filename-details p {margin:8px 0;}
+.school-logo-slot {display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex-shrink:0;}
+.school-logo-slot img {width:36px;height:36px;object-fit:contain;}
+:root .meal-ui :is(.member-permissions label,.menu-closed-toggle,.dashboard-confirm-missing,.audit-error-toggle) {min-height:44px;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding-block:10px;cursor:pointer;}
+:root .meal-ui label:has(>input[type=checkbox])>input {flex-shrink:0;width:20px;height:20px;}
+:root .meal-ui :is(input,textarea,select,button,a,summary,[tabindex]) {scroll-margin-block:96px 140px;}
+:root .meal-ui :is(button,a,.actions,label) {overflow-wrap:anywhere;}
+:root .meal-ui button {white-space:normal;}
+:root .meal-ui :is([readonly],.menu-image-filename,.source-filename-full) {user-select:text;}
+:root .meal-ui .form-status {cursor:default;box-shadow:none;border-radius:6px;}
+:root .meal-ui .form-link.disabled {cursor:default;box-shadow:none;border-style:dashed;border-radius:6px;}
+:root .meal-ui .dashboard-refresh-bar>.explained-action {inline-size:min(100%,17rem);}
+:root .meal-ui .dashboard-refresh-bar>.explained-action>button {min-block-size:44px;}
+:root .meal-ui :is(.archive-weeks,.calendar-week-links) a:visited {color:var(--meal-ui-muted-foreground);}
+:root .meal-ui :is(.archive-weeks,.calendar-week-links) a:visited :is(strong,span) {color:var(--meal-ui-muted-foreground);}
+@media(max-width:1100px) and (min-width:701px){.ocr-source-panel {position:static;}}
+@media(max-width:700px){
+  .ocr-source-panel {position:static;}
+  .contextual-save-bar {bottom:calc(88px + env(safe-area-inset-bottom));padding:12px;gap:10px;}
+  .action-toast {bottom:calc(100px + env(safe-area-inset-bottom) + var(--meal-save-bar-height,0px));}
+  .contextual-save-bar .actions {width:100%;display:flex;gap:8px;}
+  .contextual-save-bar .actions>.explained-action,.contextual-save-bar .actions>button {flex:1;min-width:0;}
+  .contextual-save-bar .explained-action>button {width:100%;}
+  :root .meal-ui .branding-field-row label {min-width:0;width:100%;}
+  .branding-name-control {width:100%;}
+  .ocr-workspace .menu-image-controls {gap:8px;}
+  :root .meal-ui :is(input:not([type=checkbox]),textarea,select) {font-size:max(1rem,16px);}
+  :root[data-virtual-keyboard=open] .ui-mobile-nav {display:none;}
+  :root[data-virtual-keyboard=open] .contextual-save-bar {position:static;}
+}
+@media(max-width:360px){.contextual-save-bar .actions {display:grid;grid-template-columns:minmax(0,1fr);}.contextual-save-bar .actions>button,.contextual-save-bar .actions>.explained-action {width:100%;}}
+@media(max-height:480px){
+  .contextual-save-bar {position:static;}
+  .ocr-source-panel {position:static;}
+  .ui-anchored-popover,.ui-more-menu {max-height:calc(var(--meal-viewport-height,100dvh) - 24px);}
+  .menu-image-viewport {max-height:55dvh;}
+  .filter-sheet {max-height:calc(var(--meal-viewport-height,100dvh) - 8px);}
+  .action-toast {position:static;max-height:none;margin:12px 0;width:auto;max-width:100%;}
+}
+@media(max-width:700px) and (max-height:480px){
+  :root .ui-mobile-nav {position:static;display:flex;flex-wrap:wrap;min-height:44px;margin:8px;padding:8px;}
+  :root .ui-dashboard-layout .dashboard-shell {padding-bottom:24px;}
+  :root[data-virtual-keyboard=open] .ui-mobile-nav {display:none;}
+}
+@media(forced-colors:active){
+  :root {--meal-ui-primary:Highlight!important;--meal-ui-primary-foreground:HighlightText!important;--meal-ui-hover:Highlight!important;--meal-ui-background:Canvas!important;--meal-ui-card:Canvas!important;--meal-ui-muted:Canvas!important;--meal-ui-field:Canvas!important;--meal-ui-foreground:CanvasText!important;--meal-ui-muted-foreground:CanvasText!important;--meal-ui-border:CanvasText!important;--brand-primary:Highlight!important;--brand-foreground:HighlightText!important;--brand-canvas:Canvas!important;--brand-panel:Canvas!important;--brand-field:Canvas!important;--brand-raised:Canvas!important;--brand-text:CanvasText!important;--brand-muted:CanvasText!important;--brand-line:CanvasText!important;--brand-border:CanvasText!important;--brand-ink:CanvasText!important;--brand-surface:Canvas!important;}
+  .meal-ui,.meal-ui * {forced-color-adjust:auto;}
+  .meal-ui :is(button,.ui-button) {forced-color-adjust:none!important;background:ButtonFace!important;color:ButtonText!important;}
+  .meal-ui :is(button,.ui-button) * {forced-color-adjust:none!important;color:inherit!important;background-color:transparent!important;}
+  .meal-ui :is(button,.ui-button):disabled {color:GrayText!important;background:ButtonFace!important;opacity:1!important;}
+  .meal-ui :is(button,.ui-button):is([aria-selected=true],[aria-pressed=true],[aria-current=page],.ui-selected) {background:Highlight!important;color:HighlightText!important;}
+  .meal-ui :is(button,input,textarea,select,dialog,[popover],.contextual-save-bar) {border:1px solid ButtonText!important;box-shadow:none!important;text-shadow:none!important;}
+  .meal-ui :is(button,a,input,textarea,select,summary,[tabindex]):focus-visible {outline:2px solid Highlight!important;outline-offset:3px;}
+  .meal-ui :is([aria-selected=true],[aria-pressed=true],[aria-current=page]) {outline:2px solid Highlight!important;outline-offset:-3px;}
+  .meal-ui .form-status svg * {stroke:CanvasText!important;}
+  .meal-ui :is(.menu-inline-error,[aria-invalid=true]) {border-color:CanvasText!important;color:CanvasText!important;}
+}
