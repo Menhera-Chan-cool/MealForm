@@ -2,6 +2,8 @@
 
 ## OCR navigation — selected 4, 6, 8; 2026-10-16
 
+Published via PR #15: source eb31a6c, merge f6b4b52, artifact dpl_GWDbbs1isW78SJLc7N5BokUJsbSh promoted without rebuild. Full 123-case suite, 33 native scripts in both copies, 11 compatibility cases, seven immutable-asset cases and genuine GET-only production smoke passed. See VERIFICATION-ocr-navigation-2026-10-16.md.
+
 Approved map CAPABILITY-MAP-ocr-navigation.md and its three module specs. Build image ordering with provenance guards, reuse loaded warning snapshots in Overview, then add read-only live OCR field find/navigation. Native and actual-entrypoint RED/GREEN per slice. Preserve source identity, draft/Undo, role and create/delete guards. Full app/preview/compatibility verification and bounded visual review precede checked immutable artifact, pinned PR/main merge, production promotion, GET-only live smoke and release docs. No new dependency or service calls.
 
 ## Operating feedback — seven selected capabilities, 2026-10-16
