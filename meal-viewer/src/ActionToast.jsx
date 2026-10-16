@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 
 export default function ActionToast({ message, kind = 'info', onDismiss }) {
+  useEffect(()=>{window.dispatchEvent(new Event('meal-layout-changed'));},[message]);
   useEffect(() => {
     if (!message || kind !== 'success') return undefined;
     const timer = window.setTimeout(onDismiss, 7000);

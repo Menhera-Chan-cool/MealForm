@@ -9,7 +9,7 @@ function SchoolBrand({ branding }) {
   const [failedLogo, setFailedLogo] = useState('');
   if (!branding.schoolName && !branding.logoUrl) return null;
   return <div className="school-brand" aria-label="Nhận diện trường">
-    {branding.logoUrl && failedLogo !== branding.logoUrl && <img src={branding.logoUrl} alt={`Logo ${branding.schoolName}`} referrerPolicy="no-referrer" onError={() => setFailedLogo(branding.logoUrl)} />}
+    {branding.logoUrl&&<span className="school-logo-slot">{failedLogo!==branding.logoUrl&&<img width={36} height={36} src={branding.logoUrl} alt={`Logo ${branding.schoolName}`} referrerPolicy="no-referrer" onError={() => setFailedLogo(branding.logoUrl)}/>}</span>}
     <span>{branding.schoolName}</span>
   </div>;
 }

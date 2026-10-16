@@ -30,6 +30,7 @@ import FilterEmptyState from './FilterEmptyState.jsx';
 import TableWorkspace from './TableWorkspace.jsx';
 import WeekNavigation from './WeekNavigation.jsx';
 import {DisplayPreferencesSlot} from './ComfortProvider.jsx';
+import useFocusVisibility from './useFocusVisibility.js';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '';
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
@@ -73,9 +74,11 @@ export function MotionPreferenceToggle({ reducedMotion, fullMotion, onToggle }) 
 }
 
 function App() {
+  useFocusVisibility();
   const appearance = useAppearance();
   const viewerPath = window.location.pathname;
-  const viewerSearch = window.location.search;
+  // Dashboard owns its tab/week history; those changes must not restart authentication.
+  const viewerSearch = /^\/dashboard\/?$/.test(viewerPath) ? '' : window.location.search;
   const routeIssue=viewerLinkIssue(viewerPath,viewerSearch);
   const isDashboard = viewerPath === '/dashboard' || viewerPath === '/dashboard/';
   const isSetup = viewerPath.replace(/\/+$/, '') === '/setup';
@@ -453,7 +456,7 @@ function App() {
       <ErrorReportButton report={failure} />
       {data?.closedDays?.length > 0 && <p className="closed-days-note">Ngày không phục vụ: {data.closedDays.join(' · ')}</p>}
       {activeDrilldown&&<div className="summary-return"><button type="button" className="secondary" onClick={returnToSummary}>Quay lại Tổng hợp</button><span>Đang xem đúng món đã chọn: {filters.meal} · {filters.day}</span></div>}
-      {data&&<p id="viewer-result-count" tabIndex={-1} className="viewer-result-count" role="status" aria-label="Kết quả lọc"><span>Theo bộ lọc hiện tại:</span><strong>{resultCounts.responses} lượt gửi</strong><span>·</span><strong>{resultCounts.choices} lựa chọn món</strong></p>}
+      {data&&<p id="viewer-result-count" tabIndex={-1} className="viewer-result-count" role="status" aria-live="polite" aria-atomic="true" aria-label="Kết quả lọc"><span>Theo bộ lọc hiện tại:</span><strong>{resultCounts.responses} lượt gửi</strong><span>·</span><strong>{resultCounts.choices} lựa chọn món</strong></p>}
       {emptyResults&&<FilterEmptyState title={data.rows?.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={data.rows?.length?filterConditions(filters):[]} onClear={key=>{setFilter(key,ALL);document.getElementById('name')?.focus();}}/>}
       <div hidden={emptyResults}>
       <ViewerTabs value={viewerTab} onChange={setViewerTab}/>

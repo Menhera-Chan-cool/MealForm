@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import ImageMinimap from './ImageMinimap.jsx';
+import SourceFilename from './SourceFilename.jsx';
 
 export default function MenuImagePreview({ src, name, onRegion, regionDisabled }) {
   const [zoom, setZoom] = useState(100);
@@ -49,7 +50,7 @@ export default function MenuImagePreview({ src, name, onRegion, regionDisabled }
     <h3>Ảnh gốc</h3>
     {controls()}
     {canvas()}
-    <p className="menu-image-filename">{name}</p>
+    <div className="menu-image-filename"><SourceFilename name={name}/></div>
     <p className="menu-image-hint">Phóng to rồi cuộn hoặc giữ chuột kéo ảnh. Bản đồ nhỏ và thao tác cuộn cảm ứng vẫn dùng được.</p>
     <dialog ref={dialog} className="menu-image-dialog" aria-labelledby={`${id}-title`} onClose={stopPan}>
       <div className="menu-image-dialog-header"><h2 id={`${id}-title`}>Ảnh gốc thực đơn</h2><button type="button" className="secondary" onClick={() => dialog.current.close()}>Đóng ảnh</button></div>

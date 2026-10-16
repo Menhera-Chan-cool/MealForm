@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Complete Operate/accessibility bundle — 2026-10-16
+
+User approved all 30 selections and autonomous plan/spec/implementation/release in six groups. Map: CAPABILITY-MAP-operate-accessibility.md and six module specs. Build and verify sequential slices: responsive foundations, safe shared interactions, field/status feedback, OCR comparison/removal/receipts, settings save/discard, guarded tab/week history. Tests first; preserve existing API/identity/auth/validation/draft/Undo. Existing reviewed-day tests will be rewritten to prove always-visible fields and preserved navigation/validation, not silently deleted. Serial native/build/full browser/compatibility verification, one bounded responsive review + at most one confirmation. Then scoped canonical sync, pinned PR merge, exact checked Vercel artifact promotion and genuine GET-only production checks. Keep Apps Script v79, school GAS/title, old RARs and unrelated dirty checkout untouched.
+
 ## Stable search, Gmail filters, image labels — 2026-10-16
 
 User approved all three and main/production. Follow CAPABILITY-MAP-ime-access-labels.md and module specs. Write failing real-UI/native tests first, fix shared composition handling, derive readonly member filters, then persist optional image labels. Run native suites, full actual-entrypoint/compatibility tests and preview builds serially; bounded PC/mobile light/dark review. Commit/push PR, verify exact immutable artifact, merge pinned source, promote unchanged artifact and GET-only production smoke. No backend deployment or live owner-data mutation.
