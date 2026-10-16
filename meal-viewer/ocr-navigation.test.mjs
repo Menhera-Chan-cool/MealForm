@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import * as ui from './src/ocr-navigation.mjs';
+assert.equal(typeof ui.moveImage,'function');
+const a=Object.freeze({name:'a',dataUrl:'same'}),b=Object.freeze({name:'b',dataUrl:'same'}),c=Object.freeze({name:'c',dataUrl:'other'}),images=Object.freeze([a,b,c]);
+assert.deepEqual(ui.moveImage(images,0,2),[b,c,a]);assert.deepEqual(ui.moveImage(images,2,0),[c,a,b]);assert.deepEqual(images,[a,b,c]);assert.equal(ui.moveImage(images,1,1),images);
+for(const [from,to]of [[-1,0],[0,3],[.5,0],['0',1],[0,NaN]])assert.equal(ui.moveImage(images,from,to),images);
+const menu={title:'Tuần thử',days:[{day:'Thứ 4',date:'22/10/2026',meals:['CƠM GÀ','Cơm cá','Bún']},{day:'Thứ 5',date:'23/10/2026',closed:true,meals:['Cơm ẩn']}]},before=JSON.stringify(menu);
+assert.deepEqual(ui.findOcrFields(menu,'com').map(hit=>hit.id),['ocr-meal-0-0','ocr-meal-0-1']);
+assert.deepEqual(ui.findOcrFields(menu,'22/10').map(hit=>hit.id),['ocr-date-0']);assert.deepEqual(ui.findOcrFields(menu,'TUAN').map(hit=>hit.id),['ocr-title']);
+assert.deepEqual(ui.findOcrFields(menu,' '),[]);assert.deepEqual(ui.findOcrFields(null,'com'),[]);assert.equal(JSON.stringify(menu),before);
+console.log('Image order preserves identities and OCR find resolves live editable field identities');

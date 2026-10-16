@@ -1,0 +1,2 @@
+# loaded-attention
+Overview lists positive existing System/reconciliation warnings for the selected week, labelled with read time and snapshot-only status, linking to the correct existing section. Reuse the same scoped/invalidation state as navigation badges; no new request, cache or invented freshness. Distinguish not-yet-checked from no warnings in loaded results. Respect owner-only System access, clear on week/mutation/cancel/refresh and reject late responses. Do not expose extra records. Shared policy: CAPABILITY-MAP-ocr-navigation.md.
