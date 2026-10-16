@@ -1,4 +1,5 @@
 import {foldSearchText} from './viewer-model.mjs';
+export const IMAGE_LIMITS={count:5,bytes:2800000};
 export function imageDataBytes(url){
   const match=typeof url==='string'&&url.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/);
   if(!match||match[2].length%4)throw new Error('Định dạng ảnh không hợp lệ.');
@@ -6,10 +7,10 @@ export function imageDataBytes(url){
 }
 export function validateImageFiles(files,existing=[]){
   if(!files.length)return;
-  if(existing.length+files.length>5)throw new Error('Chỉ nhận tối đa 5 ảnh.');
+  if(existing.length+files.length>IMAGE_LIMITS.count)throw new Error('Chỉ nhận tối đa 5 ảnh.');
   let total=existing.reduce((sum,image)=>sum+imageDataBytes(image.dataUrl),0);
   for(const file of files){if(!['image/png','image/jpeg','image/webp'].includes(file.type)||!Number.isSafeInteger(file.size)||file.size<=0)throw new Error('Chỉ nhận ảnh PNG, JPEG hoặc WEBP không rỗng.');total+=file.size;}
-  if(total>2800000)throw new Error('Tổng ảnh vượt 2,8 MB. Hãy nén hoặc cắt ảnh trước khi thêm.');
+  if(total>IMAGE_LIMITS.bytes)throw new Error('Tổng ảnh vượt 2,8 MB. Hãy nén hoặc cắt ảnh trước khi thêm.');
 }
 export async function readMenuImages(files,existing=[]){
   validateImageFiles(files,existing);

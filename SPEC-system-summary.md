@@ -1,0 +1,2 @@
+# system-summary
+Objective: Dashboard System keeps authorization first, shows loaded check counts/status before expandable technical details and setup guidance. Loading/empty/failure/unknown statuses are explicit; no invented successful OCR check. Existing health fetch/stop controls and public setup accessibility unchanged. Native details work by keyboard and do not trigger requests. Shared policy: CAPABILITY-MAP-operating-feedback.md.

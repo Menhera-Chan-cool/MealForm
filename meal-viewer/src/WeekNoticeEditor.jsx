@@ -4,6 +4,8 @@ import ExplainedButton from './ExplainedButton.jsx';
 import NoticePreview from './NoticePreview.jsx';
 import ActionConfirmation from './ActionConfirmation.jsx';
 import {reviewChanges} from './ui-clarity.mjs';
+import CharacterCounter from './CharacterCounter.jsx';
+import {TEXT_LIMITS} from './operating-ui.mjs';
 
 export default function WeekNoticeEditor({weekKey,weekName,request,busy,onBusy,onMessage,onDirtyChange,ref}){
   const textId=useId(),expiryId=useId();
@@ -37,8 +39,8 @@ export default function WeekNoticeEditor({weekKey,weekName,request,busy,onBusy,o
     {dirty&&<p className="unsaved-state" role="status" aria-label="Chưa lưu thông báo">Chưa lưu · Chưa có xác nhận lưu thành công cho thay đổi đang sửa.</p>}
     {needsReload&&<p role="alert">Thông báo trên máy chủ đã đổi. Nháp được giữ; hãy sao chép phần cần giữ trước khi tải lại để đối chiếu.</p>}
     <ExplainedButton label="Tải lại thông báo" reason={readReason} type="button" className="secondary" disabled={busy||loading||!weekKey} onClick={()=>{if(!dirty||window.confirm('Bỏ thay đổi chưa lưu và tải lại thông báo?'))void load();}}>{loading?'Đang đọc thông báo…':'Tải lại thông báo'}</ExplainedButton>
-    <div className="field-label-row"><label htmlFor={textId}>Nội dung thông báo</label><FieldHelp label="Thông báo công khai">Nội dung này sẽ xuất hiện trên trang xem của tuần đã chọn sau khi bạn xác nhận Lưu. Không nhập tên học sinh, mật khẩu hoặc khóa API.</FieldHelp></div><textarea id={textId} rows={4} maxLength={500} required disabled={busy||loading||!saved} value={text} onChange={event=>setText(event.target.value)} />
-    <small>{text.length}/500 ký tự{saved?.text&&saved.expiresAt<=Date.now()?' · Thông báo đã hết hạn':''}</small>
+    <div className="field-label-row"><label htmlFor={textId}>Nội dung thông báo</label><FieldHelp label="Thông báo công khai">Nội dung này sẽ xuất hiện trên trang xem của tuần đã chọn sau khi bạn xác nhận Lưu. Không nhập tên học sinh, mật khẩu hoặc khóa API.</FieldHelp></div><textarea id={textId} rows={4} aria-describedby={`${textId}-budget`} maxLength={TEXT_LIMITS.notice} required disabled={busy||loading||!saved} value={text} onChange={event=>setText(event.target.value)} />
+    <CharacterCounter id={`${textId}-budget`} label="Nội dung thông báo" value={text} limit={TEXT_LIMITS.notice}/>{saved?.text&&saved.expiresAt<=Date.now()&&<small>Thông báo đã hết hạn</small>}
     <div className="field-label-row"><label htmlFor={expiryId}>Hiển thị hết ngày</label><FieldHelp label="Ngày hết hạn thông báo">Thông báo hiển thị hết ngày đã chọn theo giờ Việt Nam. Qua ngày đó, nội dung tự ẩn; bản xem trước không lưu hoặc gia hạn thông báo.</FieldHelp></div><input id={expiryId} type="date" required disabled={busy||loading||!saved} value={endsOn} onChange={event=>setEndsOn(event.target.value)} />
     <NoticePreview text={text} endsOn={endsOn} weekName={weekName} dirty={dirty}/>
     <div className="actions"><ExplainedButton disabled={busy||loading||needsReload||!saved||!text.trim()} reason={saveReason}>Lưu thông báo</ExplainedButton><ExplainedButton type="button" className="secondary" disabled={busy||loading||needsReload||!saved?.text} reason={readReason||(needsReload?saveReason:'Chưa có thông báo đã lưu để xóa.')} onClick={()=>void save(true)}>Xóa thông báo</ExplainedButton></div>

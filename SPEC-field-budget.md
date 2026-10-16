@@ -1,0 +1,2 @@
+# field-budget
+Objective: accessible remaining-character counters for school name (100), week notice (500), action reason (500). Same UTF-16 length as existing maxLength/backend validation; near-limit warning before full and explicit overflow for invalid imported values. Restores, cancel, dirty state, save confirmation and payload untouched. Labels stay stable; associate counter with input description. Shared policy: CAPABILITY-MAP-operating-feedback.md.

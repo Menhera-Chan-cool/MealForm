@@ -1,5 +1,16 @@
 # Admin upgrades
 
+## Operating feedback — 2026-10-16
+
+- [x] image-budget: accepted/restored/removed/rejected images, actual bytes/slots, no OCR.
+- [x] image-pan: real inline/fullscreen scroll, capture/cancellation/fit, native touch/minimap intact.
+- [x] table-crosshair: PC-only actual day row/column, clear on leave/resize, no filter mutation.
+- [x] field-budget: original 100/500/500 bounds, near warning, accessible description, payload unchanged.
+- [x] system-summary: authorization first, explicit real counts, details/setup expand without reads.
+- [x] loaded-warnings: scope/late-result guards, read-time labels, mutation/cancel/week invalidation, roles.
+- [x] readable-time: Vietnam today/yesterday, exact timestamp toggle, invalid/old/timezone/midnight cases.
+- [ ] Full verification, immutable artifact smoke, PR/main merge, production promote, readonly smoke and docs.
+
 ## Reading context — selected 4, 5, 6; published 2026-10-15
 
 - [x] expanded-table-context: all three callers, live applied filters/week/sort, scroll/close unchanged.

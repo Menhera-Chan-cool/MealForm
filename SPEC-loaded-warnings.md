@@ -1,0 +1,2 @@
+# loaded-warnings
+Objective: sidebar/compact/sidebar tooltip/mobile More display positive loaded reconciliation issue and health warning/error counts with read-time context. No new requests or cached-count persistence. Bound to current account/week; reject late results, clear on week change, cancelled reads and mutations. Never call a stale snapshot current. Original role gating/navigation labels retained. Shared policy: CAPABILITY-MAP-operating-feedback.md.

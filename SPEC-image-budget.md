@@ -1,0 +1,2 @@
+# image-budget
+Objective: show actual image count, decimal MB and remaining capacity before selecting files. Use existing decoded-base64 byte counter and the same five-image/2800000-byte validation limits, including restored drafts, additions/removals and failed selections. Unknown bytes must not claim zero. Native progress is labelled; full capacity explains removal/replacement. No upload/OCR side effect. Shared commands, structure, style, strategy and boundaries: CAPABILITY-MAP-operating-feedback.md.

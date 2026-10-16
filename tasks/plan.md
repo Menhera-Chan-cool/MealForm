@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Operating feedback — seven selected capabilities, 2026-10-16
+
+Approved map: CAPABILITY-MAP-operating-feedback.md; module specs SPEC-image-budget.md through SPEC-readable-time.md. Implement helpers/consumers in map order: real image budget, mouse pan, PC reading guide, bounded field counters, expandable System, scoped loaded-only warning badges, Vietnam submission time. Preserve existing validation/side effects, no service/API/schema/dependency changes. Each vertical slice has native or browser RED/GREEN checks. Then run native app/API/GAS suites in both local/sharing apps, complete actual-entrypoint and compatibility browser suites, TypeScript/Vite/Storybook and token guards; one bounded responsive review. Publish exact checked commit via immutable Vercel artifact, merge pinned PR into main, promote same artifact, readonly live smoke, update docs/rollback. No visible browser windows or real owner-data mutation in QA.
+
 ## Reading context — selected 4, 5, 6; published via PR #12
 
 Map: CAPABILITY-MAP-reading-context.md and its three module specs. PR #12 merged, Apps Script v79 deployed in place and existing verified Vercel artifact promoted without rebuild. Local/API/GAS, built-asset and genuine production checks passed, including both configured deadlines and 390px layout. Preserve all filter/scroll/focus/data/auth/trigger behavior; no new dependency or service reads. No live Form/Sheet writes.
