@@ -4,6 +4,8 @@
 
 Dung lượng bộ ảnh OCR và sức chứa còn lại; kéo chuột để di chuyển ảnh phóng to; tô nhẹ hàng/cột ngày trên PC; đếm ký tự còn lại cho tên trường/thông báo/ghi chú; Hệ thống tóm tắt với hướng dẫn và kỹ thuật mở theo yêu cầu; huy hiệu cảnh báo chỉ từ kết quả đã tải đúng tuần; thời điểm gửi Hôm nay/Hôm qua theo giờ Việt Nam và mở được giá trị đầy đủ. Không tự chạy OCR, kiểm tra thêm, thay đổi quyền hay ghi dữ liệu Form/Sheet. Phạm vi: CAPABILITY-MAP-operating-feedback.md; bằng chứng và tình trạng phát hành: VERIFICATION-operating-feedback-2026-10-16.md.
 
+Đã merge [PR #14](https://github.com/Menhera-Chan-cool/MealForm/pull/14) vào main và phát hành đúng artifact đã kiểm tra trên [production](https://menutaythanh.vercel.app). **115/115 ca UI**, 32 bộ ứng dụng/API/GAS trên cả hai bản mã, 11 tương thích, năm token/guard, build TypeScript/Vite/Storybook và 10 ca chức năng trên tài nguyên Vercel đều đạt. Kiểm tra dữ liệu thật chỉ đọc đạt 22 lượt/110 lựa chọn, tô bảng PC và mobile 390px không tràn ngang, API riêng tư vẫn 401. Không deploy Apps Script (giữ v79), đổi dependency/secrets hoặc tự cập nhật RAR cũ.
+
 ## Sáu cải tiến đọc và đối chiếu — 15/10/2026
 
 Nhãn ô trống phân biệt Chưa chọn / Không phục vụ / Chưa đọc được theo dữ liệu thực; ngày nghỉ vẫn hiện trong bộ lọc nhưng không chọn được. Thương hiệu có so sánh Đã lưu–Đang sửa và khôi phục riêng tên/logo/màu. Ảnh OCR phóng to có bản đồ nhỏ điều hướng bằng kéo hoặc bàn phím. Trang đăng nhập cho biết trang/tuần sẽ tiếp tục và giữ nguyên liên kết hiện tại. Không tự lưu thương hiệu, chạy OCR hay sửa dữ liệu Form/Sheet.

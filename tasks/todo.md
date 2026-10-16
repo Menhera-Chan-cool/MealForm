@@ -9,7 +9,7 @@
 - [x] system-summary: authorization first, explicit real counts, details/setup expand without reads.
 - [x] loaded-warnings: scope/late-result guards, read-time labels, mutation/cancel/week invalidation, roles.
 - [x] readable-time: Vietnam today/yesterday, exact timestamp toggle, invalid/old/timezone/midnight cases.
-- [ ] Full verification, immutable artifact smoke, PR/main merge, production promote, readonly smoke and docs.
+- [x] Full verification, immutable artifact smoke, PR #14/main merge, production promote, readonly smoke and docs. Evidence: VERIFICATION-operating-feedback-2026-10-16.md.
 
 ## Reading context — selected 4, 5, 6; published 2026-10-15
 

@@ -2,6 +2,8 @@
 
 ## Operating feedback — seven selected capabilities, 2026-10-16
 
+Published through PR #14: source 08728ae, merge 4b23a80; verified immutable artifact dpl_E2wXb68gLFEgv7o5HGJz5WwTj7k5 promoted unchanged. All seven capabilities, full 115-case suite, 32 native scripts in both copies, 11 compatibility cases and genuine readonly production smoke passed. See VERIFICATION-operating-feedback-2026-10-16.md.
+
 Approved map: CAPABILITY-MAP-operating-feedback.md; module specs SPEC-image-budget.md through SPEC-readable-time.md. Implement helpers/consumers in map order: real image budget, mouse pan, PC reading guide, bounded field counters, expandable System, scoped loaded-only warning badges, Vietnam submission time. Preserve existing validation/side effects, no service/API/schema/dependency changes. Each vertical slice has native or browser RED/GREEN checks. Then run native app/API/GAS suites in both local/sharing apps, complete actual-entrypoint and compatibility browser suites, TypeScript/Vite/Storybook and token guards; one bounded responsive review. Publish exact checked commit via immutable Vercel artifact, merge pinned PR into main, promote same artifact, readonly live smoke, update docs/rollback. No visible browser windows or real owner-data mutation in QA.
 
 ## Reading context — selected 4, 5, 6; published via PR #12
