@@ -1,5 +1,11 @@
 # MealForm
 
+## Công cụ nháp và ngữ cảnh thao tác — 16/10/2026
+
+10 mục đã duyệt: xem riêng các ô khác bản nguồn, mô phỏng Form không gửi thật, dán bảng Excel/Sheets có chọn cột/xem trước, sao chép món giữa ngày có Undo, chế độ tập trung, chi tiết lượt gửi bên phải PC/toàn màn hình mobile, thông tin phụ bộ chọn tuần, thông báo phiên trong RAM, hướng dẫn theo yêu cầu và trạng thái ngoại tuyến chỉ đọc. Nháp bảng có thể lưu không cần ảnh; nháp cũ thiếu mốc so sánh được ghi rõ, không giả báo chưa sửa. Không tự tạo Form, ghi đè tuần hoặc gửi lại thao tác khi có mạng.
+
+Phạm vi: CAPABILITY-MAP-draft-tools-context.md và năm module SPEC. Kiểm thử và tình trạng phát hành: VERIFICATION-draft-tools-context-2026-10-16.md. Giữ API/GAS, quyền và xác nhận nghiệp vụ, không thêm thư viện. Chỉ nhận văn bản bảng được copy, không nhận file Excel; xem trước có thể gộp xuống dòng trong ô thành dấu cách. Thông báo phiên không thay lịch sử quản trị. Chưa coi mã đang sửa là đã phát hành; kết quả production sẽ cập nhật sau kiểm thử.
+
 ## Giao diện dễ thao tác và hỗ trợ tiếp cận — 16/10/2026
 
 Hoàn thiện 30 mục đã duyệt: ảnh–OCR cạnh nhau trên PC, tab Ảnh/Bản sửa trên mobile; lỗi sát ô nhập và danh sách lỗi dẫn tới đúng ô; bỏ nút “Đã rà soát Thứ…” nhưng giữ kiểm tra ngày/món và Undo. Thương hiệu/thông báo có thanh Lưu/Bỏ thay đổi chỉ khi sửa, giữ nháp khi lưu lỗi hoặc máy chủ chưa xác nhận. Xác nhận xóa bắt đầu ở Hủy, nhãn hành động cụ thể; có chỉnh cỡ cột bằng nút/ô số, tên tệp đầy đủ, kết quả tạo tuần còn lại trên màn hình và Back/Forward theo tab/tuần.

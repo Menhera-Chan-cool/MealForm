@@ -12,9 +12,12 @@ export default function useFocusVisibility(){
       if(!(active instanceof HTMLElement)||!active.matches('input,textarea,select,button,a,summary,[tabindex]')||active.getAttribute('role')==='separator'||!active.checkVisibility())return;
       let start=top+12,end=bottom-12;
       const box=active.getBoundingClientRect();
-      for(const bar of document.querySelectorAll('.dashboard-sticky-tools,.ocr-pane-tabs,.ui-mobile-nav,.contextual-save-bar,.action-toast')){
+      const layer=active.closest(':popover-open,dialog:modal');
+      for(const bar of document.querySelectorAll('.dashboard-sticky-tools,.ocr-pane-tabs,.editor-focus-tools,.ui-mobile-nav,.contextual-save-bar,.action-toast')){
+        if(layer&&!layer.contains(bar))continue;
         if(bar.contains(active)||!bar.checkVisibility()||!['sticky','fixed'].includes(getComputedStyle(bar).position))continue;
         const rect=bar.getBoundingClientRect();
+        if(rect.right<=box.left||rect.left>=box.right)continue;
         if(rect.top<=start&&rect.bottom>start)start=rect.bottom+12;
         else if(rect.top<end&&rect.top>start&&(rect.bottom>=end||box.bottom>rect.top&&box.top<rect.bottom))end=rect.top-12;
       }

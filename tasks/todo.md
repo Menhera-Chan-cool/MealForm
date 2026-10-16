@@ -170,3 +170,9 @@
 - [x] settings-workflow: dirty-only save/discard, failed/conflicted save preservation and field errors.
 - [x] navigation-context: native Back/Forward with dirty/busy guards and exact validated week/tab.
 - [x] Full integration: 154 UI, both 35 native suites, five token/guard, TS/Vite/Storybook, 11 compatibility; canonical sync, 23 immutable-artifact functional cases, PR #17 pinned merge/same-artifact promotion, docs and readonly live smoke.
+- [x] draft-inspection: original snapshot normalization/persistence, cell diff links and no-write form simulator; native/browser RED→GREEN.
+- [x] draft-transfer: bounded TSV mapping/preview and exact draft copy, one-step Undo and stale guards; native/browser RED→GREEN.
+- [x] focused-workspaces: retained editor focus and nonmodal PC/modal mobile quick view; browser state/focus/layout tests.
+- [x] context-status: option metadata, bounded RAM feedback and honest offline readonly/write guards; boundary/browser tests.
+- [x] on-demand-guide: explicit per-tab steps, no writes, safe dismiss/return focus; browser responsive tests.
+- [ ] Complete serial regression, canonical sync, source hash guard, immutable artifact tests, pinned main merge/promotion, live GET smoke and docs.

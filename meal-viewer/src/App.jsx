@@ -31,6 +31,7 @@ import TableWorkspace from './TableWorkspace.jsx';
 import WeekNavigation from './WeekNavigation.jsx';
 import {DisplayPreferencesSlot} from './ComfortProvider.jsx';
 import useFocusVisibility from './useFocusVisibility.js';
+import ConnectionNotice,{useOnlineState} from './ConnectionNotice.jsx';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '';
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
@@ -76,6 +77,7 @@ export function MotionPreferenceToggle({ reducedMotion, fullMotion, onToggle }) 
 function App() {
   useFocusVisibility();
   const appearance = useAppearance();
+  const online=useOnlineState(),[readAt,setReadAt]=useState(0);
   const viewerPath = window.location.pathname;
   // Dashboard owns its tab/week history; those changes must not restart authentication.
   const viewerSearch = /^\/dashboard\/?$/.test(viewerPath) ? '' : window.location.search;
@@ -137,6 +139,7 @@ function App() {
   }, [filters]);
 
   const loadData = useCallback(async (force = false, guest = false, background = false) => {
+    if(navigator.onLine===false){setLoadError('Thiết bị đang báo ngoại tuyến; giữ dữ liệu đã tải để chỉ xem.');return;}
     const url = viewerApiUrl(viewerPath, viewerSearch, force, guest);
     if (!url) { setLoadError('Liên kết xem thiếu mã bảng tính.'); return; }
     if (loading.current) return;
@@ -176,7 +179,7 @@ function App() {
         setMessage('');
         return;
       }
-      setData(result);
+      setReadAt(Date.now());setData(result);
       setLoadProblem(null);
       setFailure(null);
       setPendingUpdate(false);
@@ -389,6 +392,7 @@ function App() {
       </div>
       <DisplayPreferencesSlot/>
     </header>
+    <ConnectionNotice online={online} savedAt={readAt} hasData={Boolean(data)}/>
     <WeekNavigation current={isNewestPage?'current':isNextPage?'next':isHistory?'history':''} selected={isHistory} backHref={archiveBackHref(new URLSearchParams(viewerSearch).get('week')||'',viewerSearch)}/>
     {isHistory&&<ArchiveBreadcrumbs weekKey={new URLSearchParams(viewerSearch).get('week')||''}/>}
     <WeekNotice notice={data?.weekNotice} serverNow={data?.serverNow}/>

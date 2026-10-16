@@ -26,14 +26,14 @@ export default function useOcrDraft(accountId, enabled, value, onRestore) {
   }, [accountId, enabled]);
 
   useEffect(() => {
-    if (!enabled || !accountId || loadedAccount !== accountId || !value.image) return;
+    if (!enabled || !accountId || loadedAccount !== accountId || (!value.image&&value.source!=='table')) return;
     const current = generation.current;
     const latest = ++revision.current;
     setStatus('Đang lưu nháp…');
     queue.current = queue.current.catch(() => {}).then(() => writeOcrDraft(accountId, value));
     queue.current.then(() => { if (current === generation.current && latest === revision.current) { setFailure(null); setStatus('Đã lưu nháp trên thiết bị.'); } })
       .catch(error => { if (current === generation.current && latest === revision.current) { setFailure(safeErrorReport('draft', error)); setStatus(error.message); } });
-  }, [accountId, enabled, loadedAccount, value.image, value.filename, value.images, value.menu]);
+  }, [accountId, enabled, loadedAccount, value.image, value.filename, value.images, value.menu,value.originalMenu,value.source]);
 
   async function clear() {
     const current = generation.current;
@@ -44,7 +44,7 @@ export default function useOcrDraft(accountId, enabled, value, onRestore) {
     if (current === generation.current && latest === revision.current) setStatus('Đã xóa nháp trên thiết bị.');
   }
   async function flush() {
-    if (!value.image) { await queue.current; return; }
+    if (!value.image&&value.source!=='table') { await queue.current; return; }
     if (!enabled || !accountId || loadedAccount !== accountId) throw new Error('Nháp chưa sẵn sàng để lưu.');
     const current=generation.current;
     queue.current=queue.current.catch(()=>{}).then(()=>writeOcrDraft(accountId,value));

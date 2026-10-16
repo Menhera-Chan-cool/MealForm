@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+let tools;try{tools=await import('./src/draft-tools.mjs');}catch{}
+assert.equal(typeof tools?.menuChanges,'function','Draft changes need a real original/current field comparison');
+const base={title:'Gốc',days:['19','20','21','22','23'].map((date,i)=>({day:'Thứ '+(i+2),date:date+'/10/2026',meals:['A','B','C'],...(i===2?{closed:true}:{})}))};
+const next=structuredClone(base);next.title='Mới';next.days[0].meals[1]='Món mới';next.days[2].closed=false;
+assert.deepEqual(tools.menuChanges(base,next).map(x=>[x.id,x.before,x.after]),[['ocr-title','Gốc','Mới'],['ocr-meal-0-1','B','Món mới'],['ocr-closed-2','Nghỉ','Phục vụ']]);
+assert.deepEqual(tools.menuChanges(base,base),[]);assert.equal(tools.menuChanges(null,next),null);
+assert.deepEqual(tools.parseMealTable('Ngày\tMón 1\r\n"19/10/2026"\t"Cơm\tcanh"\r\n20/10/2026\t"Cá ""sốt"""'),[['Ngày','Món 1'],['19/10/2026','Cơm\tcanh'],['20/10/2026','Cá "sốt"']]);
+assert.throws(()=>tools.parseMealTable('"Chưa đóng'),/ngoặc/);assert.throws(()=>tools.parseMealTable('x'.repeat(50001)),/dài/);
+const rows=[['Ngày','M1','M2'],...base.days.map(day=>[day.date,'Cơm','Bún'])];
+const pasted=tools.menuFromTable(rows,{header:true,date:0,meals:[1,2,-1]},base);
+assert.equal(pasted.days[2].closed,true);assert.deepEqual(pasted.days[0].meals,['Cơm','Bún','']);assert.equal(base.days[0].meals[0],'A');
+assert.equal(tools.menuFromTable([rows[0],...rows.slice(1).map(row=>[row[0],'Cơm\ncanh','Bún'])],{header:true,date:0,meals:[1,2,-1]},base).days[0].meals[0],'Cơm canh','multiline cell becomes a visible single-line meal, source table remains separate');
+const alternate=structuredClone(base);alternate.days[2].date='21.10.2026';
+assert.equal(tools.menuFromTable(rows,{header:true,date:0,meals:[1,2,-1]},alternate).days[2].closed,true,'holiday identity uses calendar dates, not display punctuation');
+assert.throws(()=>tools.menuFromTable([rows[0],...rows.slice(1).map(row=>[row[0],'=IMPORTXML(...)','B'])],{header:true,date:0,meals:[1,2,-1]},base),/công thức/);
+assert.throws(()=>tools.menuFromTable(rows,{header:true,date:0,meals:[0,2,-1]},base),/cột/);
+assert.throws(()=>tools.menuFromTable(rows.slice(0,4),{header:true,date:0,meals:[1,2,-1]},base),/5 ngày/);
+const copied=tools.copyDayMeals(next,0,1);assert.deepEqual(copied.days[1],{...base.days[1],meals:['A','Món mới','C']});assert.equal(copied.days[0],next.days[0]);assert.throws(()=>tools.copyDayMeals(base,0,2),/nghỉ/);assert.throws(()=>tools.copyDayMeals(base,0,0),/khác/);
+assert.equal(tools.weekOptionHint({responseCount:0,formStatus:'closed'}),'0 lượt · Form đã đóng');assert.equal(tools.weekOptionHint({responseCount:null}),'Chưa đọc được số lượt · Chưa rõ trạng thái Form');assert.equal(tools.weekOptionHint({responseCount:-1,formStatus:'open'}),'Chưa đọc được số lượt · Form đang mở');
+console.log('Original cell identity, bounded literal TSV, mapped calendar, immutable day copy and honest week metadata passed');

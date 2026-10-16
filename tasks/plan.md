@@ -82,3 +82,6 @@ Implement audit-readability -> sheet-locations -> dashboard-cache -> response-up
 5. Integrate main and clean share template, run full regression and browser QA, then merge only relevant active Apps Script functions with a live-source backup. Deploy backend before frontend. Smoke tests are read-only and invalid-permission tests only. Push verified template and specs to GitHub without secrets.
 
 Risks: reopening a past week must not be immediately auto-closed; an expired token or stale tab must not mutate a newly changed target; theme must not make text unreadable; read-only diagnostics must not become repairs; live duplicate function definitions must be merged by active definition without dropping unrelated safeguards.
+# Draft tools/context — 2026-10-16
+
+User approved five-group map and autonomous implementation through GitHub/main and production. Follow CAPABILITY-MAP-draft-tools-context.md and five module specs. TDD: bounded pure draft/metadata helpers → retained UI integration → offline/session/guide → full serial regression/builds → immutable Vercel tests → pinned merge/promotion → GET-only live smoke and docs. No dependencies/backend changes or real owner test writes.
