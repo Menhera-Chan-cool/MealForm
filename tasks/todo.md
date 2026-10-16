@@ -169,4 +169,4 @@
 - [x] ocr-workspace: comparison panes, always-visible days, precise inline errors, filenames, creation receipt.
 - [x] settings-workflow: dirty-only save/discard, failed/conflicted save preservation and field errors.
 - [x] navigation-context: native Back/Forward with dirty/busy guards and exact validated week/tab.
-- [ ] Full integration, canonical sync, immutable artifact checks, pinned main merge/promotion, docs and readonly live smoke.
+- [x] Full integration: 154 UI, both 35 native suites, five token/guard, TS/Vite/Storybook, 11 compatibility; canonical sync, 23 immutable-artifact functional cases, PR #17 pinned merge/same-artifact promotion, docs and readonly live smoke.

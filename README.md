@@ -4,7 +4,9 @@
 
 Hoàn thiện 30 mục đã duyệt: ảnh–OCR cạnh nhau trên PC, tab Ảnh/Bản sửa trên mobile; lỗi sát ô nhập và danh sách lỗi dẫn tới đúng ô; bỏ nút “Đã rà soát Thứ…” nhưng giữ kiểm tra ngày/món và Undo. Thương hiệu/thông báo có thanh Lưu/Bỏ thay đổi chỉ khi sửa, giữ nháp khi lưu lỗi hoặc máy chủ chưa xác nhận. Xác nhận xóa bắt đầu ở Hủy, nhãn hành động cụ thể; có chỉnh cỡ cột bằng nút/ô số, tên tệp đầy đủ, kết quả tạo tuần còn lại trên màn hình và Back/Forward theo tab/tuần.
 
-Rà soát bố cục hẹp/tương đương zoom 400%, màn hình ngang thấp, giãn chữ/dòng và tương phản cao; giữ màu Settings và các tùy chọn hiệu ứng. Chỉ đổi UI/tương tác, không đổi API/GAS, quyền hay dữ liệu Form/Sheet, không thêm dependency. Chi tiết phạm vi và bằng chứng: `CAPABILITY-MAP-operate-accessibility.md`, `VERIFICATION-operate-accessibility-2026-10-16.md`. Tình trạng phát hành được ghi trong hồ sơ sau khi kiểm thử và chuyển production xong; không coi bản mã đang sửa là đã deploy.
+Rà soát bố cục hẹp/tương đương zoom 400%, màn hình ngang thấp, giãn chữ/dòng và tương phản cao; giữ màu Settings và các tùy chọn hiệu ứng. Chỉ đổi UI/tương tác, không đổi API/GAS, quyền hay dữ liệu Form/Sheet, không thêm dependency. Chi tiết phạm vi và bằng chứng: `CAPABILITY-MAP-operate-accessibility.md`, `VERIFICATION-operate-accessibility-2026-10-16.md`.
+
+Đã merge [PR #17](https://github.com/Menhera-Chan-cool/MealForm/pull/17) vào main và đưa đúng artifact đã kiểm tra lên [production](https://menutaythanh.vercel.app). **154/154 ca UI**, 35 bộ ứng dụng/API/GAS ở cả hai bản, 11 tương thích, năm token/guard, TypeScript/Vite/Storybook và 23 ca chức năng trên tài nguyên Vercel đều đạt; bỏ qua một lần chụp ma trận lặp lại trên Vercel vì đã kiểm tra cục bộ. Website thật kiểm tra chỉ đọc đạt, không ghi dữ liệu thật; Apps Script giữ v79. Chưa chứng nhận điện thoại/bàn phím vật lý, trình đọc màn hình, toàn bộ WCAG hay Chromatic cloud. Mã trong thư mục chia sẻ/RAR cũ không tự cập nhật.
 
 ## Tìm kiếm ổn định, lọc quyền Gmail và nhãn ảnh — 16/10/2026
 
