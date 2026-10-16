@@ -1,9 +1,11 @@
-import {useEffect,useId,useRef} from 'react';
-import {readMenuImages} from './image-import.mjs';
+import {useEffect,useId,useMemo,useRef} from 'react';
+import {readMenuImages,IMAGE_LIMITS} from './image-import.mjs';
+import {imageBudget,decimalMB} from './operating-ui.mjs';
 
 export default function ImageInput({images,activeImage,disabled,onImages,onChoose,onRemove,onBusy,onMessage}){
   const input=useRef(null),append=useRef(false);
   const limitsId=useId();
+  const budget=useMemo(()=>imageBudget(images),[images]);
   async function ingest(files,add){
     if(disabled||!files.length)return;
     onBusy(true);
@@ -29,7 +31,8 @@ export default function ImageInput({images,activeImage,disabled,onImages,onChoos
       <span className="image-upload-help">Kéo thả hoặc <span className="image-upload-browse">Duyệt ảnh</span></span>
       <small id={limitsId} className="image-upload-limits">PNG, JPEG, WEBP · tối đa 5 ảnh · tổng 2,8 MB</small>
     </button>
-    <div className="image-upload-footer"><small>Ctrl/⌘ V để dán ảnh. Chọn lại sẽ thay bộ ảnh; kéo thả hoặc Thêm ảnh giữ ảnh hiện có.</small>{images.length>0&&<button type="button" className="secondary" disabled={disabled||images.length>=5} onClick={()=>{append.current=true;input.current.click();}}>Thêm ảnh</button>}</div>
+    <div className="image-budget"><p role="status" aria-label="Dung lượng bộ ảnh">{budget?`${budget.count}/${IMAGE_LIMITS.count} ảnh · ${decimalMB(budget.bytes)}/${decimalMB(IMAGE_LIMITS.bytes)} MB`:'Chưa đọc được dung lượng bộ ảnh.'}</p>{budget&&<><progress max={IMAGE_LIMITS.bytes} value={budget.bytes} aria-label="Dung lượng ảnh đã dùng"/><small>{budget.remainingSlots&&budget.remainingBytes?`Còn ${budget.remainingSlots} ảnh · ${decimalMB(budget.remainingBytes)} MB`:'Đã đạt hạn mức. Bỏ bớt ảnh hoặc chọn lại bộ ảnh để thay thế.'}</small></>}</div>
+    <div className="image-upload-footer"><small>Ctrl/⌘ V để dán ảnh. Chọn lại sẽ thay bộ ảnh; kéo thả hoặc Thêm ảnh giữ ảnh hiện có.</small>{images.length>0&&<button type="button" className="secondary" disabled={disabled||!budget||!budget.remainingSlots||!budget.remainingBytes} onClick={()=>{append.current=true;input.current.click();}}>Thêm ảnh</button>}</div>
     <div className="image-source-list">{images.map((entry,i)=><div className="image-source" key={i}><button type="button" className="secondary" aria-pressed={activeImage===entry.dataUrl} disabled={disabled} onClick={()=>onChoose(entry)}><img src={entry.dataUrl} alt=""/><span>Ảnh {i+1}: {entry.name}</span></button><button type="button" className="secondary" aria-label={`Bỏ ảnh ${i+1}`} disabled={disabled} onClick={()=>void onRemove(i)}>Bỏ ảnh</button></div>)}</div>
   </div>;
 }

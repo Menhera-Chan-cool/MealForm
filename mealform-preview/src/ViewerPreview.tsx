@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import './viewer-preview.css';
 import '../../meal-viewer/src/ui-clarity.css';
 import '../../meal-viewer/src/reading-polish.css';
+import '../../meal-viewer/src/operating-feedback.css';
 
 type Week = 'current' | 'next' | 'history' | 'old';
 type State = 'ready' | 'empty' | 'loading' | 'error' | 'login';

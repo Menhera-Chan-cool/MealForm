@@ -48,6 +48,10 @@ import { useBranding } from './BrandingProvider.jsx';
 import {logoInputIssue} from './branding.mjs';
 import './dashboard.css';
 import './review-scale.css';
+import FriendlyTime from './FriendlyTime.jsx';
+import CharacterCounter from './CharacterCounter.jsx';
+import SystemReport from './SystemReport.jsx';
+import {TEXT_LIMITS,healthCounts} from './operating-ui.mjs';
 
 const MEAL_SLOTS = [0, 1, 2];
 
@@ -88,6 +92,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const branding = useBranding();
   const {gate:reads,pending:readPending}=useReadWait();
   const request = async (url, options) => {
+    if(options?.method&&options.method!=='GET'){warningRevision.current++;setHealth(null);setReconciliation(null);}
     const ticket=(!options?.method||options.method==='GET')?reads.begin():null;
     try {
       const body=await dashboardRequest(url, ticket?{...options,signal:ticket.signal}:options, (message, status) => { weekRequest.current++; reads.cancel(); clearDashboardCache(); onUnauthorized?.(message, status); });
@@ -156,6 +161,11 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [deadline, setDeadline] = useState('');
   const [reconciliation, setReconciliation] = useState(null);
   const [reconciling,setReconciling]=useState(false);
+  const warningRevision=useRef(0),healthRequest=useRef(0),nameCountId=useId();
+  const warnings={};
+  if(!reconciling&&reconciliation?.weekKey===weekKey&&reconciliation.issues?.length)warnings.reconcile={count:reconciliation.issues.length,description:`Đã tải ${formatTime(reconciliation.readAt)} · ${selectedWarningWeek()}`};
+  if(!healthBusy&&health?.uiWeekKey===weekKey){const counts=healthCounts(health.checks);const count=counts.warning+counts.error+counts.unknown;if(count)warnings.health={count,description:`Đã tải ${formatTime(health.readAt)} · ${selectedWarningWeek()}`};}
+  function selectedWarningWeek(){return (overview.weeks||[]).find(week=>week.weekKey===weekKey)?.name||'Tuần đang chọn';}
   const [brandDraft, setBrandDraft] = useState(branding);
   const logoFeedbackId=useId(),[logoAttempt,setLogoAttempt]=useState(0),[logoState,setLogoState]=useState(null),logoRequest=useRef(null);
   logoRequest.current={url:brandDraft.logoUrl,attempt:logoAttempt};
@@ -199,6 +209,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     if(busy)return;
     clearTimeout(weekLoadTimer.current);
     weekRequest.current++;reads.cancel();setWeekVerified(false);setWeekLoading(false);setMoreLoading(false);setHistoryLoading(false);setHealthBusy(false);setReconciling(false);
+    warningRevision.current++;setHealth(null);setReconciliation(null);
     setMessage(STOP_WAIT_MESSAGE,'info');
   }
 
@@ -234,6 +245,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   function filterHistory(key, value) { setAuditFilters(current => ({ ...current, [key]:value })); setAuditLimit(50); }
 
   async function refreshOverview() {
+    warningRevision.current++;setHealth(null);setReconciliation(null);
     try {
       const data = await request();
       setOverview(data);
@@ -346,6 +358,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     document.addEventListener('visibilitychange', check);
     return () => { stopped = true; window.clearInterval(interval); document.removeEventListener('visibilitychange', check); };
   }, [weekVerified, weekData, weekKey, busy, tab]);
+  useEffect(()=>{warningRevision.current++;setHealth(null);setReconciliation(null);},[weekKey]);
   useEffect(() => { if (tab === 'health' && overview.role === 'owner') void checkHealth(); }, [tab, weekKey, overview.role]);
   useEffect(() => {
     if ((tab === 'create' && !permissions.create) || (['health','notice'].includes(tab) && overview.role !== 'owner')) setTab('overview');
@@ -354,6 +367,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     const time = Date.parse(selectedWeek?.lockAt || '');
     setDeadline(Number.isFinite(time) ? new Date(time + 7 * 3600000).toISOString().slice(0, 16) : '');
     setReconciliation(null);
+    setHealth(null);
   }, [weekKey, selectedWeek?.lockAt]);
   useEffect(() => {if(!brandHasEdits(brandDraft,brandSaved)){setBrandDraft(branding);setBrandSaved(branding);}}, [branding]);
 
@@ -376,10 +390,12 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   async function reconcileWeek() {
     if (!weekKey) return;
     const generation=weekRequest.current;
+    const revision=warningRevision.current;
     setReconciling(true); setReconciliation(null); setMessage('Đang đối soát Form và Sheet…');
     try {
       const result = await request(`/api/dashboard?reconcile=1&week=${encodeURIComponent(weekKey)}`);
-      setReconciliation({ ...result, weekKey });
+      if(generation!==weekRequest.current||revision!==warningRevision.current)return;
+      setReconciliation({ ...result, weekKey,readAt:Date.now() });
       setMessage(result.issues.length ? `Đã đối soát: có ${result.issues.length} bản ghi cần kiểm tra. Không sửa hoặc xóa dữ liệu.` : 'Đã đối soát: Form và Sheet khớp duy nhất.', result.issues.length ? 'info' : 'success');
     } catch (error) { if(error.name!=='AbortError')setMessage(error.message); }
     finally { if(generation===weekRequest.current)setReconciling(false); }
@@ -401,21 +417,24 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
   async function checkHealth() {
     const ticket=reads.begin();
+    const generation=++healthRequest.current;
+    const revision=warningRevision.current;
     setHealthBusy(true);
     setHealth(null);
     try {
       const response = await fetch(`/api/dashboard?health=1&week=${encodeURIComponent(weekKey)}`, { credentials: 'same-origin', cache: 'no-store',signal:ticket.signal });
       const report = await response.json();
-      if(!reads.current(ticket))throw cancelledRead();
+      if(!reads.current(ticket)||revision!==warningRevision.current||generation!==healthRequest.current)throw cancelledRead();
       if (response.status === 401 || response.status === 403) { onUnauthorized(errorMessage(report.error), response.status); return; }
       if (!Array.isArray(report.checks)) throw new Error('Không nhận được kết quả kiểm tra.');
-      setHealth(report);
+      setHealth({...report,uiWeekKey:weekKey,readAt:Date.now()});
       if (!response.ok || report.checks.some(check => check.status === 'error')) setFailure(safeErrorReport('health', { status: response.status }));
     } catch (error) {
       if(error.name==='AbortError')return;
-      setHealth({ checks: [{ id: 'network', label: 'Kết nối máy chủ', status: 'error', message: 'Không kết nối được để kiểm tra. Hãy thử lại khi có mạng.' }] });
+      if(revision!==warningRevision.current||generation!==healthRequest.current)return;
+      setHealth({uiWeekKey:weekKey,readAt:Date.now(), checks: [{ id: 'network', label: 'Kết nối máy chủ', status: 'error', message: 'Không kết nối được để kiểm tra. Hãy thử lại khi có mạng.' }] });
       setFailure(safeErrorReport('health', error));
-    } finally { if(reads.current(ticket))setHealthBusy(false);reads.finish(ticket); }
+    } finally { if(reads.current(ticket)&&generation===healthRequest.current)setHealthBusy(false);reads.finish(ticket); }
   }
 
   function chooseImage(entry){setImage(entry.dataUrl);setFile({name:entry.name,type:entry.dataUrl.split(';')[0].slice(5)});}
@@ -599,7 +618,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
   }
   const missingScriptPermission = isAppsScriptPermissionError(message);
-  return <DashboardLayout tab={tab} onNavigate={setTab} role={overview.role} permissions={permissions} email={overview.email} schoolName={branding.schoolName} busy={busy||signingOut} onSignOut={signOut}><main id="dashboard-content" className="dashboard-shell meal-ui" data-density={viewState.view.density}>
+  return <DashboardLayout warnings={warnings} tab={tab} onNavigate={setTab} role={overview.role} permissions={permissions} email={overview.email} schoolName={branding.schoolName} busy={busy||signingOut} onSignOut={signOut}><main id="dashboard-content" className="dashboard-shell meal-ui" data-density={viewState.view.density}>
     <header className="dashboard-header">
       <div><h1>Dashboard quản trị</h1><p className="sub">Quản lý tuần thực đơn, tạo Form từ ảnh và xử lý lượt gửi.</p></div>
       <DisplayPreferencesSlot/>
@@ -619,11 +638,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <p>Kiểm tra quyền Google, thư mục, Sheet, Form, cấu hình OCR và lịch tự khóa.</p>
       <ExplainedButton label="Kiểm tra lại" className="secondary" type="button" disabled={healthBusy} reason="Đang kiểm tra hệ thống; hãy chờ kết quả hoặc dừng chờ dữ liệu." aria-busy={healthBusy} onClick={() => void checkHealth()}>{healthBusy ? 'Đang kiểm tra…' : 'Kiểm tra lại'}</ExplainedButton>
       {health?.checkedAt && <p>Đã kiểm tra lúc {formatTime(health.checkedAt)}</p>}
-      <ul className="dashboard-health-list" aria-live="polite">{(health?.checks || []).map(check => <li key={check.id} data-status={check.status}>
-        <div><strong>{check.label}</strong><span>{({ ok: 'Ổn', warning: 'Cần chú ý', error: 'Lỗi' })[check.status] || 'Chưa xác định'}</span></div>
-        <p>{check.message}</p>
-      </li>)}</ul>
-    </section><section className="dashboard-panel"><SetupInstructions /></section></>}
+      <SystemReport report={health?.uiWeekKey===weekKey?health:null} busy={healthBusy}/>
+    </section><section className="dashboard-panel"><details className="system-details"><summary>Hướng dẫn cài đặt (7 bước)</summary><SetupInstructions /></details></section></>}
 
     {tab === 'create' && permissions.create && <section className="dashboard-panel">
       <div className="field-label-row"><h2>Tạo tuần từ ảnh thực đơn</h2><FieldHelp label="OCR">OCR đọc chữ và món từ ảnh. Kết quả có thể sai; hãy đối chiếu ảnh, sửa ngày và món trước khi bấm Tạo Form và Sheet. Đọc ảnh không tự tạo tuần.</FieldHelp></div>
@@ -690,7 +706,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       </div>
       {weekLoading && !displayedWeek ? <ContentSkeleton label="Đang tải lượt gửi…" kind="table"/> : <TableScroll className="dashboard-response-list" ref={viewState.listRef} data-week-key={weekKey}><table className="dashboard-table dashboard-response-table" role="table"><thead><tr>{['Thời điểm','Họ tên','Món đã chọn','Thao tác'].map((label,index)=><th key={label}>{label}<ColumnResizeHandle index={index} label={label}/></th>)}</tr></thead><tbody>
         {visibleResponses.length ? visibleResponses.map(response => <tr key={response.responseId || response.rowNumber || `${response.timestamp}-${response.name}`} data-response-id={response.responseId} className={highlightIds.includes(response.responseId) ? 'new-response' : ''}>
-          <td data-label="Thời điểm">{formatTime(response.timestamp)}</td><td data-label="Họ tên"><strong><SearchHighlight text={response.name} query={query}/></strong>{highlightIds.includes(response.responseId) && <span className="new-response-label">Mới</span>}{response.partial && <strong className="dashboard-partial"> · Form đã xóa, Sheet còn hàng</strong>}</td><td data-label="Món đã chọn"><ResponseMeals response={response} week={displayedWeek?.week} /></td>
+          <td data-label="Thời điểm"><FriendlyTime value={response.timestamp}/></td><td data-label="Họ tên"><strong><SearchHighlight text={response.name} query={query}/></strong>{highlightIds.includes(response.responseId) && <span className="new-response-label">Mới</span>}{response.partial && <strong className="dashboard-partial"> · Form đã xóa, Sheet còn hàng</strong>}</td><td data-label="Món đã chọn"><ResponseMeals response={response} week={displayedWeek?.week} /></td>
           <td data-label="Thao tác"><div className="dashboard-row-actions"><button type="button" className="secondary" onClick={() => setQuickResponse(response)}>Xem nhanh</button><RowActionMenu label="Thao tác lượt gửi">{permissions.manageResponses && (response.deletable || !weekReady) ? <ExplainedButton label="Xóa lượt này" type="button" data-close-row-menu className="danger" disabled={busy || !weekReady} reason={busy?'Đang xử lý một thao tác; chưa thể xóa tiếp.':'Dữ liệu hiện tại chưa được xác minh; hãy tải lại dữ liệu trước khi xóa.'} aria-busy={pendingRow?.action === 'delete' && pendingRow.id === response.responseId} onClick={() => void deleteResponse(response)}>{pendingRow?.action === 'delete' && pendingRow.id === response.responseId ? 'Đang xóa…' : response.partial ? 'Xóa nốt hàng Sheet' : 'Xóa lượt này'}</ExplainedButton> : <span title={response.note}>{!permissions.manageResponses ? 'Chỉ xem' : response.partial ? 'Cần kiểm tra thủ công' : 'Không đối chiếu được'}</span>}<SheetRowButton key={`${weekKey}-${weekRequest.current}-${response.responseId}`} weekKey={weekKey} source={response.partial ? 'sheet' : 'form'} response={response} request={request} disabled={busy || !weekReady} /></RowActionMenu></div></td>
         </tr>) : <tr><td className="empty" colSpan="4">{!displayedWeek?'Chưa có dữ liệu đã xác minh. Hãy tải lại dữ liệu.':weekLoading?'Đang đọc kết quả lọc…':<FilterEmptyState title={responseConditions.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={responseConditions} onClear={()=>{setQuery('');document.getElementById('dashboard-name-search')?.focus();}}/>}</td></tr>}
       </tbody></table></TableScroll>}
@@ -738,7 +754,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   <h2>Thương hiệu trường</h2><p>Áp dụng cho trang xem, kho tuần, Dashboard và cài đặt. Chỉ lưu thông tin hiển thị công khai.</p>
   {brandDirty&&<p className="unsaved-state" role="status" aria-label="Chưa lưu thương hiệu">Chưa lưu · Thương hiệu đang sửa chưa áp dụng lên web.</p>}
   <form className="branding-form" onSubmit={event => void saveBranding(event)}>
-    <div className="branding-field-row"><label>Tên trường<input required maxLength={100} value={brandDraft.schoolName} onChange={event => setBrandDraft({ ...brandDraft, schoolName: event.target.value })} /></label><button type="button" className="secondary" aria-label="Dùng lại tên trường đã lưu" disabled={busy||brandDraft.schoolName===brandSaved.schoolName} onClick={()=>setBrandDraft(value=>({...value,schoolName:brandSaved.schoolName}))}>Dùng lại đã lưu</button></div>
+    <div className="branding-field-row"><div className="branding-name-control"><label>Tên trường<input required maxLength={TEXT_LIMITS.schoolName} aria-describedby={nameCountId} value={brandDraft.schoolName} onChange={event => setBrandDraft({ ...brandDraft, schoolName: event.target.value })} /></label><CharacterCounter id={nameCountId} value={brandDraft.schoolName} limit={TEXT_LIMITS.schoolName} label="Tên trường"/></div><button type="button" className="secondary" aria-label="Dùng lại tên trường đã lưu" disabled={busy||brandDraft.schoolName===brandSaved.schoolName} onClick={()=>setBrandDraft(value=>({...value,schoolName:brandSaved.schoolName}))}>Dùng lại đã lưu</button></div>
     <div className="branding-field-row"><label>URL ảnh logo HTTPS<input type="url" maxLength={512} placeholder="https://…/logo.png" value={brandDraft.logoUrl} aria-invalid={Boolean(logoIssue||brandDraft.logoUrl&&logoPhase==='error')} aria-describedby={logoFeedbackId} onChange={event => setBrandDraft({ ...brandDraft, logoUrl: event.target.value })} /></label><button type="button" className="secondary" aria-label="Dùng lại logo đã lưu" disabled={busy||brandDraft.logoUrl===(brandSaved.logoUrl||'')} onClick={()=>setBrandDraft(value=>({...value,logoUrl:brandSaved.logoUrl||''}))}>Dùng lại đã lưu</button></div>
     <div id={logoFeedbackId} className="logo-input-feedback" data-state={logoIssue?'invalid':logoPhase}><p role="status" aria-label="Tình trạng logo">{logoMessage}</p>{brandDraft.logoUrl&&!logoIssue&&logoPhase==='error'&&<ExplainedButton type="button" className="secondary" disabled={busy} reason="Đang xử lý thao tác khác; hãy chờ hoàn tất." onClick={()=>setLogoAttempt(value=>value+1)}>Thử tải lại logo</ExplainedButton>}</div>
     <div className="branding-field-row"><label>Màu chủ đạo<input type="color" value={brandDraft.primaryColor} onChange={event => setBrandDraft({ ...brandDraft, primaryColor: event.target.value })} /></label><button type="button" className="secondary" aria-label="Dùng lại màu đã lưu" disabled={busy||brandDraft.primaryColor===brandSaved.primaryColor} onClick={()=>setBrandDraft(value=>({...value,primaryColor:brandSaved.primaryColor}))}>Dùng lại đã lưu</button></div>

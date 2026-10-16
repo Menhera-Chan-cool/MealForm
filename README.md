@@ -1,5 +1,9 @@
 # MealForm
 
+## Bảy cải tiến thao tác — 16/10/2026
+
+Dung lượng bộ ảnh OCR và sức chứa còn lại; kéo chuột để di chuyển ảnh phóng to; tô nhẹ hàng/cột ngày trên PC; đếm ký tự còn lại cho tên trường/thông báo/ghi chú; Hệ thống tóm tắt với hướng dẫn và kỹ thuật mở theo yêu cầu; huy hiệu cảnh báo chỉ từ kết quả đã tải đúng tuần; thời điểm gửi Hôm nay/Hôm qua theo giờ Việt Nam và mở được giá trị đầy đủ. Không tự chạy OCR, kiểm tra thêm, thay đổi quyền hay ghi dữ liệu Form/Sheet. Phạm vi: CAPABILITY-MAP-operating-feedback.md; bằng chứng và tình trạng phát hành: VERIFICATION-operating-feedback-2026-10-16.md.
+
 ## Sáu cải tiến đọc và đối chiếu — 15/10/2026
 
 Nhãn ô trống phân biệt Chưa chọn / Không phục vụ / Chưa đọc được theo dữ liệu thực; ngày nghỉ vẫn hiện trong bộ lọc nhưng không chọn được. Thương hiệu có so sánh Đã lưu–Đang sửa và khôi phục riêng tên/logo/màu. Ảnh OCR phóng to có bản đồ nhỏ điều hướng bằng kéo hoặc bàn phím. Trang đăng nhập cho biết trang/tuần sẽ tiếp tục và giữ nguyên liên kết hiện tại. Không tự lưu thương hiệu, chạy OCR hay sửa dữ liệu Form/Sheet.

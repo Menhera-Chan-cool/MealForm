@@ -1,0 +1,2 @@
+# readable-time
+Objective: submissions in Viewer/Dashboard/Quick View display Vietnam Today/Yesterday with HH:mm, full timestamp on hover/focus/tap; older values retain full display. Validate explicit timezone/epoch or supported dd/mm/yyyy text, never guess ambiguous invalid text or show epoch for missing time. Reclassify at Vietnam midnight/visibility return; ordering/filter/raw data unchanged. Accessible toggle, no destructive shortcut. Shared policy: CAPABILITY-MAP-operating-feedback.md.

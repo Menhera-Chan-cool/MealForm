@@ -1,0 +1,2 @@
+# image-pan
+Objective: primary mouse drag moves the corresponding zoomed inline/fullscreen viewport; native touch scroll, scrollbars and minimap remain. Pointer capture releases on up/cancel/lost capture, Escape, fit/source/zoom change and dialog close. No pan at fit size or from scrollbar. Source/OCR/Undo unchanged. Verify real scroll offsets, cancellation and unchanged image. Shared policy: CAPABILITY-MAP-operating-feedback.md.
