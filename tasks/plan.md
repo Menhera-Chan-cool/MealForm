@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## Dashboard nine — 2026-10-17, main/production authorized
+
+Map: CAPABILITY-MAP-dashboard-nine.md. Seven scoped specs. Reuse existing permission action, table preferences, atomic image ingestion, draft/cache stores, batched read snapshots and health/audit data. Test each slice RED/GREEN, then fixed-source native and UI suites, preview/Storybook build, bounded PC/mobile inspection. No GAS/API changes or actual-data test writes. Stage exact artifact, test synthetic services, merge pinned source and promote same artifact. Record live readonly smoke and docs.
+
 ## Complete Operate/accessibility bundle — 2026-10-16
 
 User approved all 30 selections and autonomous plan/spec/implementation/release in six groups. Map: CAPABILITY-MAP-operate-accessibility.md and six module specs. Build and verify sequential slices: responsive foundations, safe shared interactions, field/status feedback, OCR comparison/removal/receipts, settings save/discard, guarded tab/week history. Tests first; preserve existing API/identity/auth/validation/draft/Undo. Existing reviewed-day tests will be rewritten to prove always-visible fields and preserved navigation/validation, not silently deleted. Serial native/build/full browser/compatibility verification, one bounded responsive review + at most one confirmation. Then scoped canonical sync, pinned PR merge, exact checked Vercel artifact promotion and genuine GET-only production checks. Keep Apps Script v79, school GAS/title, old RARs and unrelated dirty checkout untouched.

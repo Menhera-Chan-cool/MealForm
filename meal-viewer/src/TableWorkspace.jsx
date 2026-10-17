@@ -21,12 +21,14 @@ export default function TableWorkspace({label,expandLabel,headers=[],requiredCol
   const dialog=useRef(null),trigger=useRef(null),saved=useRef(null);
   const id='workspace-'+useId().replace(/[^a-zA-Z0-9_-]/g,''),signature=JSON.stringify([headers,requiredColumns]);
   const schema=tableLayoutSchema(headers,requiredColumns),storageKey=preferenceKey?'meal-table-layout-v1:'+preferenceKey:'';
-  const restored=useMemo(()=>{try{return {...readTableLayout(storageKey?localStorage.getItem(storageKey):'',schema,headers.length,requiredColumns),failed:false};}catch{return {hidden:[],widths:null,failed:true};}},[storageKey,schema,signature]);
+  const [layoutEpoch,setLayoutEpoch]=useState(0);
+  const restored=useMemo(()=>{try{return {...readTableLayout(storageKey?localStorage.getItem(storageKey):'',schema,headers.length,requiredColumns),failed:false};}catch{return {hidden:[],widths:null,failed:true};}},[storageKey,schema,signature,layoutEpoch]);
   const [storageFailed,setStorageFailed]=useState(false);
   const [pc,setPc]=useState(()=>typeof window==='undefined'||window.matchMedia('(min-width:701px)').matches);
   useEffect(()=>{const media=window.matchMedia('(min-width:701px)'),update=()=>setPc(media.matches);media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
   const [columns,setColumns]=useState({signature:'',hidden:[]});
   const [sizes,setSizes]=useState(null),drag=useRef(null);
+  useEffect(()=>{const cleared=()=>{cancel();setColumns({signature:'',hidden:[]});setSizes(null);setStorageFailed(false);setLayoutEpoch(value=>value+1);};window.addEventListener('meal-table-layout-cleared',cleared);return()=>window.removeEventListener('meal-table-layout-cleared',cleared);},[]);
   const widths=sizes?.signature===signature?sizes.values:restored.widths;
   const order=columns.signature===signature&&columns.order?columns.order:restored.order||headers.map((_,index)=>index);
   function persist(nextHidden,nextWidths,reset=false,nextOrder=order){if(!storageKey)return;try{localStorage.setItem(storageKey,updateTableLayouts(localStorage.getItem(storageKey),schema,headers.length,requiredColumns,reset?null:{hidden:nextHidden,widths:nextWidths,order:nextOrder}));setStorageFailed(false);}catch{setStorageFailed(true);}}

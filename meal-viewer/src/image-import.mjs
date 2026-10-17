@@ -12,17 +12,18 @@ export function validateImageFiles(files,existing=[]){
   for(const file of files){if(!['image/png','image/jpeg','image/webp'].includes(file.type)||!Number.isSafeInteger(file.size)||file.size<=0)throw new Error(`Ảnh "${String(file.name||'Ảnh dán').slice(0,500)}": chỉ nhận ảnh PNG, JPEG hoặc WEBP không rỗng.`);total+=file.size;if(total>IMAGE_LIMITS.bytes)throw new Error(`Tổng ảnh vượt 2,8 MB khi thêm "${String(file.name||'Ảnh dán').slice(0,500)}". Hãy nén hoặc cắt ảnh trước khi thêm.`);}
   if(total>IMAGE_LIMITS.bytes)throw new Error('Tổng ảnh vượt 2,8 MB. Hãy nén hoặc cắt ảnh trước khi thêm.');
 }
-export async function readMenuImages(files,existing=[]){
-  validateImageFiles(files,existing);
+export async function readMenuImages(files,existing=[],onProgress=()=>{}){
+  try{validateImageFiles(files,existing);}catch(error){files.forEach((_file,index)=>onProgress(index,'error',error.message));throw error;}
   const result=[];
-  for(const file of files){
+  for(const [index,file] of files.entries()){
     try{
+    onProgress(index,'checking');
     const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Không đọc được ảnh.'));reader.readAsDataURL(file);});
     imageDataBytes(dataUrl);
     const image=new Image();image.src=dataUrl;
     try{await image.decode();if(!image.naturalWidth||!image.naturalHeight||image.naturalWidth*image.naturalHeight>40000000)throw Error();}catch{throw new Error('Ảnh bị lỗi hoặc kích thước quá lớn; nháp cũ được giữ.');}
-    result.push({dataUrl,name:String(file.name||'Ảnh dán').slice(0,500)});
-    }catch(error){throw new Error(`Ảnh "${String(file.name||'Ảnh dán').slice(0,500)}": ${error.message} Bộ ảnh và nháp cũ được giữ.`);}
+    result.push({dataUrl,name:String(file.name||'Ảnh dán').slice(0,500)});onProgress(index,'validated');
+    }catch(error){onProgress(index,'error',error.message);throw new Error(`Ảnh "${String(file.name||'Ảnh dán').slice(0,500)}": ${error.message} Bộ ảnh và nháp cũ được giữ.`);}
   }
   return[...existing,...result];
 }

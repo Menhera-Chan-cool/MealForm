@@ -1,5 +1,11 @@
 # MealForm
 
+## Chín cải tiến Dashboard — 17/10/2026
+
+Quyền Gmail sửa theo bản nháp rồi Lưu/Bỏ thay đổi; cấu hình cột chia Hiện/Ẩn–Thứ tự–Độ rộng; thay riêng ảnh và trạng thái kiểm tra từng tệp; Hệ thống có quản lý dữ liệu thiết bị và sơ đồ kết nối từ kết quả thật; lọc lượt theo thời điểm gửi/kiểu khớp tên; bấm Gmail hoặc loại thao tác trong lịch sử để lọc.
+
+Giữ API/Apps Script v80, phân quyền và xác minh bản ghi. Không tự OCR sau thay ảnh. Xóa dữ liệu cục bộ không xóa Form/Sheet hoặc cookie đăng nhập. Lọc nâng cao cần đọc đủ các đợt trong cùng bản đối chiếu để tính đúng toàn bộ kết quả; hiển thị thêm theo 50 lượt, dừng/lỗi thì chỉ đọc. 206/206 ca UI và 38 bộ kiểm thử ứng dụng/API/GAS ở hai bản mã đã đạt. Phạm vi và bằng chứng: `CAPABILITY-MAP-dashboard-nine.md`, `VERIFICATION-dashboard-nine-2026-10-17.md`.
+
 ## Sáu công cụ thao tác — 17/10/2026
 
 Gợi ý tìm tiếp khi bộ lọc không có kết quả; kéo/Lên/Xuống món trong nháp có Undo; mẫu tương phản sáng/tối và màu gợi ý chỉ sửa nháp; favicon theo logo đã lưu có dự phòng; đổi thứ tự cột PC chỉ trên thiết bị, giữ thứ tự chuẩn trên mobile; kết quả xác minh Google Form/Sheet riêng sau xóa/khôi phục, có trạng thái Chưa xác minh và không tự chạy lại.
