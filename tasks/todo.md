@@ -184,4 +184,4 @@
 - [x] brand-favicon: module acceptance, RED→GREEN, caller and edge-case coverage.
 - [x] column-order: module acceptance, RED→GREEN, caller and edge-case coverage.
 - [x] mutation-receipt: module acceptance, RED→GREEN, caller and edge-case coverage; same deployment updated to GAS v80.
-- [ ] Integration: canonical guarded sync, serial native/UI/preview builds, bounded visual verification, deploy GAS, verified artifact, merge main/production, readonly live smoke and docs.
+- [x] Integration: canonical guarded sync, 192 UI / 37 native scripts per app / preview builds, bounded visual verification, GAS v80, 14 checked artifact cases, PR #19/main merge and same-artifact production promotion, readonly live smoke and docs. Evidence: VERIFICATION-workflow-six-2026-10-17.md.

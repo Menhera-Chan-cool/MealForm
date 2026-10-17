@@ -4,7 +4,7 @@
 
 Gợi ý tìm tiếp khi bộ lọc không có kết quả; kéo/Lên/Xuống món trong nháp có Undo; mẫu tương phản sáng/tối và màu gợi ý chỉ sửa nháp; favicon theo logo đã lưu có dự phòng; đổi thứ tự cột PC chỉ trên thiết bị, giữ thứ tự chuẩn trên mobile; kết quả xác minh Google Form/Sheet riêng sau xóa/khôi phục, có trạng thái Chưa xác minh và không tự chạy lại.
 
-192/192 ca UI, 37 bộ ứng dụng/API/GAS ở cả hai bản, năm token/guard, 11 tương thích và build TypeScript/Vite/Storybook đạt. Apps Script đã cập nhật v80 trên cùng deployment, không đổi quyền hoặc dữ liệu thật trong QA. Chưa coi frontend là đã phát hành; kết quả GitHub/main và Vercel cập nhật sau khi kiểm tra đúng artifact. Hồ sơ: VERIFICATION-workflow-six-2026-10-17.md. Không thêm thư viện; RAR/mã chia sẻ cũ không tự cập nhật.
+Đã merge [PR #19](https://github.com/Menhera-Chan-cool/MealForm/pull/19) vào main và chuyển đúng artifact đã kiểm tra lên [production](https://menutaythanh.vercel.app). **192/192 ca UI**, 37 bộ ứng dụng/API/GAS ở cả hai bản, năm token/guard, 11 tương thích, build TypeScript/Vite/Storybook và 14 ca chức năng trên tài nguyên Vercel đạt; bỏ qua một ma trận responsive lặp lại đã kiểm tra cục bộ. Apps Script **v80**, cùng URL/quyền; website thật chỉ đọc đạt, không ghi dữ liệu thật trong QA. Log 15 phút không thấy HTTP 5xx; một cảnh báo Node DEP0169 ghi mức error trên yêu cầu trả 200, chưa truy nguồn trong đợt UI này. Hồ sơ: VERIFICATION-workflow-six-2026-10-17.md. Không thêm thư viện; chưa chứng nhận thiết bị vật lý/trình đọc màn hình/Chromatic cloud; RAR/mã chia sẻ cũ không tự cập nhật.
 
 ## Công cụ nháp và ngữ cảnh thao tác — 16/10/2026
 
