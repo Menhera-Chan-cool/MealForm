@@ -27,6 +27,7 @@ import ViewerLinkProblem from './ViewerLinkProblem.jsx';
 import ElapsedWait from './ElapsedWait.jsx';
 import ExplainedButton from './ExplainedButton.jsx';
 import FilterEmptyState from './FilterEmptyState.jsx';
+import {viewerFilterRecovery} from './viewer-model.mjs';
 import TableWorkspace from './TableWorkspace.jsx';
 import WeekNavigation from './WeekNavigation.jsx';
 import {DisplayPreferencesSlot} from './ComfortProvider.jsx';
@@ -461,7 +462,7 @@ function App() {
       {data?.closedDays?.length > 0 && <p className="closed-days-note">Ngày không phục vụ: {data.closedDays.join(' · ')}</p>}
       {activeDrilldown&&<div className="summary-return"><button type="button" className="secondary" onClick={returnToSummary}>Quay lại Tổng hợp</button><span>Đang xem đúng món đã chọn: {filters.meal} · {filters.day}</span></div>}
       {data&&<p id="viewer-result-count" tabIndex={-1} className="viewer-result-count" role="status" aria-live="polite" aria-atomic="true" aria-label="Kết quả lọc"><span>Theo bộ lọc hiện tại:</span><strong>{resultCounts.responses} lượt gửi</strong><span>·</span><strong>{resultCounts.choices} lựa chọn món</strong></p>}
-      {emptyResults&&<FilterEmptyState title={data.rows?.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={data.rows?.length?filterConditions(filters):[]} onClear={key=>{setFilter(key,ALL);document.getElementById('name')?.focus();}}/>}
+      {emptyResults&&<FilterEmptyState title={data.rows?.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={data.rows?.length?filterConditions(filters):[]} recoveries={viewerFilterRecovery(data,filters,responseSort)} onClear={key=>{setFilter(key,ALL);document.getElementById('name')?.focus();}}/>}
       <div hidden={emptyResults}>
       <ViewerTabs value={viewerTab} onChange={setViewerTab}/>
       <section className="data-section viewer-reading-panel" id="viewer-summary" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-summary':undefined} hidden={mobileViewer&&viewerTab!=='summary'}>

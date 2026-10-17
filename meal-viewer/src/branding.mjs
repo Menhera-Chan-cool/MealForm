@@ -36,3 +36,21 @@ export function brandingTheme(color,scheme='light') {
   });
   return theme;
 }
+export function contrastRatio(first,second){
+  const light=color=>{const values=[1,3,5].map(index=>parseInt(color.slice(index,index+2),16)/255).map(channel=>channel<=.04045?channel/12.92:((channel+.055)/1.055)**2.4);return values[0]*.2126+values[1]*.7152+values[2]*.0722;};
+  const a=light(first),b=light(second);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+}
+export function brandContrastReport(color){
+  return ['light','dark'].flatMap(scheme=>{const theme=brandingTheme(color,scheme),ui=uiThemeVariables(color,scheme);return [
+    {label:'Chữ trên nền',foreground:ui['--meal-ui-foreground'],background:ui['--meal-ui-card'],target:4.5},
+    {label:'Chữ nút',foreground:theme.foreground,background:theme.primary,target:4.5},
+    {label:'Chữ nút khi trỏ',foreground:theme.foreground,background:theme.hover,target:4.5},
+    {label:'Nút so với nền',foreground:theme.primary,background:ui['--meal-ui-card'],target:3}
+  ].map(pair=>({...pair,scheme,ratio:contrastRatio(pair.foreground,pair.background)}));});
+}
+export function suggestBrandColor(color){
+  if(brandContrastReport(color).every(pair=>pair.ratio>=pair.target))return null;
+  const rgb=[1,3,5].map(index=>parseInt(color.slice(index,index+2),16)),candidates=[];
+  for(const end of [0,255])for(let step=1;step<=100;step++){const channels=rgb.map(value=>Math.round(value+(end-value)*step/100)),candidate='#'+channels.map(value=>value.toString(16).padStart(2,'0')).join('');if(brandContrastReport(candidate).every(pair=>pair.ratio>=pair.target)){candidates.push({color:candidate,distance:channels.reduce((sum,value,index)=>sum+(value-rgb[index])**2,0)});break;}}
+  return candidates.sort((a,b)=>a.distance-b.distance)[0]?.color||null;
+}

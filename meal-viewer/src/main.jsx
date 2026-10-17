@@ -17,6 +17,7 @@ import './operating-feedback.css';
 import './ocr-navigation.css';
 import './operate-accessibility.css';
 import './draft-tools.css';
+import './workflow-six.css';
 
 const redirect = rootRedirectTarget(window.location.pathname, window.location.search);
 if (window.location.pathname === '/newform') window.location.replace('/dashboard?tab=create');

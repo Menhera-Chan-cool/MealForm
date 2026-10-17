@@ -6,11 +6,11 @@ const schema=layouts.tableLayoutSchema(['Timestamp','Họ tên','Thứ 2 (12/10/
 assert.equal(schema,layouts.tableLayoutSchema(['Timestamp','Họ tên','Thứ 2 (19/10/2026)'],[1]));
 assert.notEqual(schema,layouts.tableLayoutSchema(['Timestamp','Họ tên','Thứ 4 (14/10/2026)'],[1]));
 let layoutJson=layouts.updateTableLayouts('',schema,3,[1],{hidden:[0,1,9,-1],widths:[180,320,240],name:'Never persist this'});
-assert.deepEqual(layouts.readTableLayout(layoutJson,schema,3,[1]),{hidden:[0],widths:[180,320,240]});assert.equal(layoutJson.includes('Never persist'),false);assert.equal(layoutJson.includes('Họ tên'),false);
-assert.deepEqual(layouts.readTableLayout('{broken',schema,3,[1]),{hidden:[],widths:null});assert.deepEqual(layouts.readTableLayout(layoutJson,schema,2,[1]),{hidden:[],widths:null});
-assert.deepEqual(layouts.readTableLayout(JSON.stringify({version:1,layouts:{[schema]:{count:3,hidden:[1,0,-1,99],widths:[180,Infinity,240]}}}),schema,3,[1]),{hidden:[0],widths:null});
+assert.deepEqual(layouts.readTableLayout(layoutJson,schema,3,[1]),{hidden:[0],widths:[180,320,240],order:[0,1,2]});assert.equal(layoutJson.includes('Never persist'),false);assert.equal(layoutJson.includes('Họ tên'),false);
+assert.deepEqual(layouts.readTableLayout('{broken',schema,3,[1]),{hidden:[],widths:null,order:[0,1,2]});assert.deepEqual(layouts.readTableLayout(layoutJson,schema,2,[1]),{hidden:[],widths:null,order:[0,1]});
+assert.deepEqual(layouts.readTableLayout(JSON.stringify({version:1,layouts:{[schema]:{count:3,hidden:[1,0,-1,99],widths:[180,Infinity,240]}}}),schema,3,[1]),{hidden:[0],widths:null,order:[0,1,2]});
 for(let i=0;i<12;i++)layoutJson=layouts.updateTableLayouts(layoutJson,'s'+i,3,[1],{hidden:[],widths:[180,320,240]});assert.equal(Object.keys(JSON.parse(layoutJson).layouts).length,8);
-layoutJson=layouts.updateTableLayouts(layoutJson,'s11',3,[1],null);assert.deepEqual(layouts.readTableLayout(layoutJson,'s11',3,[1]),{hidden:[],widths:null});
+layoutJson=layouts.updateTableLayouts(layoutJson,'s11',3,[1],null);assert.deepEqual(layouts.readTableLayout(layoutJson,'s11',3,[1]),{hidden:[],widths:null,order:[0,1,2]});
 assert.equal(typeof ui.groupAuditDays,'function');
 const early={id:'a',at:Date.parse('2026-10-14T16:59:59Z'),action:'deleted'},late={id:'b',at:Date.parse('2026-10-14T17:00:00Z'),action:'delete-review'};
 assert.deepEqual(ui.groupAuditDays([late,early,{id:'c',at:'bad',action:'delete-failed'}]).map(group=>[group.key,group.events.map(event=>event.id),group.attention]),[['2026-10-15',['b'],1],['2026-10-14',['a'],0],['unknown',['c'],1]]);

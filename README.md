@@ -1,5 +1,11 @@
 # MealForm
 
+## Sáu công cụ thao tác — 17/10/2026
+
+Gợi ý tìm tiếp khi bộ lọc không có kết quả; kéo/Lên/Xuống món trong nháp có Undo; mẫu tương phản sáng/tối và màu gợi ý chỉ sửa nháp; favicon theo logo đã lưu có dự phòng; đổi thứ tự cột PC chỉ trên thiết bị, giữ thứ tự chuẩn trên mobile; kết quả xác minh Google Form/Sheet riêng sau xóa/khôi phục, có trạng thái Chưa xác minh và không tự chạy lại.
+
+192/192 ca UI, 37 bộ ứng dụng/API/GAS ở cả hai bản, năm token/guard, 11 tương thích và build TypeScript/Vite/Storybook đạt. Apps Script đã cập nhật v80 trên cùng deployment, không đổi quyền hoặc dữ liệu thật trong QA. Chưa coi frontend là đã phát hành; kết quả GitHub/main và Vercel cập nhật sau khi kiểm tra đúng artifact. Hồ sơ: VERIFICATION-workflow-six-2026-10-17.md. Không thêm thư viện; RAR/mã chia sẻ cũ không tự cập nhật.
+
 ## Công cụ nháp và ngữ cảnh thao tác — 16/10/2026
 
 10 mục đã duyệt: xem riêng các ô khác bản nguồn, mô phỏng Form không gửi thật, dán bảng Excel/Sheets có chọn cột/xem trước, sao chép món giữa ngày có Undo, chế độ tập trung, chi tiết lượt gửi bên phải PC/toàn màn hình mobile, thông tin phụ bộ chọn tuần, thông báo phiên trong RAM, hướng dẫn theo yêu cầu và trạng thái ngoại tuyến chỉ đọc. Nháp bảng có thể lưu không cần ảnh; nháp cũ thiếu mốc so sánh được ghi rõ, không giả báo chưa sửa. Không tự tạo Form, ghi đè tuần hoặc gửi lại thao tác khi có mạng.
