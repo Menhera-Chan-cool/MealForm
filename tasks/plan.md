@@ -1,6 +1,6 @@
 # Approved admin upgrades: implementation plan
 
-## Dashboard nine — 2026-10-17, main/production authorized
+## Dashboard nine — 2026-10-17, published PR #20 / same artifact production
 
 Map: CAPABILITY-MAP-dashboard-nine.md. Seven scoped specs. Reuse existing permission action, table preferences, atomic image ingestion, draft/cache stores, batched read snapshots and health/audit data. Test each slice RED/GREEN, then fixed-source native and UI suites, preview/Storybook build, bounded PC/mobile inspection. No GAS/API changes or actual-data test writes. Stage exact artifact, test synthetic services, merge pinned source and promote same artifact. Record live readonly smoke and docs.
 

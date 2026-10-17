@@ -10,8 +10,8 @@
 - [x] system-connection-map: spec acceptance + focused tests.
 - [x] audit-filter-shortcuts: spec acceptance + focused tests.
 - [x] Full native/UI/build/Storybook regression and responsive visual review: 206 UI, 38 native on both copies, five token/guard and 11 compatibility; 8 captures inspected.
-- [ ] Sync canonical/template docs, push PR, immutable artifact smoke, pinned merge/main and same-artifact promotion.
-- [ ] Genuine readonly production smoke, release record and README.
+- [x] Sync canonical/template docs, push PR, immutable artifact smoke, pinned merge/main and same-artifact promotion.
+- [x] Genuine readonly production smoke, release record and README.
 
 ## OCR navigation — 2026-10-16
 

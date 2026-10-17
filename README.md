@@ -6,6 +6,8 @@ Quyền Gmail sửa theo bản nháp rồi Lưu/Bỏ thay đổi; cấu hình c�
 
 Giữ API/Apps Script v80, phân quyền và xác minh bản ghi. Không tự OCR sau thay ảnh. Xóa dữ liệu cục bộ không xóa Form/Sheet hoặc cookie đăng nhập. Lọc nâng cao cần đọc đủ các đợt trong cùng bản đối chiếu để tính đúng toàn bộ kết quả; hiển thị thêm theo 50 lượt, dừng/lỗi thì chỉ đọc. 206/206 ca UI và 38 bộ kiểm thử ứng dụng/API/GAS ở hai bản mã đã đạt. Phạm vi và bằng chứng: `CAPABILITY-MAP-dashboard-nine.md`, `VERIFICATION-dashboard-nine-2026-10-17.md`.
 
+Đã merge [PR #20](https://github.com/Menhera-Chan-cool/MealForm/pull/20) vào main và đưa đúng artifact đã kiểm thử lên [production](https://menutaythanh.vercel.app), phiên bản `892c3a5f-ebb6-4e24-9474-4ac69b25732d`. **206/206 ca UI**, 38 bộ kiểm thử ứng dụng/API/GAS ở cả hai bản, năm token/guard, 11 tương thích, TypeScript/Vite/Storybook và **13 ca chức năng trên artifact Vercel** đạt; bỏ qua một lượt chụp responsive lặp lại đã kiểm tra cục bộ. Website thật kiểm tra chỉ đọc đạt: 22 lượt, mobile không tràn ngang, API riêng tư vẫn 401, không ghi dữ liệu thật. Apps Script giữ v80. Log 15 phút không thấy HTTP5xx; một DEP0169 mức error trên yêu cầu trả 200 chưa được truy nguồn. Chưa chứng nhận thiết bị vật lý/trình đọc màn hình/Chromatic cloud. Mã trong thư mục chia sẻ/RAR cũ không tự cập nhật.
+
 ## Sáu công cụ thao tác — 17/10/2026
 
 Gợi ý tìm tiếp khi bộ lọc không có kết quả; kéo/Lên/Xuống món trong nháp có Undo; mẫu tương phản sáng/tối và màu gợi ý chỉ sửa nháp; favicon theo logo đã lưu có dự phòng; đổi thứ tự cột PC chỉ trên thiết bị, giữ thứ tự chuẩn trên mobile; kết quả xác minh Google Form/Sheet riêng sau xóa/khôi phục, có trạng thái Chưa xác minh và không tự chạy lại.
