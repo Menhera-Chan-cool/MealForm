@@ -207,3 +207,7 @@ export function detailResultCounts(model) {
     choices: model.rows.reduce((count,row) => count + model.mealIndexes.filter(index => clean(row[index])).length, 0)
   };
 }
+
+export function viewerFilterRecovery(data,filters,sort='newest',exact=false){
+  return ['name','day','meal'].filter(key=>filters?.[key]&&filters[key]!==ALL).map(key=>({key,count:buildDetailModel(data,{...filters,[key]:ALL},sort,exact).sourceRows.length})).filter(item=>item.count>0);
+}

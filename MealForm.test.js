@@ -199,6 +199,10 @@ const expiredToken = Buffer.from(expiredPayload).toString('base64url') + '.' + c
 assert.throws(() => context.readMealDashboardDeleteToken_(expiredToken), /hết hạn/);
 const deletion = context.deleteMealDashboardResponse_(deleteRequest);
 assert.strictEqual(deletion.deleted, true);
+assert.ok(deletion.receipt, 'deletion must return fresh two-store verification');
+assert.strictEqual(deletion.receipt.form, 'absent');
+assert.strictEqual(deletion.receipt.sheet, 'absent');
+assert.strictEqual(deletion.receipt.verified, true);
 assert.strictEqual(deletion.alreadyDeleted, false);
 assert.strictEqual(deletion.restorable, true);
 assert.strictEqual(auditRows.at(-1)[1], 'deleted');
@@ -247,5 +251,39 @@ responseRowsForDelete = [
 assert.throws(() => context.deleteMealDashboardResponse_(deleteRequest), /không duy nhất|mơ hồ|trùng/i);
 assert.strictEqual(responseRowsForDelete.length, 3);
 assert.ok(!/ensureCleanupTrigger_\(\);/.test(source));
+
+const verificationHeaders=['Timestamp','Họ và tên','Thứ 2','Thứ 3'];
+const targetLayout=context.getResponseLayout_(verificationHeaders);
+const verify=(operation='delete',id='response-two')=>context.verifyMealMutation_(operation,deleteRequest.weekKey,id,dashboardForm,responseSheet,deleteTarget,'response-two',targetLayout,verificationHeaders);
+assert.strictEqual(verify().sheet,'duplicate');
+const priorResponses=formResponses;formResponses=[{getId:()=> 'unrelated',getTimestamp:()=>new Date('2020-01-01T00:00:00Z'),getItemResponses:()=>{throw Error('Do not parse unrelated answers');}}];
+assert.strictEqual(verify().form,'absent','verification parses only exact-time candidates, not every unrelated answer');formResponses=priorResponses;
+const priorRows=responseRowsForDelete;formResponses=[{...responseTwo,getItemResponses:()=>itemResponses(['Tên đã đổi','THỊT RAM','CÁ KHO'])}];responseRowsForDelete=[verificationHeaders,[deleteTime,'Nguyễn An','THỊT RAM','CÁ KHO']];
+assert.strictEqual(verify('restore').form,'unknown','an ID without matching restored contents cannot verify restoration');formResponses=priorResponses;responseRowsForDelete=priorRows;
+const readForm=dashboardForm.getResponses;dashboardForm.getResponses=()=>{throw Error('read unavailable');};
+assert.strictEqual(verify().form,'unknown');assert.strictEqual(verify().verified,false);dashboardForm.getResponses=readForm;
+const originalDelete=dashboardForm.deleteResponse;
+formResponses=[responseTwo];responseRowsForDelete=[verificationHeaders,[deleteTime,'Nguyễn An','THỊT RAM','CÁ KHO']];
+let attemptedDeletes=0;dashboardForm.deleteResponse=()=>{attemptedDeletes++;};
+assert.throws(()=>context.deleteMealDashboardResponse_(deleteRequest),error=>error.receipt?.form==='present'&&error.receipt?.sheet==='absent'&&!error.receipt.verified);
+assert.strictEqual(attemptedDeletes,1);assert.strictEqual(auditRows.at(-1)[1],'delete-review');dashboardForm.deleteResponse=originalDelete;
+
+const restoreTemplate=auditRows.find(row=>row[1]==='deleted').slice();
+let submitCount=0,restoreMode='complete';
+dashboardForm.getItemById=id=>questions.find(question=>question.getId()===id);
+for(const question of questions){const item={createResponse:value=>({getResponse:()=>value,getItem:()=>question})};question.asTextItem=()=>item;question.asMultipleChoiceItem=()=>item;}
+dashboardForm.createResponse=()=>{const answers=[],builder={withItemResponse:item=>{answers.push(item);return builder;},submit:()=>{
+  submitCount++;if(restoreMode==='unknown')throw Error('submission outcome unknown');
+  const timestamp=new Date('2026-10-17T03:00:00Z'),response={getId:()=>`restored-${submitCount}`,getTimestamp:()=>timestamp,getItemResponses:()=>answers};formResponses.push(response);
+  if(restoreMode==='complete')responseRowsForDelete.push([timestamp,...answers.map(answer=>answer.getResponse())]);
+  return response;
+}};return builder;};
+function prepareRestore(mode){restoreMode=mode;formResponses=[];responseRowsForDelete=[verificationHeaders];const id=crypto.randomUUID(),row=restoreTemplate.slice();row[0]=id;row[4]=id;auditRows.push(row);return {weekKey:deleteRequest.weekKey,entryId:id,email:'owner@example.com'};}
+const completeRestore=context.restoreMealDashboardResponse_(prepareRestore('complete'));
+assert.strictEqual(completeRestore.receipt.form,'present');assert.strictEqual(completeRestore.receipt.sheet,'present');assert.strictEqual(completeRestore.receipt.verified,true);
+const partialRestore=prepareRestore('no-sheet');
+assert.throws(()=>context.restoreMealDashboardResponse_(partialRestore),error=>error.receipt?.form==='present'&&error.receipt?.sheet==='absent'&&!error.receipt.verified);
+const submittedOnce=submitCount;assert.throws(()=>context.restoreMealDashboardResponse_(partialRestore),/đã được khôi phục|cần kiểm tra/);assert.strictEqual(submitCount,submittedOnce);
+assert.throws(()=>context.restoreMealDashboardResponse_(prepareRestore('unknown')),error=>error.receipt?.form==='unknown'&&error.receipt?.sheet==='unknown'&&!error.receipt.verified);
 assert.ok(!/trashMealFile_\(/.test(source));
 console.log('MealForm folder lifecycle checks passed');

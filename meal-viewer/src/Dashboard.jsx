@@ -11,7 +11,7 @@ import SearchInput from './SearchInput.jsx';
 import SearchHighlight from './SearchHighlight.jsx';
 import ExternalLink from './ExternalLink.jsx';
 import usePageTitle from './usePageTitle.js';
-import TableWorkspace,{ColumnResizeHandle,TableSpanCell} from './TableWorkspace.jsx';
+import TableWorkspace,{ColumnResizeHandle,TableSpanCell,WorkspaceRow} from './TableWorkspace.jsx';
 import useUnsavedChanges from './useUnsavedChanges.js';
 import {brandHasEdits,filterConditions,reviewChanges,ocrReviewLinks,groupAuditDays} from './ui-clarity.mjs';
 import ExplainedButton from './ExplainedButton.jsx';
@@ -66,6 +66,11 @@ import DraftTransfer from './DraftTransfer.jsx';
 import SessionFeedback from './SessionFeedback.jsx';
 import ContextGuide from './ContextGuide.jsx';
 import ConnectionNotice,{useOnlineState} from './ConnectionNotice.jsx';
+import BrandContrast from './BrandContrast.jsx';
+import DraftMealSlots from './DraftMealSlots.jsx';
+import {moveDraftMeal} from './draft-tools.mjs';
+import MutationReceipt from './MutationReceipt.jsx';
+import {normalizeMutationReceipt} from './mutation-receipt.mjs';
 
 const MEAL_SLOTS = [0, 1, 2];
 
@@ -76,7 +81,7 @@ export async function dashboardRequest(url = '/api/dashboard', options = {}, onU
   if (!response.ok) {
     const message = errorMessage(body.error, 'Không thể hoàn tất thao tác.');
     if (response.status === 401 || response.status === 403) onUnauthorized?.(message, response.status);
-    throw Object.assign(new Error(message), { status: response.status });
+    throw Object.assign(new Error(message), { status: response.status,receipt:normalizeMutationReceipt(body.receipt) });
   }
   return body;
 }
@@ -196,6 +201,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   if(!healthBusy&&health?.uiWeekKey===weekKey){const counts=healthCounts(health.checks);const count=counts.warning+counts.error+counts.unknown;if(count)warnings.health={count,description:`Đã tải ${formatTime(health.readAt)} · ${selectedWarningWeek()}`,details:health.checks.filter(check=>check.status!=='ok').map(check=>check.label||'Mục chưa xác định').join(' · ')};}
   function selectedWarningWeek(){return (overview.weeks||[]).find(week=>week.weekKey===weekKey)?.name||'Tuần đang chọn';}
   const [brandDraft, setBrandDraft] = useState(branding);
+  const [mutationReceipt,setMutationReceipt]=useState(null);
   const [brandAttempt,setBrandAttempt]=useState(0);
   const brandErrors=brandFieldErrors(brandDraft).map(error=>({...error,id:({schoolName:'brand-school-name',logoUrl:'brand-logo-url',primaryColor:'brand-color'})[error.field]}));
   const logoFeedbackId=useId(),[logoAttempt,setLogoAttempt]=useState(0),[logoState,setLogoState]=useState(null),logoRequest=useRef(null);
@@ -587,19 +593,21 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     if (reason === undefined) { setConfirmation({ message: prompt, confirmLabel:response.partial?'Xóa hàng Sheet còn sót':'Xóa lượt gửi này', run: note => deleteResponse(response, note) }); return; }
     clearDashboardCache(undefined, true); setWeekVerified(false);
     setPendingRow({ action: 'delete', id: response.responseId });
-    setBusy(true); setMessage('Đang xóa lượt gửi…');
+    setBusy(true);setMutationReceipt(null); setMessage('Đang xóa lượt gửi…');
+    const receiptScope={operation:'delete',weekKey,recordId:response.responseId};
     try {
-      await request('/api/dashboard', {
+      const result=await request('/api/dashboard', {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ weekKey, responseId: response.responseId, deleteToken: response.deleteToken, reason })
       });
+      const receipt=normalizeMutationReceipt(result.receipt,receiptScope);setMutationReceipt(receipt||{...receiptScope,form:'unknown',sheet:'unknown',verified:false,checkedAt:0});
       followDeleteFocus.current={week:weekKey,removed:response.responseId,neighbor:neighbor?.responseId};
       await refreshOverview();
       await loadWeek(weekKey);
-      setMessage(response.partial
+      setMessage(!receipt?.verified?'Máy chủ đã trả kết quả nhưng chưa xác minh hoàn tất cả Form và Sheet. Hãy kiểm tra kết quả từng nguồn.':response.partial
         ? `Đã hoàn tất xóa hàng Sheet còn sót của ${response.name}.`
         : `Đã xóa lượt gửi của ${response.name} khỏi Form và Sheet.`);
-    } catch (error) { await loadWeek(weekKey); setMessage(error.message); }
+    } catch (error) { setMutationReceipt(normalizeMutationReceipt(error.receipt,receiptScope)||{...receiptScope,form:'unknown',sheet:'unknown',verified:false,checkedAt:0});await loadWeek(weekKey); setMessage(error.message); }
     finally { setBusy(false); setPendingRow(null); }
   }
 
@@ -610,16 +618,18 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     if (!window.confirm(`Khôi phục lượt của ${event.name} (gửi gốc lúc ${originalTime})? Lượt sẽ được tạo mới trong Form, nên thời điểm gửi trong Form sẽ là thời điểm hiện tại.`)) return;
     clearDashboardCache(undefined, true); setWeekVerified(false);
     setPendingRow({ action: 'restore', id: event.entryId });
-    setBusy(true); setMessage('Đang khôi phục lượt gửi…');
+    setBusy(true);setMutationReceipt(null); setMessage('Đang khôi phục lượt gửi…');
+    const receiptScope={operation:'restore',weekKey,recordId:event.entryId};
     try {
-      await request('/api/dashboard', {
+      const result=await request('/api/dashboard', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'restore', weekKey, entryId: event.entryId })
       });
+      const receipt=normalizeMutationReceipt(result.receipt,receiptScope);setMutationReceipt(receipt||{...receiptScope,form:'unknown',sheet:'unknown',verified:false,checkedAt:0});
       await refreshOverview();
       await loadWeek(weekKey);
-      setMessage(`Đã khôi phục lượt của ${event.name}. Thời điểm gốc được giữ trong lịch sử.`);
-    } catch (error) { await loadWeek(weekKey); setMessage(error.message); }
+      setMessage(receipt?.verified?`Đã khôi phục lượt của ${event.name}. Thời điểm gốc được giữ trong lịch sử.`:'Máy chủ đã trả kết quả nhưng chưa xác minh khôi phục đủ cả hai nguồn. Không bấm khôi phục lại; kiểm tra lịch sử/đối soát.');
+    } catch (error) { setMutationReceipt(normalizeMutationReceipt(error.receipt,receiptScope)||{...receiptScope,form:'unknown',sheet:'unknown',verified:false,checkedAt:0});await loadWeek(weekKey); setMessage(error.message); }
     finally { setBusy(false); setPendingRow(null); }
   }
 
@@ -740,11 +750,11 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
             <label>Ngày<input id={`ocr-date-${dayIndex}`} aria-label="Ngày" enterKeyHint="next" className={ocrFieldClass(`ocr-date-${dayIndex}`)} value={day.date || ''} maxLength={40} placeholder="dd/mm/yyyy" aria-invalid={Boolean(issue.dateError)} aria-describedby={`${dateNote}-hint${issue.dateError?' '+dateNote:''}`} onChange={event => editDay(dayIndex, 'date', event.target.value)} /><small id={dateNote+'-hint'}>Ngày/tháng/năm, ví dụ 19/10/2026. Đối chiếu đúng thứ trên ảnh.</small></label>
             {issue.dateError && <p id={dateNote} className="menu-inline-error">{issue.dateError}</p>}
             <label className="menu-closed-toggle"><input id={`ocr-closed-${dayIndex}`} type="checkbox" checked={day.closed === true} onChange={event => editDay(dayIndex, 'closed', event.target.checked)} />Không phục vụ ngày này</label>
-            {day.closed === true ? <p className="menu-closed-note">Ngày nghỉ — không tạo câu hỏi chọn món. Món đã nhập vẫn giữ để bỏ đánh dấu hoặc hoàn tác.</p> : <div className="dashboard-meals">{MEAL_SLOTS.map(slot => {
+            {day.closed === true ? <p className="menu-closed-note">Ngày nghỉ — không tạo câu hỏi chọn món. Món đã nhập vẫn giữ để bỏ đánh dấu hoặc hoàn tác.</p> : <DraftMealSlots day={day} dayIndex={dayIndex} disabled={busy||!online} onMove={(from,to)=>{dispatchMenu({type:'edit',value:current=>moveDraftMeal(current,dayIndex,from,to)});setAllowMissing(false);}}>{MEAL_SLOTS.map(slot => {
               const missing = issue.missingMealSlots.includes(slot);
               const id=`ocr-meal-${dayIndex}-${slot}`,feedback=reviewLinks.find(link=>link.id===id);
               return <label key={slot}>Món {slot + 1}<input id={id} aria-label={'Món '+(slot+1)} enterKeyHint="next" value={day.meals?.[slot] || ''} maxLength={500} className={ocrFieldClass(id,missing ? 'menu-meal-missing' : '')} placeholder={missing ? 'Đối chiếu món này với ảnh' : ''} aria-invalid={Boolean(feedback?.blocking)} aria-describedby={feedback?id+'-error':undefined} onChange={event => editDay(dayIndex, 'meal', event.target.value, slot)} />{feedback&&<small id={id+'-error'} className={feedback.blocking?'menu-inline-error':'menu-inline-warning'}>{feedback.message}</small>}</label>;
-            })}</div>}
+            })}</DraftMealSlots>}
           </OcrReviewDay>;
         })}
         {validation.dateError && <p className="dashboard-warning" role="alert">{validation.dateError}</p>}
@@ -758,6 +768,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     </section>}
 
     {tab === 'delete' && <section className="dashboard-panel">
+      {mutationReceipt?.weekKey===weekKey&&<MutationReceipt receipt={mutationReceipt}/>}
       <TableWorkspace label="Bảng lượt gửi" expandLabel="Phóng rộng bảng lượt gửi" preferenceKey="dashboard-responses" context={{week:selectedWeek?.name||'Chưa chọn tuần',filters:query.trim()?`Họ tên: ${query.trim()}`:'Không có bộ lọc',sort:responseSort==='name'?'Tên A–Z':responseSort==='oldest'?'Cũ nhất':'Mới nhất'}} headers={['Thời điểm','Họ tên','Món đã chọn','Thao tác']} requiredColumns={[1,3]}>
       <div className="dashboard-section-title"><h2>Lượt gửi và lịch sử thao tác</h2></div>
       <WeekNotice notice={displayedWeek?.week?.weekNotice} serverNow={displayedWeek?.week?.serverNow}/>
@@ -776,11 +787,11 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         </select></label>
         <div className="dashboard-density" role="group" aria-label="Mật độ bảng PC"><span>Bảng PC</span><button type="button" className="secondary" aria-pressed={viewState.view.density === 'compact'} onClick={() => viewState.update({ density: 'compact' })}>Gọn</button><button type="button" className="secondary" aria-pressed={viewState.view.density === 'comfortable'} onClick={() => viewState.update({ density: 'comfortable' })}>Rộng</button></div>
       </div>
-      {weekLoading && !displayedWeek ? <ContentSkeleton label="Đang tải lượt gửi…" kind="table"/> : <TableScroll className="dashboard-response-list" ref={viewState.listRef} data-week-key={weekKey}><table className="dashboard-table dashboard-response-table" role="table"><thead><tr>{['Thời điểm','Họ tên','Món đã chọn','Thao tác'].map((label,index)=><th key={label}>{label}<ColumnResizeHandle index={index} label={label}/></th>)}</tr></thead><tbody>
-        {visibleResponses.length ? visibleResponses.map(response => <tr key={response.responseId || response.rowNumber || `${response.timestamp}-${response.name}`} data-response-id={response.responseId} className={highlightIds.includes(response.responseId) ? 'new-response' : ''}>
+      {weekLoading && !displayedWeek ? <ContentSkeleton label="Đang tải lượt gửi…" kind="table"/> : <TableScroll className="dashboard-response-list" ref={viewState.listRef} data-week-key={weekKey}><table className="dashboard-table dashboard-response-table" role="table"><thead><WorkspaceRow>{['Thời điểm','Họ tên','Món đã chọn','Thao tác'].map((label,index)=><th key={label}>{label}<ColumnResizeHandle index={index} label={label}/></th>)}</WorkspaceRow></thead><tbody>
+        {visibleResponses.length ? visibleResponses.map(response => <WorkspaceRow key={response.responseId || response.rowNumber || `${response.timestamp}-${response.name}`} data-response-id={response.responseId} className={highlightIds.includes(response.responseId) ? 'new-response' : ''}>
           <td data-label="Thời điểm"><FriendlyTime value={response.timestamp}/></td><td data-label="Họ tên"><strong><SearchHighlight text={response.name} query={query}/></strong>{highlightIds.includes(response.responseId) && <span className="new-response-label">Mới</span>}{response.partial && <strong className="dashboard-partial"> · Form đã xóa, Sheet còn hàng</strong>}</td><td data-label="Món đã chọn"><ResponseMeals response={response} week={displayedWeek?.week} /></td>
           <td data-label="Thao tác"><div className="dashboard-row-actions"><button type="button" className="secondary" onClick={() => setQuickResponse(response)}>Xem nhanh</button><RowActionMenu label="Thao tác lượt gửi"><div role="group" aria-label="Kiểm tra lượt gửi"><SheetRowButton key={`${weekKey}-${weekRequest.current}-${response.responseId}`} weekKey={weekKey} source={response.partial ? 'sheet' : 'form'} response={response} request={request} disabled={busy || !online || !weekReady} /></div><div className="row-menu-danger" role="group" aria-label="Thao tác xóa">{permissions.manageResponses && (response.deletable || !weekReady) ? <ExplainedButton label="Xóa lượt này" type="button" data-close-row-menu className="danger" disabled={busy || !online || !weekReady} reason={busy?'Đang xử lý một thao tác; chưa thể xóa tiếp.':'Dữ liệu hiện tại chưa được xác minh; hãy tải lại dữ liệu trước khi xóa.'} aria-busy={pendingRow?.action === 'delete' && pendingRow.id === response.responseId} onClick={() => void deleteResponse(response)}>{pendingRow?.action === 'delete' && pendingRow.id === response.responseId ? 'Đang xóa…' : response.partial ? 'Xóa nốt hàng Sheet' : 'Xóa lượt này'}</ExplainedButton> : <span title={response.note}>{!permissions.manageResponses ? 'Chỉ xem' : response.partial ? 'Cần kiểm tra thủ công' : 'Không đối chiếu được'}</span>}</div></RowActionMenu></div></td>
-        </tr>) : <tr><td className="empty" colSpan="4">{!displayedWeek?'Chưa có dữ liệu đã xác minh. Hãy tải lại dữ liệu.':weekLoading?'Đang đọc kết quả lọc…':<FilterEmptyState title={responseConditions.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={responseConditions} onClear={()=>{setQuery('');document.getElementById('dashboard-name-search')?.focus();}}/>}</td></tr>}
+        </WorkspaceRow>) : <tr><td className="empty" colSpan="4">{!displayedWeek?'Chưa có dữ liệu đã xác minh. Hãy tải lại dữ liệu.':weekLoading?'Đang đọc kết quả lọc…':<FilterEmptyState title={responseConditions.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={responseConditions} recoveries={displayedWeek.page?[]:[{key:'name',count:displayedWeek.responses.length}]} onClear={()=>{setQuery('');document.getElementById('dashboard-name-search')?.focus();}}/>}</td></tr>}
       </tbody></table></TableScroll>}
       {displayedWeek?.page && <div className="dashboard-batch-tools"><p role="status">Đã tải {displayedWeek.responses.length} / {displayedWeek.page.matchedCount} lượt phù hợp · tổng {displayedWeek.page.total} lượt. Bản đối chiếu lúc {formatTime(displayedWeek.page.snapshotAt)}.</p>{displayedWeek.page.nextOffset != null && <ExplainedButton label="Tải thêm lượt gửi" type="button" className="secondary" disabled={!weekReady || busy || weekLoading || moreLoading} reason={busy?'Đang xử lý thao tác.':weekLoading||moreLoading?'Đang đọc lượt gửi.':'Bản đang xem chưa được xác minh; hãy tải lại dữ liệu trước.'} onClick={() => void loadMoreResponses()}>{moreLoading ? 'Đang tải thêm…' : 'Tải thêm lượt gửi'}</ExplainedButton>}</div>}
       </TableWorkspace>
@@ -789,20 +800,20 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <p>Lịch sử lưu tên, món đã chọn, thời điểm và Gmail quản trị; không lưu email người trả lời.</p>
       <div className="audit-filters" aria-label="Bộ lọc lịch sử"><label>Người quản trị<SearchInput label="Người quản trị" maxLength={254} value={auditFilters.actor || ''} onClear={()=>filterHistory('actor','')} onChange={event => filterHistory('actor',event.target.value)} placeholder="Tìm Gmail quản trị" /></label><label>Loại thao tác<select aria-label="Loại thao tác" value={auditFilters.action || ''} onChange={event => filterHistory('action',event.target.value)}><option value="">Tất cả thao tác</option>{(displayedWeek?.historyPage?.actions || [...new Set((displayedWeek?.history || []).map(event => event.action))]).map(action => <option key={action} value={action}>{historyActionLabel(action)}</option>)}</select></label><label>Từ ngày<input type="date" value={auditFilters.from || ''} onChange={event => filterHistory('from',event.target.value)} /></label><label>Đến ngày<input type="date" value={auditFilters.to || ''} onChange={event => filterHistory('to',event.target.value)} /></label><label>Tìm ghi chú<SearchInput label="Tìm ghi chú" maxLength={200} value={auditFilters.note || ''} onClear={()=>filterHistory('note','')} onChange={event => filterHistory('note',event.target.value)} /></label><label className="audit-error-toggle"><input type="checkbox" checked={auditFilters.errorsOnly || false} onChange={event => filterHistory('errorsOnly',event.target.checked)} />Chỉ lỗi/chưa hoàn tất</label><button type="button" className="secondary" onClick={() => { setAuditFilters({}); setAuditLimit(50); }}>Xóa bộ lọc lịch sử</button></div>
       {auditFilters.from && auditFilters.to && auditFilters.from > auditFilters.to && <p className="dashboard-warning" role="alert">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>}
-      {filteredHistory.length ? <TableScroll><table className="dashboard-table dashboard-history-table"><thead><tr>{['Thao tác','Thời gian','Người thực hiện','Đối tượng','Thao tác bản ghi'].map((label,index)=><th key={label}>{index<4?label:''}<ColumnResizeHandle index={index} label={label}/></th>)}</tr></thead><tbody>
+      {filteredHistory.length ? <TableScroll><table className="dashboard-table dashboard-history-table"><thead><WorkspaceRow>{['Thao tác','Thời gian','Người thực hiện','Đối tượng','Thao tác bản ghi'].map((label,index)=><th key={label}>{index<4?label:''}<ColumnResizeHandle index={index} label={label}/></th>)}</WorkspaceRow></thead><tbody>
         {auditGroups.map(group=><Fragment key={group.key}><tr className="audit-day-heading"><TableSpanCell><button type="button" className="secondary" aria-expanded={!foldedDays.includes(group.key)} onClick={()=>toggleAuditDay(group.key)}>{group.label} · {group.events.length} sự kiện đã tải{group.attention>0&&<strong> · {group.attention} cần kiểm tra</strong>}</button></TableSpanCell></tr>{!foldedDays.includes(group.key)&&group.events.map(event => {
           const alreadyRestored = restoreAttempts.has(event.entryId);
           const restoreEligible = event.action === 'deleted' && event.restorable && !alreadyRestored;
           const canRestore = weekReady && permissions.manageResponses && restoreEligible && displayedWeek?.week?.formStatus === 'open';
-          return <tr key={event.id} data-audit-event>
+          return <WorkspaceRow key={event.id} data-audit-event>
             <td><strong className="dashboard-history-action">{historyActionLabel(event.action)}</strong>{describeHistoryNote(event.note).map((line, index) => <small key={index} className="dashboard-history-note"><SearchHighlight text={line} query={auditFilters.note}/></small>)}</td>
             <td data-label="Thời gian">{group.key==='unknown'?'Chưa có thời điểm':formatTime(event.at)}{event.originalTimestamp > 0 && <small className="dashboard-history-note">Gửi gốc: {formatTime(event.originalTimestamp)}</small>}</td>
             <td data-label="Người thực hiện"><SearchHighlight text={event.actor || '—'} query={auditFilters.actor}/></td>
             <td data-label="Đối tượng"><strong>{event.name || '—'}</strong><small className="dashboard-history-note">{(event.meals || []).join(' · ')}</small></td>
             <td>{canRestore ? <RowActionMenu label="Thao tác lịch sử"><ExplainedButton label="Khôi phục" type="button" data-close-row-menu className="secondary" disabled={busy||!online} reason="Đang xử lý thao tác; hãy chờ kết quả trước khi khôi phục tiếp." aria-busy={pendingRow?.action === 'restore' && pendingRow.id === event.entryId} onClick={() => void restoreResponse(event)}>{pendingRow?.action === 'restore' && pendingRow.id === event.entryId ? 'Đang khôi phục…' : 'Khôi phục'}</ExplainedButton></RowActionMenu> : restoreEligible && weekData?.week?.formStatus === 'closed' ? <span title="Không tự mở Form vì thao tác đó sẽ công khai Form">Form đã đóng</span> : restoreEligible ? <span>Chưa xác định Form</span> : alreadyRestored && event.action === 'deleted' ? <span>Đã xử lý</span> : null}</td>
-          </tr>;
+          </WorkspaceRow>;
         })}</Fragment>)}
-      </tbody></table></TableScroll> : !displayedWeek||auditTotal==null?<p>Chưa có dữ liệu lịch sử. Hãy tải lại dữ liệu.</p>:weekLoading?<p>Đang đọc kết quả lọc lịch sử…</p>:<FilterEmptyState title={auditConditions.length||auditTotal>0?'Không có thao tác phù hợp':'Chưa có thao tác nào trong tuần này'} conditions={auditConditions} onClear={key=>{filterHistory(key,key==='errorsOnly'?false:'');document.querySelector('.audit-filters input')?.focus();}}/>}
+      </tbody></table></TableScroll> : !displayedWeek||auditTotal==null?<p>Chưa có dữ liệu lịch sử. Hãy tải lại dữ liệu.</p>:weekLoading?<p>Đang đọc kết quả lọc lịch sử…</p>:<FilterEmptyState title={auditConditions.length||auditTotal>0?'Không có thao tác phù hợp':'Chưa có thao tác nào trong tuần này'} conditions={auditConditions} recoveries={displayedWeek.historyPage?[]:auditConditions.map(condition=>({key:condition.key,count:filterAuditHistory(displayedWeek.history,{...auditFilters,[condition.key]:condition.key==='errorsOnly'?false:''}).length,unit:'sự kiện'}))} onClear={key=>{filterHistory(key,key==='errorsOnly'?false:'');document.querySelector('.audit-filters input')?.focus();}}/>}
       {displayedWeek?.historyPage?.nextOffset!=null ? <ExplainedButton label="Tải thêm lịch sử" type="button" className="secondary" disabled={!weekReady||weekLoading||busy||historyLoading} reason={busy?'Đang xử lý thao tác.':weekLoading||historyLoading?'Đang đọc dữ liệu lịch sử.':'Bản đang xem chưa được xác minh; hãy tải lại dữ liệu trước.'} onClick={()=>void loadMoreHistory()}>{historyLoading?'Đang tải lịch sử…':'Tải thêm lịch sử'}</ExplainedButton> : filteredHistory.length > auditLimit && <button type="button" className="secondary" onClick={() => setAuditLimit(value => value + 50)}>Tải thêm lịch sử</button>}
       </TableWorkspace>
     </section>}
@@ -831,6 +842,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     <div className="branding-field-row"><label>URL ảnh logo HTTPS (không bắt buộc)<input id="brand-logo-url" aria-label="URL ảnh logo HTTPS" type="url" inputMode="url" enterKeyHint="next" autoCapitalize="none" spellCheck={false} maxLength={512} placeholder="https://…/logo.png" value={brandDraft.logoUrl} aria-invalid={Boolean(logoIssue||brandDraft.logoUrl&&logoPhase==='error')} aria-describedby={logoFeedbackId+' '+logoFeedbackId+'-hint'} onChange={event => setBrandDraft({ ...brandDraft, logoUrl: event.target.value })} /><small id={logoFeedbackId+'-hint'}>Không bắt buộc. Dùng URL ảnh HTTPS công khai, tối đa 512 ký tự; không nhập khóa bí mật.</small></label><button type="button" className="secondary" aria-label="Dùng lại logo đã lưu" disabled={busy||brandDraft.logoUrl===(brandSaved.logoUrl||'')} onClick={()=>setBrandDraft(value=>({...value,logoUrl:brandSaved.logoUrl||''}))}>Dùng lại đã lưu</button></div>
     <div id={logoFeedbackId} className="logo-input-feedback" data-state={logoIssue?'invalid':logoPhase}><p role="status" aria-label="Tình trạng logo">{logoMessage}</p>{brandDraft.logoUrl&&!logoIssue&&logoPhase==='error'&&<ExplainedButton type="button" className="secondary" disabled={busy||!online} reason="Đang xử lý thao tác khác; hãy chờ hoàn tất." onClick={()=>setLogoAttempt(value=>value+1)}>Thử tải lại logo</ExplainedButton>}</div>
     <div className="branding-field-row"><label>Màu chủ đạo<input id="brand-color" type="color" value={brandDraft.primaryColor} onChange={event => setBrandDraft({ ...brandDraft, primaryColor: event.target.value })} /></label><button type="button" className="secondary" aria-label="Dùng lại màu đã lưu" disabled={busy||brandDraft.primaryColor===brandSaved.primaryColor} onClick={()=>setBrandDraft(value=>({...value,primaryColor:brandSaved.primaryColor}))}>Dùng lại đã lưu</button></div>
+    <BrandContrast color={brandDraft.primaryColor} disabled={busy||!online} onChoose={primaryColor=>setBrandDraft(value=>({...value,primaryColor}))}/>
     <BrandingPreview draft={brandDraft} saved={brandSaved} logoAttempt={logoAttempt} onLogoStatus={receiveLogoStatus}/>
     <p className="dashboard-hint">Dùng ảnh HTTPS truy cập được công khai; chưa hỗ trợ tải ảnh lên. Không dán khóa API hoặc liên kết chứa thông tin bí mật.</p><ContextualSaveBar dirty={brandDirty} scope="thương hiệu" saveLabel="Lưu thương hiệu" busy={busy} onDiscard={()=>{setBrandDraft(brandSaved);setBrandAttempt(0);}}/>
   </form>

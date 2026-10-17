@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { brandingTheme, DEFAULT_BRANDING, normalizeBranding, uiThemeVariables } from './branding.mjs';
 import {useAppearance} from './AppearanceProvider.jsx';
+import BrandFavicon from './BrandFavicon.jsx';
 
 const BrandingContext = createContext(DEFAULT_BRANDING);
 export const useBranding = () => useContext(BrandingContext);
@@ -18,11 +19,11 @@ export default function BrandingProvider({ children }) {
   const appearance=useAppearance();
   const [branding, setBranding] = useState(DEFAULT_BRANDING);
   useEffect(() => {
-    let active = true;
+    let active = true, updatedSinceRead = false;
     fetch('/api/branding', { cache: 'no-store' }).then(async response => {
-      if (response.ok && active) { const data = await response.json(); if (active) setBranding(normalizeBranding(data)); }
+      if (response.ok && active) { const data = await response.json(); if (active && !updatedSinceRead) setBranding(normalizeBranding(data)); }
     }).catch(() => { /* Preserve the original presentation when configuration is unavailable. */ });
-    const updated = event => setBranding(normalizeBranding(event.detail));
+    const updated = event => { updatedSinceRead=true;setBranding(normalizeBranding(event.detail)); };
     window.addEventListener('meal-branding-changed', updated);
     return () => { active = false; window.removeEventListener('meal-branding-changed', updated); };
   }, []);
@@ -39,5 +40,5 @@ export default function BrandingProvider({ children }) {
     return () => { delete root.dataset.branding; Object.keys(ui).forEach(name => root.style.removeProperty(name)); Object.keys(theme).forEach(name => root.style.removeProperty(`--brand-${name}`)); };
   }, [branding,appearance.scheme]);
   const dashboard = typeof window !== 'undefined' && /^\/dashboard\/?$/.test(window.location.pathname);
-  return <BrandingContext.Provider value={branding}>{!dashboard && <SchoolBrand branding={branding} />}{children}</BrandingContext.Provider>;
+  return <BrandingContext.Provider value={branding}><BrandFavicon logoUrl={branding.logoUrl}/>{!dashboard && <SchoolBrand branding={branding} />}{children}</BrandingContext.Provider>;
 }

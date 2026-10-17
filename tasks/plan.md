@@ -85,3 +85,6 @@ Risks: reopening a past week must not be immediately auto-closed; an expired tok
 # Draft tools/context — 2026-10-16
 
 User approved five-group map and autonomous implementation through GitHub/main and production. Follow CAPABILITY-MAP-draft-tools-context.md and five module specs. TDD: bounded pure draft/metadata helpers → retained UI integration → offline/session/guide → full serial regression/builds → immutable Vercel tests → pinned merge/promotion → GET-only live smoke and docs. No dependencies/backend changes or real owner test writes.
+# Six workflow controls — 2026-10-17
+
+Approved map: CAPABILITY-MAP-workflow-six.md. Implement six independent modules in map order with native/browser RED→GREEN, scoped source synchronization, complete serial regression, safe existing-tab GAS deployment and tested same-artifact Vercel production release. Follow module SPEC files; no real owner mutations during QA. Compare live GAS baseline before edits; stop for login/access if required without creating browser windows.

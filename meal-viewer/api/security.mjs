@@ -87,7 +87,8 @@ async function requestAppsScript(url, secret, payload, fetchImpl = fetch, now = 
   }
   if (result?.error || !result?.data) {
     console.error('Apps Script rejected request', JSON.stringify(result?.error || result).slice(0, 240));
-    throw new Error(typeof result?.error === 'string' ? result.error : 'Apps Script rejected the request.');
+    const scope=payload.action==='dashboard-delete'?{operation:'delete',weekKey:payload.weekKey,recordId:payload.responseId}:payload.action==='dashboard-restore'?{operation:'restore',weekKey:payload.weekKey,recordId:payload.entryId}:null;
+    throw Object.assign(new Error(typeof result?.error === 'string' ? result.error : 'Apps Script rejected the request.'),{receipt:scope?normalizeMutationReceipt(result?.receipt,scope):null});
   }
   return result.data;
 }
@@ -215,7 +216,7 @@ export function createDashboardHandler({ secret, callGas, readViewerData, config
       return res.status(200).json(req.method === 'GET' && !req.query?.week ? { ...data, permissions, email: session.email, accountId: createHash('sha256').update(session.sub).digest('hex') } : data);
     } catch (error) {
       if (req.method === 'GET' && req.query?.health === '1') return res.status(502).json({ checkedAt: now(), checks: [{ id: 'bridge', label: 'Kết nối Apps Script', status: 'error', message: 'Không hoàn tất được kiểm tra. Kiểm tra deployment, chữ ký API và cấp lại quyền Apps Script bằng tài khoản chủ.' }] });
-      return res.status(502).json({ error: String(error?.message || 'Không thể hoàn tất thao tác dashboard.').slice(0, 300) });
+      return res.status(502).json({ error: String(error?.message || 'Không thể hoàn tất thao tác dashboard.').slice(0, 300),...(normalizeMutationReceipt(error?.receipt)?{receipt:normalizeMutationReceipt(error.receipt)}:{}) });
     }
   };
 }
@@ -299,3 +300,4 @@ export function createHistoryHandler({ secret, readViewerData, now = Date.now })
     }
   };
 }
+import {normalizeMutationReceipt} from '../src/mutation-receipt.mjs';

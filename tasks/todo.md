@@ -176,3 +176,12 @@
 - [x] context-status: option metadata, bounded RAM feedback and honest offline readonly/write guards; boundary/browser tests.
 - [x] on-demand-guide: explicit per-tab steps, no writes, safe dismiss/return focus; browser responsive tests.
 - [x] Complete serial regression, canonical sync, source hash guard, immutable artifact tests, PR #18/main merge and same-artifact production promotion, live GET smoke and docs. Evidence: VERIFICATION-draft-tools-context-2026-10-16.md.
+# Six workflow controls — 2026-10-17
+
+- [x] filter-recovery: module acceptance, RED→GREEN, caller and edge-case coverage.
+- [x] draft-meal-order: module acceptance, RED→GREEN, caller and edge-case coverage.
+- [x] brand-contrast: module acceptance, RED→GREEN, caller and edge-case coverage.
+- [x] brand-favicon: module acceptance, RED→GREEN, caller and edge-case coverage.
+- [x] column-order: module acceptance, RED→GREEN, caller and edge-case coverage.
+- [x] mutation-receipt: module acceptance, RED→GREEN, caller and edge-case coverage; same deployment updated to GAS v80.
+- [ ] Integration: canonical guarded sync, serial native/UI/preview builds, bounded visual verification, deploy GAS, verified artifact, merge main/production, readonly live smoke and docs.

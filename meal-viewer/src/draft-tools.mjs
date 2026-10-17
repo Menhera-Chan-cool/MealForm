@@ -54,3 +54,9 @@ export function weekOptionHint(week){
   const count=typeof week.responseCount==='number'&&Number.isFinite(week.responseCount)&&week.responseCount>=0?`${week.responseCount} lượt`:'Chưa đọc được số lượt';
   return count+' · '+({open:'Form đang mở',closed:'Form đã đóng'}[week.formStatus]||'Chưa rõ trạng thái Form');
 }
+export function moveDraftMeal(menu,dayIndex,from,to){
+  const day=menu?.days?.[dayIndex];
+  if(!day||day.closed||!Array.isArray(day.meals)||day.meals.length>3||![from,to].every(index=>Number.isInteger(index)&&index>=0&&index<3)||from===to)return menu;
+  const meals=Array.from({length:3},(_,index)=>day.meals[index]??'');meals.splice(to,0,meals.splice(from,1)[0]);
+  return {...menu,days:menu.days.map((value,index)=>index===dayIndex?{...day,meals}:value)};
+}
