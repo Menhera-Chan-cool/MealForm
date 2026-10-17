@@ -175,4 +175,4 @@
 - [x] focused-workspaces: retained editor focus and nonmodal PC/modal mobile quick view; browser state/focus/layout tests.
 - [x] context-status: option metadata, bounded RAM feedback and honest offline readonly/write guards; boundary/browser tests.
 - [x] on-demand-guide: explicit per-tab steps, no writes, safe dismiss/return focus; browser responsive tests.
-- [ ] Complete serial regression, canonical sync, source hash guard, immutable artifact tests, pinned main merge/promotion, live GET smoke and docs.
+- [x] Complete serial regression, canonical sync, source hash guard, immutable artifact tests, PR #18/main merge and same-artifact production promotion, live GET smoke and docs. Evidence: VERIFICATION-draft-tools-context-2026-10-16.md.
