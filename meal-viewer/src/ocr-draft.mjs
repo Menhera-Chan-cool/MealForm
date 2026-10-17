@@ -1,5 +1,6 @@
 import {imageDataBytes} from './image-import.mjs';
 export function normalizeOcrDraft(value, accountId) {
+  if(value?.sourceStale!==undefined&&typeof value.sourceStale!=='boolean')return null;
   const tableSource=value?.source==='table'&&value?.image==='';
   if (!accountId || value?.version !== 1 || value.accountId !== accountId || typeof value.image !== 'string' || value.image.length > 4_000_000 || (!tableSource&&!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value.image))) return null;
   let images;
@@ -13,7 +14,7 @@ export function normalizeOcrDraft(value, accountId) {
     if (days.some(day => !day || (day.closed !== undefined && typeof day.closed !== 'boolean') || String(day.day || '').length > 40 || String(day.date || '').length > 40 || !Array.isArray(day.meals) || day.meals.length > 3 || day.meals.some(meal => String(meal || '').length > 500))) return null;
   }
   const normalizeMenu=menu=>menu?{title:String(menu.title||''),days:menu.days.map(day=>({day:String(day.day||''),date:String(day.date||''),meals:day.meals.map(meal=>String(meal||'')),...(day.closed?{closed:true}:{})}))}:null;
-  return { version: 1, accountId, image: value.image, filename: String(value.filename || '').slice(0, 500), ...(images?{images}:{}), menu:normalizeMenu(value.menu), ...(value.originalMenu!==undefined?{originalMenu:normalizeMenu(value.originalMenu)}:{}),...(tableSource?{source:'table'}:{}), savedAt: Number(value.savedAt) || 0 };
+  return { version: 1, accountId,...(value.sourceStale===true?{sourceStale:true}:{}), image: value.image, filename: String(value.filename || '').slice(0, 500), ...(images?{images}:{}), menu:normalizeMenu(value.menu), ...(value.originalMenu!==undefined?{originalMenu:normalizeMenu(value.originalMenu)}:{}),...(tableSource?{source:'table'}:{}), savedAt: Number(value.savedAt) || 0 };
 }
 
 function transactDraft(mode, operation) {

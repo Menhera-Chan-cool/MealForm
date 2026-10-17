@@ -51,6 +51,10 @@ import './review-scale.css';
 import FriendlyTime from './FriendlyTime.jsx';
 import CharacterCounter from './CharacterCounter.jsx';
 import SystemReport from './SystemReport.jsx';
+import MemberPermissionsEditor from './MemberPermissionsEditor.jsx';
+import DeviceData from './DeviceData.jsx';
+import SubmissionFilters from './SubmissionFilters.jsx';
+import {permissionChanges,filterSubmissions,sendTimeRange} from './dashboard-nine.mjs';
 import {TEXT_LIMITS,healthCounts} from './operating-ui.mjs';
 import OcrFindBar from './OcrFindBar.jsx';
 import {findOcrFields} from './ocr-navigation.mjs';
@@ -149,6 +153,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [auditLimit, setAuditLimit] = useState(50);
   const highlightTimer = useRef(null);
   const [email, setEmail] = useState('');
+  const [permissionDrafts,setPermissionDrafts]=useState({});
+  const permissionDirty=Object.keys(permissionDrafts).length>0;
+  function stagePermission(member,value){setPermissionDrafts(current=>{const next={...current};if(value&&permissionChanges(member.permissions,value).length)next[member.email]=value;else delete next[member.email];return next;});}
   const [memberQuery,setMemberQuery]=useState(''),[memberPermission,setMemberPermission]=useState('');
   const members=overview.members||(overview.allowedEmails||[]).map(email=>({email,permissions:{view:true,create:true,manageResponses:true}}));
   const visibleMembers=members.filter(member=>foldSearchText(member.email).includes(foldSearchText(memberQuery).trim())&&(!memberPermission||member.permissions[memberPermission]===true));
@@ -159,13 +166,14 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const [menuHistory, dispatchMenu] = useReducer(menuHistoryReducer, undefined, () => menuHistoryReducer(undefined, { type: 'reset', value: null }));
   const menu = menuHistory.present;
   const [originalMenu,setOriginalMenu]=useState(null),[draftSource,setDraftSource]=useState('');
+  const [sourceStale,setSourceStale]=useState(false);
   const [editorFocused,setEditorFocused]=useState(false),focusScroll=useRef(null);
   function toggleEditorFocus(){const next=!editorFocused;if(next)focusScroll.current={top:window.scrollY,left:window.scrollX};setEditorFocused(next);requestAnimationFrame(()=>{if(next)document.querySelector('.editor-focus-tools')?.scrollIntoView({block:'start'});else if(focusScroll.current)window.scrollTo({...focusScroll.current,behavior:'instant'});});}
   useEffect(()=>{if(tab!=='create')setEditorFocused(false);},[tab]);
   useEffect(()=>{const escape=event=>{if(editorFocused&&event.key==='Escape'&&!document.querySelector('dialog:modal,:popover-open')){event.preventDefault();toggleEditorFocus();}};document.addEventListener('keydown',escape);return()=>document.removeEventListener('keydown',escape);},[editorFocused]);
   const [reviewEpoch,setReviewEpoch]=useState(0);
   const [ocrQuery,setOcrQuery]=useState(''),[ocrActive,setOcrActive]=useState('');
-  const setMenu = value => {if(!value){setOriginalMenu(null);setDraftSource('');}setReviewEpoch(epoch=>epoch+1);setOcrQuery('');setOcrActive('');dispatchMenu({ type: 'reset', value });};
+  const setMenu = value => {if(!value){setOriginalMenu(null);setDraftSource('');setSourceStale(false);}setReviewEpoch(epoch=>epoch+1);setOcrQuery('');setOcrActive('');dispatchMenu({ type: 'reset', value });};
   const [creationState,setCreationState]=useState('idle');
   const [createdWeek,setCreatedWeek]=useState(null);
   const [ocrAttempt,setOcrAttempt]=useState(0),ocrWorkspace=useRef(null);
@@ -211,23 +219,26 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const logoMessage=!brandDraft.logoUrl?'Chưa chọn logo; đây là trường tùy chọn.':logoIssue||({loading:'Đang tải ảnh xem trước…',loaded:'Ảnh đã tải được trên trình duyệt này.',error:'Chưa tải được ảnh trên trình duyệt. Kiểm tra liên kết ảnh công khai hoặc thử tải lại; lỗi này không xác nhận ảnh đã bị xóa.'})[logoPhase];
   const [brandSaved,setBrandSaved]=useState(branding),[noticeDirty,setNoticeDirty]=useState(false);
   const noticeEditor=useRef(null),brandDirty=brandHasEdits(brandDraft,brandSaved);
-  const confirmDiscard=useUnsavedChanges(brandDirty||noticeDirty);
+  const confirmDiscard=useUnsavedChanges(brandDirty||noticeDirty||permissionDirty);
   function leaveDrafts(){
     if(!confirmDiscard())return false;
     if(brandDirty){setBrandDraft(brandSaved);setBrandAttempt(0);}
-    noticeEditor.current?.discard();setNoticeDirty(false);return true;
+    noticeEditor.current?.discard();setNoticeDirty(false);setPermissionDrafts({});return true;
   }
   const selectedWeek = (overview.weeks || []).find(week => week.weekKey === weekKey);
   const permissions = overview.permissions || { view: true, create: true, manageResponses: true };
-  const draft = useOcrDraft(overview.accountId, permissions.create === true, { image, filename: file?.name || '', images:images.length?images:undefined, menu,originalMenu,source:draftSource }, saved => {
-    setImage(saved.image); setFile({ name: saved.filename }); setMenu(saved.menu);setOriginalMenu(saved.originalMenu||null);setDraftSource(saved.source||''); setAllowMissing(false);
+  const draft = useOcrDraft(overview.accountId, permissions.create === true, { image, filename: file?.name || '', images:images.length?images:undefined, menu,originalMenu,source:draftSource,sourceStale }, saved => {
+    setImage(saved.image); setFile({ name: saved.filename }); setMenu(saved.menu);setOriginalMenu(saved.originalMenu||null);setDraftSource(saved.source||'');setSourceStale(saved.sourceStale===true); setAllowMissing(false);
     setImages(saved.images||(saved.image?[{dataUrl:saved.image,name:saved.filename||'Ảnh nháp'}]:[]));
   });
 
   const viewState = useDashboardView(overview.accountId, weekKey, tab, weekData, weekVerified);
   const query = viewState.view.query, responseSort = viewState.view.sort;
-  const setQuery = value => viewState.update({ query: value });
-  const setResponseSort = value => viewState.update({ sort: value });
+  const advancedResponses=viewState.view.nameMatch==='exact'||Boolean(viewState.view.sentPreset&&viewState.view.sentPreset!=='all');
+  const responseScope=JSON.stringify([query,responseSort,viewState.view.nameMatch||'contains',viewState.view.sentPreset||'all',viewState.view.sentFrom||'',viewState.view.sentTo||'']);
+  function changeResponseFilters(patch){clearTimeout(weekLoadTimer.current);weekRequest.current++;reads.cancel();setWeekVerified(false);viewState.update(patch);}
+  const setQuery = value => changeResponseFilters({ query: value });
+  const setResponseSort = value => changeResponseFilters({ sort: value });
   function navigate(nextTab=tab,nextWeek=weekKey,recordHistory=true,restored){
     if(nextTab===tab&&nextWeek===weekKey&&!restored)return true;
     if(busy||document.querySelector('dialog:modal:not(.quick-dialog)')||!leaveDrafts())return false;
@@ -268,14 +279,16 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const existingFormUrl = mealRegistrationTarget(existingWeek).formUrl;
   const existingSheetUrl = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[A-Za-z0-9_-]+(?:\/|$)/.test(existingWeek?.spreadsheetUrl || '') ? existingWeek.spreadsheetUrl : '';
   const displayedWeek = weekData?.week?.weekKey === weekKey ? weekData : null;
-  const weekReady = online && weekVerified && Boolean(displayedWeek) && (!displayedWeek.page || (displayedWeek.page.query === query && displayedWeek.page.sort === responseSort));
+  const weekReady = online && weekVerified && Boolean(displayedWeek) && (!advancedResponses||displayedWeek.responseFilterScope===responseScope&&!sendTimeRange(viewState.view).error&&displayedWeek.page?.nextOffset==null) && (!displayedWeek.page || (displayedWeek.page.query === query && displayedWeek.page.sort === responseSort));
   const currentQuickResponse = quickResponse && displayedWeek?.responses.find(response => response.responseId === quickResponse.responseId);
-  const visibleResponses = (displayedWeek?.responses || []).filter(response =>
-    foldSearchText(response.name).includes(foldSearchText(query))).slice().sort((left, right) => {
+  const [advancedLimit,setAdvancedLimit]=useState(50);
+  useEffect(()=>setAdvancedLimit(50),[weekKey,responseScope]);
+  const matchingResponses = filterSubmissions(displayedWeek?.responses,query,viewState.view).slice().sort((left, right) => {
       if (responseSort === 'name') return String(left.name || '').localeCompare(String(right.name || ''), 'vi', { sensitivity: 'base' });
       const difference = Number(left.timestamp || 0) - Number(right.timestamp || 0);
       return responseSort === 'oldest' ? difference : -difference;
     });
+  const visibleResponses=advancedResponses?matchingResponses.slice(0,advancedLimit):matchingResponses;
   const quickMatches=quickResponse?.responseId?visibleResponses.flatMap((response,index)=>response.responseId===quickResponse.responseId?[index]:[]):[];
   useLayoutEffect(()=>{
     const pending=followDeleteFocus.current;
@@ -294,7 +307,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const auditScope=JSON.stringify([weekKey,auditFilters]),[foldedAudit,setFoldedAudit]=useState({scope:'',keys:[]});
   const foldedDays=foldedAudit.scope===auditScope?foldedAudit.keys:[],auditGroups=groupAuditDays(filteredHistory.slice(0,auditLimit));
   function toggleAuditDay(key){setFoldedAudit({scope:auditScope,keys:foldedDays.includes(key)?foldedDays.filter(value=>value!==key):[...foldedDays,key]});}
-  const responseConditions=(displayedWeek?.page?.total??displayedWeek?.responseCount)===0?[]:filterConditions({name:query});
+  const appliedResponseConditions=filterConditions({name:query,nameMatch:viewState.view.nameMatch==='exact'?'Khớp toàn bộ họ tên':'',sentPreset:({today:'Hôm nay',yesterday:'Hôm qua',custom:'Khoảng ngày giờ'})[viewState.view.sentPreset]||'',sentFrom:viewState.view.sentPreset==='custom'?viewState.view.sentFrom:'',sentTo:viewState.view.sentPreset==='custom'?viewState.view.sentTo:''},{name:'Họ tên',nameMatch:'Kiểu khớp tên',sentPreset:'Thời điểm gửi',sentFrom:'Gửi từ',sentTo:'Gửi đến'});
+  const responseConditions=(displayedWeek?.page?.total??displayedWeek?.responseCount)===0?[]:appliedResponseConditions;
+  function responseFilterPatch(key){return key==='name'?{query:''}:key==='nameMatch'?{nameMatch:'contains'}:key==='sentPreset'?{sentPreset:'all'}:{[key]:''};}
   const auditTotal=displayedWeek?.historyPage?.total??displayedWeek?.history?.length;
   const auditConditions=auditTotal===0?[]:filterConditions({...auditFilters,action:auditFilters.action?historyActionLabel(auditFilters.action):''},{actor:'Người quản trị',action:'Loại thao tác',from:'Từ ngày',to:'Đến ngày',note:'Tìm ghi chú',errorsOnly:'Chỉ lỗi/chưa hoàn tất'});
   function filterHistory(key, value) { setAuditFilters(current => ({ ...current, [key]:value })); setAuditLimit(50); }
@@ -332,13 +347,14 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       if (result.resetRequired) throw new Error('Bản đối chiếu đã đổi; hãy tải lại dữ liệu.');
       const old = keep ? previous : saved?.data;
       const wantedRows = old && (!old.page || (old.page.query === query && old.page.sort === responseSort)) ? old.responses.length : 50;
-      while (result.page?.nextOffset != null && result.responses.length < wantedRows) {
+      while (result.page?.nextOffset != null && (advancedResponses || result.responses.length < wantedRows)) {
         setWeekData(result);
         const next = await request(`/api/dashboard?${params}&offset=${result.page.nextOffset}&revision=${result.page.revision}`);
         if (generation !== weekRequest.current) return false;
         if (next.resetRequired) throw new Error('Bản đối chiếu đã đổi hoặc hết hạn; hãy tải lại dữ liệu.');
         result = { ...result, page:next.page, responses:[...result.responses,...next.responses] };
       }
+      result={...result,responseFilterScope:responseScope};
       setWeekData(result);
       setReloadChanges(manual?compareResponseVersions(verifiedBaseline.current,result):null);
       verifiedBaseline.current={week:result.week,responseVersions:result.responseVersions,responseVersionBinding:result.responseVersionBinding};
@@ -390,7 +406,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   useEffect(() => {
     weekLoadTimer.current = tab === 'delete' ? setTimeout(() => void loadWeek(weekKey), 300) : null;
     return () => { clearTimeout(weekLoadTimer.current); weekRequest.current++; };
-  }, [tab, weekKey, query, responseSort, auditFilters]);
+  }, [tab, weekKey, responseScope, auditFilters]);
   useEffect(() => () => { weekRequest.current++; clearTimeout(highlightTimer.current); }, []);
   useEffect(() => { setHighlightIds([]); setQuickResponse(null); }, [weekKey]);
   useEffect(()=>{verifiedBaseline.current=null;setReloadChanges(null);},[weekKey]);
@@ -498,9 +514,16 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
 
   function chooseImage(entry){setImage(entry.dataUrl);setFile({name:entry.name,type:entry.dataUrl.split(';')[0].slice(5)});}
+  async function eraseDraft(){await draft.clear();setCreationState('idle');setImages([]);setImage('');setMenu(null);setFile(null);setAllowMissing(false);}
   async function clearDraft(){
     if(!window.confirm('Xóa nháp ảnh và món đang sửa trên thiết bị này?'))return;
-    try{await draft.clear();setCreationState('idle');setImages([]);setImage('');setMenu(null);setFile(null);setAllowMissing(false);}catch(error){setMessage(error.message);}
+    try{await eraseDraft();}catch(error){setMessage(error.message);}
+  }
+  function replaceImage(index,entry){
+    const before=images[index];if(!before||busy||!draft.ready)return;
+    const next={...entry,...(before.label!==undefined?{label:before.label}:{})};
+    setImages(current=>current.map((value,i)=>i===index?next:value));if(image===before.dataUrl)chooseImage(next);
+    if(menu)setSourceStale(true);setCreationState('idle');setMergeBase(null);setRegionBase(null);setAllowMissing(false);
   }
   async function removeImage(index){
     if(images.length===1){await clearDraft();return;}
@@ -524,7 +547,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         body: JSON.stringify({ action: 'ocr', image })
       });
       const days = (result.days || []).map(day => ({ ...day, meals: [...(day.meals || [])].slice(0, 3) }));
-      const next={title:result.title||'Thực đơn bán trú',days};setMenu(next);setOriginalMenu(next);setDraftSource('');
+      const next={title:result.title||'Thực đơn bán trú',days};setMenu(next);setOriginalMenu(next);setDraftSource('');setSourceStale(false);
       setAllowMissing(false);
       setMessage('OCR xong. Hãy rà soát tên món và ngày trước khi tạo tuần.');
     } catch (error) { setMessage(error.message); }
@@ -643,7 +666,12 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, email: target, permissions: memberPermissions })
       });
+      if(action==='set-permissions'){
+        const matches=Array.isArray(result.members)?result.members.filter(member=>member.email===target):[];
+        if(matches.length!==1||!Array.isArray(result.allowedEmails)||!result.allowedEmails.includes(target)||!['view','create','manageResponses'].every(key=>typeof memberPermissions?.[key]==='boolean'&&matches[0].permissions?.[key]===memberPermissions[key]))throw Error('Máy chủ chưa xác nhận quyền đã lưu. Bản nháp được giữ; kiểm tra lại dữ liệu quyền trước khi thử tiếp.');
+      }
       setOverview(current => ({ ...current, allowedEmails: result.allowedEmails || [], members: result.members || [] }));
+      if(action!=='add-email')setPermissionDrafts(current=>{const next={...current};delete next[target];return next;});
       setEmail(''); setMessage(action === 'add-email' ? 'Đã cấp quyền chỉ xem. Bạn có thể bật thêm quyền bên dưới.' : action === 'set-permissions' ? 'Đã cập nhật quyền.' : 'Đã gỡ quyền dashboard.');
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
@@ -717,7 +745,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <ExplainedButton label="Kiểm tra lại" className="secondary" type="button" disabled={healthBusy} reason="Đang kiểm tra hệ thống; hãy chờ kết quả hoặc dừng chờ dữ liệu." aria-busy={healthBusy} onClick={() => void checkHealth()}>{healthBusy ? 'Đang kiểm tra…' : 'Kiểm tra lại'}</ExplainedButton>
       {health?.checkedAt && <p>Đã kiểm tra lúc {formatTime(health.checkedAt)}</p>}
       <SystemReport report={health?.uiWeekKey===weekKey?health:null} busy={healthBusy}/>
-    </section><section className="dashboard-panel"><details className="system-details"><summary>Hướng dẫn cài đặt (7 bước)</summary><SetupInstructions /></details></section></>}
+    </section><DeviceData account={overview.accountId} disabled={busy||!draft.ready} onClearDraft={eraseDraft} onClearCache={()=>{weekRequest.current++;setWeekData(null);setCacheTime(0);setWeekVerified(false);verifiedBaseline.current=null;setReloadChanges(null);}}/><section className="dashboard-panel"><details className="system-details"><summary>Hướng dẫn cài đặt (7 bước)</summary><SetupInstructions /></details></section></>}
 
     {tab === 'create' && permissions.create && <section className="dashboard-panel">
       <div className="field-label-row"><h2>Tạo tuần từ ảnh thực đơn</h2><FieldHelp label="OCR">OCR đọc chữ và món từ ảnh. Kết quả có thể sai; hãy đối chiếu ảnh, sửa ngày và món trước khi bấm Tạo Form và Sheet. Đọc ảnh không tự tạo tuần.</FieldHelp></div>
@@ -725,9 +753,10 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <OcrProgress menu={menu} state={creationState}/>
       <CreationReceipt week={createdWeek} onResponses={key=>navigate('delete',key)} onNew={()=>{setCreatedWeek(null);setCreationState('idle');document.querySelector('.image-upload-target')?.focus();}}/>
       <div className="draft-toolbar"><p role="status">{draft.status || 'Nháp lưu riêng trên thiết bị này, không đồng bộ giữa các máy.'}</p><ExplainedButton type="button" className="secondary" disabled={busy || !online || !draft.ready} reason={busy?'Đang xử lý yêu cầu; không xóa nháp trong lúc này.':'Chưa đọc xong nháp trên thiết bị; hãy chờ.'} onClick={()=>void clearDraft()}>Xóa nháp</ExplainedButton></div>
+      {sourceStale&&<p className="dashboard-warning" role="status" aria-label="Nguồn ảnh đã thay đổi">Nguồn ảnh đã thay đổi. Kết quả OCR và bản sửa hiện tại chưa phản ánh ảnh mới. Nháp và Undo được giữ; chỉ bấm Đọc thực đơn khi muốn đọc lại.</p>}
       <DraftTransfer menu={menu} disabled={busy||!online||!draft.ready||Boolean(mergeBase)||Boolean(regionBase)} onApply={(next,before,kind)=>{if(busy||!online||!draft.ready||before!==menu)throw Error('Nháp đã thay đổi hoặc chưa thể sửa; hãy xem trước lại.');dispatchMenu({type:'apply',value:next});if(!menu)setOriginalMenu(next);if(!image)setDraftSource('table');setAllowMissing(false);setCreationState('idle');setMessage(kind==='table'?'Đã áp dụng bảng vào nháp. Chưa tạo Form/Sheet.':'Đã sao chép món trong nháp. Có thể hoàn tác.','success');}}/>
       {menu&&<DraftInspection menu={menu} original={originalMenu} onJump={jumpToReview} disabled={busy||!online}/>}
-      <ImageInput onLabel={(index,label)=>{if(!busy&&draft.ready&&!mergeBase&&!regionBase)setImages(current=>current.map((entry,i)=>i===index?{...entry,label}:entry));}} onReorder={next=>{if(!busy&&draft.ready&&!imageOrderBlocked)setImages(next);}} reorderBlocked={imageOrderBlocked} images={images} activeImage={image} disabled={busy||!draft.ready} onBusy={setBusy} onMessage={setMessage} onChoose={chooseImage} onRemove={removeImage} onImages={(next,append)=>{setCreationState('idle');setImages(next);chooseImage(next[0]);if(!append){setMenu(null);setAllowMissing(false);}setMergeBase(null);}}/>
+      <ImageInput onReplace={replaceImage} onLabel={(index,label)=>{if(!busy&&draft.ready&&!mergeBase&&!regionBase)setImages(current=>current.map((entry,i)=>i===index?{...entry,label}:entry));}} onReorder={next=>{if(!busy&&draft.ready&&!imageOrderBlocked)setImages(next);}} reorderBlocked={imageOrderBlocked} images={images} activeImage={image} disabled={busy||!draft.ready} onBusy={setBusy} onMessage={setMessage} onChoose={chooseImage} onRemove={removeImage} onImages={(next,append)=>{setCreationState('idle');setImages(next);chooseImage(next[0]);if(!append){setMenu(null);setAllowMissing(false);}setMergeBase(null);}}/>
       {image && file?.name && !file.type && <p className="menu-image-hint">Ảnh đã khôi phục: {file.name}. Không cần chọn lại để tiếp tục OCR hoặc sửa món.</p>}
       <ExplainedButton label="Đọc thực đơn" className={menu?'secondary':''} disabled={busy || !online || !image} reason={busy?'Đang xử lý yêu cầu khác; hãy chờ hoàn tất.':'Chọn ảnh thực đơn trước khi đọc OCR.'} onClick={() => void runOcr()}>{busy ? 'Đang xử lý…' : 'Đọc thực đơn'}</ExplainedButton>
       {(menu||menuHistory.past.length>0||menuHistory.future.length>0)&&<div className="menu-history-tools"><ExplainedButton type="button" className="secondary" disabled={busy || !online || !menuHistory.past.length} reason={busy?'Đang xử lý yêu cầu.':'Chưa có bước sửa trước đó để hoàn tác trong lần mở này.'} onClick={() => moveMenuHistory('undo')}>Hoàn tác</ExplainedButton><ExplainedButton type="button" className="secondary" disabled={busy || !online || !menuHistory.future.length} reason={busy?'Đang xử lý yêu cầu.':'Chưa có bước đã hoàn tác để làm lại.'} onClick={() => moveMenuHistory('redo')}>Làm lại</ExplainedButton><small>Ctrl/⌘ Z · Ctrl/⌘ Shift Z. Lịch sử sửa chỉ giữ trong lần mở này.</small></div>}
@@ -769,11 +798,12 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
     {tab === 'delete' && <section className="dashboard-panel">
       {mutationReceipt?.weekKey===weekKey&&<MutationReceipt receipt={mutationReceipt}/>}
-      <TableWorkspace label="Bảng lượt gửi" expandLabel="Phóng rộng bảng lượt gửi" preferenceKey="dashboard-responses" context={{week:selectedWeek?.name||'Chưa chọn tuần',filters:query.trim()?`Họ tên: ${query.trim()}`:'Không có bộ lọc',sort:responseSort==='name'?'Tên A–Z':responseSort==='oldest'?'Cũ nhất':'Mới nhất'}} headers={['Thời điểm','Họ tên','Món đã chọn','Thao tác']} requiredColumns={[1,3]}>
+      <TableWorkspace label="Bảng lượt gửi" expandLabel="Phóng rộng bảng lượt gửi" preferenceKey="dashboard-responses" context={{week:selectedWeek?.name||'Chưa chọn tuần',filters:appliedResponseConditions.map(item=>`${item.label}: ${item.value}`).join(' · ')||'Không có bộ lọc',sort:responseSort==='name'?'Tên A–Z':responseSort==='oldest'?'Cũ nhất':'Mới nhất'}} headers={['Thời điểm','Họ tên','Món đã chọn','Thao tác']} requiredColumns={[1,3]}>
       <div className="dashboard-section-title"><h2>Lượt gửi và lịch sử thao tác</h2></div>
       <WeekNotice notice={displayedWeek?.week?.weekNotice} serverNow={displayedWeek?.week?.serverNow}/>
 <div className="dashboard-sticky-tools" ref={viewState.toolbarRef}>{weekPicker()}<div className="dashboard-refresh-bar"><ExplainedButton label="Tải lại dữ liệu" className="secondary" disabled={busy || !online || weekLoading || !weekKey} reason={busy?'Đang xử lý thao tác; hãy chờ hoàn tất.':weekLoading?'Đang tải lượt gửi; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký để tải lượt gửi.'} aria-busy={weekLoading} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</ExplainedButton>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div><label className="dashboard-search">Tìm theo họ tên<SearchInput id="dashboard-name-search" label="Tìm theo họ tên" maxLength={200} value={query} onClear={()=>setQuery('')} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label></div>
-      {displayedWeek&&<p className="dashboard-filter-result" role="status" aria-live="polite" aria-atomic="true" aria-label="Kết quả lọc lượt gửi">Còn {visibleResponses.length} lượt gửi trong phần đã tải.{!weekReady&&' Bản đang xem chưa được xác minh.'}</p>}
+      <SubmissionFilters value={viewState.view} onChange={changeResponseFilters}/>
+      {displayedWeek&&<p className="dashboard-filter-result" role="status" aria-live="polite" aria-atomic="true" aria-label="Kết quả lọc lượt gửi">Còn {advancedResponses&&weekReady?matchingResponses.length:visibleResponses.length} lượt gửi {advancedResponses&&weekReady?'phù hợp trong toàn bộ kết quả tìm tên':'trong phần đã tải'}.{!weekReady&&' Bản đang xem chưa được xác minh.'}</p>}
       {displayedWeek && !weekReady && <p className="dashboard-cache-status" role="status">{cacheTime ? `Bản lưu lúc ${formatTime(cacheTime)}. ` : 'Dữ liệu lần xem trước. '}{weekLoading ? 'Đang xác minh…' : 'Chưa xác minh được; chỉ xem, hãy tải lại trước khi thao tác.'}</p>}
       {displayedWeek && weekReady && <p className="dashboard-hint">Dữ liệu đã xác minh. Tự kiểm tra lượt mới mỗi phút khi tab đang mở; bảng chỉ đổi khi tải lại.</p>}
       {reloadChanges&&weekReady&&<p className="reload-changes" role="status">Thay đổi lượt Form toàn tuần so với lần xác minh trước: <strong>{reloadChanges.added} mới · {reloadChanges.missing} đã mất · {reloadChanges.changed} thay đổi</strong>. Chỉ thông báo, không tự sửa/xóa.</p>}
@@ -791,9 +821,11 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         {visibleResponses.length ? visibleResponses.map(response => <WorkspaceRow key={response.responseId || response.rowNumber || `${response.timestamp}-${response.name}`} data-response-id={response.responseId} className={highlightIds.includes(response.responseId) ? 'new-response' : ''}>
           <td data-label="Thời điểm"><FriendlyTime value={response.timestamp}/></td><td data-label="Họ tên"><strong><SearchHighlight text={response.name} query={query}/></strong>{highlightIds.includes(response.responseId) && <span className="new-response-label">Mới</span>}{response.partial && <strong className="dashboard-partial"> · Form đã xóa, Sheet còn hàng</strong>}</td><td data-label="Món đã chọn"><ResponseMeals response={response} week={displayedWeek?.week} /></td>
           <td data-label="Thao tác"><div className="dashboard-row-actions"><button type="button" className="secondary" onClick={() => setQuickResponse(response)}>Xem nhanh</button><RowActionMenu label="Thao tác lượt gửi"><div role="group" aria-label="Kiểm tra lượt gửi"><SheetRowButton key={`${weekKey}-${weekRequest.current}-${response.responseId}`} weekKey={weekKey} source={response.partial ? 'sheet' : 'form'} response={response} request={request} disabled={busy || !online || !weekReady} /></div><div className="row-menu-danger" role="group" aria-label="Thao tác xóa">{permissions.manageResponses && (response.deletable || !weekReady) ? <ExplainedButton label="Xóa lượt này" type="button" data-close-row-menu className="danger" disabled={busy || !online || !weekReady} reason={busy?'Đang xử lý một thao tác; chưa thể xóa tiếp.':'Dữ liệu hiện tại chưa được xác minh; hãy tải lại dữ liệu trước khi xóa.'} aria-busy={pendingRow?.action === 'delete' && pendingRow.id === response.responseId} onClick={() => void deleteResponse(response)}>{pendingRow?.action === 'delete' && pendingRow.id === response.responseId ? 'Đang xóa…' : response.partial ? 'Xóa nốt hàng Sheet' : 'Xóa lượt này'}</ExplainedButton> : <span title={response.note}>{!permissions.manageResponses ? 'Chỉ xem' : response.partial ? 'Cần kiểm tra thủ công' : 'Không đối chiếu được'}</span>}</div></RowActionMenu></div></td>
-        </WorkspaceRow>) : <tr><td className="empty" colSpan="4">{!displayedWeek?'Chưa có dữ liệu đã xác minh. Hãy tải lại dữ liệu.':weekLoading?'Đang đọc kết quả lọc…':<FilterEmptyState title={responseConditions.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={responseConditions} recoveries={displayedWeek.page?[]:[{key:'name',count:displayedWeek.responses.length}]} onClear={()=>{setQuery('');document.getElementById('dashboard-name-search')?.focus();}}/>}</td></tr>}
+        </WorkspaceRow>) : <tr><td className="empty" colSpan="4">{!displayedWeek?'Chưa có dữ liệu đã xác minh. Hãy tải lại dữ liệu.':weekLoading?'Đang đọc kết quả lọc…':<FilterEmptyState title={responseConditions.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={responseConditions} recoveries={displayedWeek.page?[]:responseConditions.map(condition=>{const patch=responseFilterPatch(condition.key);return {key:condition.key,count:filterSubmissions(displayedWeek.responses,patch.query??query,{...viewState.view,...patch}).length};})} onClear={key=>{changeResponseFilters(responseFilterPatch(key));document.getElementById('dashboard-name-search')?.focus();}}/>}</td></tr>}
       </tbody></table></TableScroll>}
-      {displayedWeek?.page && <div className="dashboard-batch-tools"><p role="status">Đã tải {displayedWeek.responses.length} / {displayedWeek.page.matchedCount} lượt phù hợp · tổng {displayedWeek.page.total} lượt. Bản đối chiếu lúc {formatTime(displayedWeek.page.snapshotAt)}.</p>{displayedWeek.page.nextOffset != null && <ExplainedButton label="Tải thêm lượt gửi" type="button" className="secondary" disabled={!weekReady || busy || weekLoading || moreLoading} reason={busy?'Đang xử lý thao tác.':weekLoading||moreLoading?'Đang đọc lượt gửi.':'Bản đang xem chưa được xác minh; hãy tải lại dữ liệu trước.'} onClick={() => void loadMoreResponses()}>{moreLoading ? 'Đang tải thêm…' : 'Tải thêm lượt gửi'}</ExplainedButton>}</div>}
+      {advancedResponses&&<p className="dashboard-hint">Bộ lọc này cần đọc đủ các đợt kết quả tìm tên trong cùng bản đối chiếu. Nếu dừng chờ hoặc chưa tải đủ, số đang thấy chỉ thuộc phần đã tải.</p>}
+      {advancedResponses&&weekReady&&matchingResponses.length>advancedLimit&&<button type="button" className="secondary" onClick={()=>setAdvancedLimit(value=>value+50)}>Hiện thêm lượt phù hợp</button>}
+      {displayedWeek?.page && <div className="dashboard-batch-tools"><p role="status">Đã tải {displayedWeek.responses.length} / {displayedWeek.page.matchedCount} kết quả tìm tên{advancedResponses&&weekReady?` · Hiện ${visibleResponses.length} / ${matchingResponses.length} lượt phù hợp bộ lọc`:''} · tổng {displayedWeek.page.total} lượt. Bản đối chiếu lúc {formatTime(displayedWeek.page.snapshotAt)}.</p>{displayedWeek.page.nextOffset != null && <ExplainedButton label="Tải thêm lượt gửi" type="button" className="secondary" disabled={!weekReady || busy || weekLoading || moreLoading} reason={busy?'Đang xử lý thao tác.':weekLoading||moreLoading?'Đang đọc lượt gửi.':'Bản đang xem chưa được xác minh; hãy tải lại dữ liệu trước.'} onClick={() => void loadMoreResponses()}>{moreLoading ? 'Đang tải thêm…' : 'Tải thêm lượt gửi'}</ExplainedButton>}</div>}
       </TableWorkspace>
       <TableWorkspace label="Bảng lịch sử thao tác" expandLabel="Phóng rộng bảng lịch sử" preferenceKey="dashboard-history" context={{week:selectedWeek?.name||'Chưa chọn tuần',filters:filterConditions({...auditFilters,action:auditFilters.action?historyActionLabel(auditFilters.action):''},{actor:'Người quản trị',action:'Loại thao tác',from:'Từ ngày',to:'Đến ngày',note:'Tìm ghi chú',errorsOnly:'Chỉ lỗi/chưa hoàn tất'}).map(item=>`${item.label}: ${item.value}`).join(' · ')||'Không có bộ lọc lịch sử'}} headers={['Thao tác','Thời gian','Người thực hiện','Đối tượng','Thao tác bản ghi']} requiredColumns={[0,3,4]}>
       <div className="dashboard-section-title dashboard-history-title"><h2>Lịch sử thao tác</h2><span>{displayedWeek?.historyPage ? `${filteredHistory.length} / ${displayedWeek.historyPage.matchedCount} phù hợp · tổng ${displayedWeek.historyPage.total}` : `${filteredHistory.length} / ${displayedWeek?.history?.length || 0}`} sự kiện</span></div>
@@ -806,9 +838,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
           const restoreEligible = event.action === 'deleted' && event.restorable && !alreadyRestored;
           const canRestore = weekReady && permissions.manageResponses && restoreEligible && displayedWeek?.week?.formStatus === 'open';
           return <WorkspaceRow key={event.id} data-audit-event>
-            <td><strong className="dashboard-history-action">{historyActionLabel(event.action)}</strong>{describeHistoryNote(event.note).map((line, index) => <small key={index} className="dashboard-history-note"><SearchHighlight text={line} query={auditFilters.note}/></small>)}</td>
+            <td><button type="button" className="audit-filter-shortcut dashboard-history-action" aria-label={'Lọc lịch sử theo '+historyActionLabel(event.action)} onClick={()=>filterHistory('action',event.action)}>{historyActionLabel(event.action)}</button>{describeHistoryNote(event.note).map((line, index) => <small key={index} className="dashboard-history-note"><SearchHighlight text={line} query={auditFilters.note}/></small>)}</td>
             <td data-label="Thời gian">{group.key==='unknown'?'Chưa có thời điểm':formatTime(event.at)}{event.originalTimestamp > 0 && <small className="dashboard-history-note">Gửi gốc: {formatTime(event.originalTimestamp)}</small>}</td>
-            <td data-label="Người thực hiện"><SearchHighlight text={event.actor || '—'} query={auditFilters.actor}/></td>
+            <td data-label="Người thực hiện">{event.actor?<button type="button" className="audit-filter-shortcut" aria-label={'Lọc lịch sử theo '+event.actor} onClick={()=>filterHistory('actor',event.actor)}><SearchHighlight text={event.actor} query={auditFilters.actor}/></button>:'—'}</td>
             <td data-label="Đối tượng"><strong>{event.name || '—'}</strong><small className="dashboard-history-note">{(event.meals || []).join(' · ')}</small></td>
             <td>{canRestore ? <RowActionMenu label="Thao tác lịch sử"><ExplainedButton label="Khôi phục" type="button" data-close-row-menu className="secondary" disabled={busy||!online} reason="Đang xử lý thao tác; hãy chờ kết quả trước khi khôi phục tiếp." aria-busy={pendingRow?.action === 'restore' && pendingRow.id === event.entryId} onClick={() => void restoreResponse(event)}>{pendingRow?.action === 'restore' && pendingRow.id === event.entryId ? 'Đang khôi phục…' : 'Khôi phục'}</ExplainedButton></RowActionMenu> : restoreEligible && weekData?.week?.formStatus === 'closed' ? <span title="Không tự mở Form vì thao tác đó sẽ công khai Form">Form đã đóng</span> : restoreEligible ? <span>Chưa xác định Form</span> : alreadyRestored && event.action === 'deleted' ? <span>Đã xử lý</span> : null}</td>
           </WorkspaceRow>;
@@ -849,7 +881,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 </section>}
 
     {tab === 'access' && overview.role === 'owner' && <section className="dashboard-panel">
-      <div className="field-label-row"><h2>Gmail được phép quản trị</h2><FieldHelp label="Quyền quản trị">Chỉ chủ sở hữu chỉnh quyền. Xem cho phép mở Dashboard; OCR/tạo tuần và Xóa/khôi phục là hai quyền riêng. Bật/tắt ô quyền sẽ cập nhật quyền; gỡ Gmail cần xác nhận. Gỡ quyền không chuyển quyền sở hữu hay xóa dữ liệu. Mở trợ giúp không đổi quyền.</FieldHelp></div>
+      <div className="field-label-row"><h2>Gmail được phép quản trị</h2><FieldHelp label="Quyền quản trị">Chỉ chủ sở hữu chỉnh quyền. Xem cho phép mở Dashboard; OCR/tạo tuần và Xóa/khôi phục là hai quyền riêng. Bật/tắt ô chỉ sửa bản nháp. Bấm Lưu quyền mới áp dụng; gỡ Gmail cần xác nhận. Gỡ quyền không chuyển quyền sở hữu hay xóa dữ liệu. Mở trợ giúp không đổi quyền.</FieldHelp></div>
       <p>Gmail mới mặc định chỉ xem. Gmail cũ giữ quyền hiện có cho đến khi chủ chỉnh.</p>
       <form className="dashboard-access-form" onSubmit={event => { event.preventDefault(); void changeAllowedEmail('add-email'); }}>
         <label>Thêm Gmail<input type="email" inputMode="email" enterKeyHint="done" autoCapitalize="none" spellCheck={false} value={email} onChange={event => setEmail(event.target.value)} placeholder="ten@gmail.com" required /></label>
@@ -861,13 +893,11 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       </div>
       <p className="member-discovery-result" role="status" aria-live="polite" aria-atomic="true" aria-label="Kết quả lọc quyền Gmail">Hiện {visibleMembers.length}/{members.length} tài khoản đã tải. Chỉ lọc hiển thị, không đổi quyền.</p>
       {!members.length?<p>Chưa có Gmail được cấp quyền.</p>:!visibleMembers.length&&<p>Không có Gmail khớp bộ lọc. Hãy xóa từ khóa hoặc chọn Tất cả quyền.</p>}
-      <ul className="dashboard-email-list">{visibleMembers.map(member => <li key={member.email}>
-        <strong>{member.email}</strong><div className="member-permissions"><span>{member.permissions.view ? '✓ Xem' : 'Quyền lỗi'}</span>{[['create', 'OCR / tạo tuần'], ['manageResponses', 'Xóa / khôi phục']].map(([key, label]) => <label key={key}><input type="checkbox" checked={member.permissions[key] === true} disabled={busy||!online} onChange={event => void changeAllowedEmail('set-permissions', member.email, { ...member.permissions, view: true, [key]: event.target.checked })} /> {label}</label>)}</div>
-        <button className="danger" disabled={busy||!online} onClick={() => { if (window.confirm(`Gỡ quyền dashboard của ${member.email}?`)) void changeAllowedEmail('remove-email', member.email); }}>Gỡ quyền</button>
-      </li>)}</ul>
+      {permissionDirty&&<p role="status">Có {Object.keys(permissionDrafts).length} tài khoản còn thay đổi chưa lưu. Bộ lọc danh sách không bỏ bản nháp.</p>}
+      <ul className="dashboard-email-list">{visibleMembers.map(member=><MemberPermissionsEditor key={member.email} member={member} draft={permissionDrafts[member.email]} onDraft={value=>stagePermission(member,value)} disabled={busy||!online} onSave={value=>void changeAllowedEmail('set-permissions',member.email,value)} onRemove={()=>{if(window.confirm(`Gỡ quyền dashboard của ${member.email}?`))void changeAllowedEmail('remove-email',member.email);}}/>)}</ul>
     </section>}
     <ActionToast message={toast?.message} kind={toast?.kind} onDismiss={dismissToast} />
-    {mergeBase&&<MultiImageReview fragments={mergeBase.fragments} images={mergeBase.images} base={mergeBase.menu} onClose={()=>setMergeBase(null)} onApply={next=>{if(images!==mergeBase.images||menu!==mergeBase.menu)throw new Error('Nháp/ảnh đã thay đổi; hãy đóng và đọc lại.');dispatchMenu({type:'apply',value:next});if(!originalMenu)setOriginalMenu(next);setAllowMissing(false);setMergeBase(null);setMessage('Đã áp dụng bản ghép. Hãy rà soát ngày/món trước khi tạo tuần.','info');}}/>}
+    {mergeBase&&<MultiImageReview fragments={mergeBase.fragments} images={mergeBase.images} base={mergeBase.menu} onClose={()=>setMergeBase(null)} onApply={next=>{if(images!==mergeBase.images||menu!==mergeBase.menu)throw new Error('Nháp/ảnh đã thay đổi; hãy đóng và đọc lại.');dispatchMenu({type:'apply',value:next});if(!originalMenu)setOriginalMenu(next);setAllowMissing(false);setSourceStale(false);setMergeBase(null);setMessage('Đã áp dụng bản ghép. Hãy rà soát ngày/món trước khi tạo tuần.','info');}}/>}
     {regionBase && <RegionOcr image={regionBase.image} menu={regionBase.menu} request={request} onBusy={setBusy} onClose={() => setRegionBase(null)} onApply={(target,result) => {
       if (menu !== regionBase.menu || image !== regionBase.image) throw new Error('Nháp đã thay đổi; đóng cửa sổ và chọn vùng lại.');
       dispatchMenu({type:'edit',value:applyRegionResult(menu,target,result)});setAllowMissing(false);setRegionBase(null);

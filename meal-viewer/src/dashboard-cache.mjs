@@ -65,7 +65,7 @@ export const DEFAULT_DASHBOARD_VIEW = { query: '', sort: 'newest', density: 'com
 
 function displayView(value) {
   const number = (key, max, signed = false) => typeof value?.[key] === 'number' && Number.isFinite(value[key]) ? Math.max(signed ? -max : 0, Math.min(max, value[key])) : 0;
-  return { query: typeof value?.query === 'string' ? value.query.slice(0, 200) : '', sort: ['newest','oldest','name'].includes(value?.sort) ? value.sort : 'newest', density: value?.density === 'compact' ? 'compact' : 'comfortable', anchor: typeof value?.anchor === 'string' ? value.anchor.slice(0, 512) : '', index: Math.floor(number('index', 20000)), offset: number('offset', 10000, true), windowY: number('windowY', 10000000), listY: number('listY', 10000000) };
+  return { ...(value?.nameMatch==='exact'?{nameMatch:'exact'}:{}),...(['today','yesterday','custom'].includes(value?.sentPreset)?{sentPreset:value.sentPreset}:{}),...Object.fromEntries(['sentFrom','sentTo'].filter(key=>typeof value?.[key]==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value[key])).map(key=>[key,value[key]])),query: typeof value?.query === 'string' ? value.query.slice(0, 200) : '', sort: ['newest','oldest','name'].includes(value?.sort) ? value.sort : 'newest', density: value?.density === 'compact' ? 'compact' : 'comfortable', anchor: typeof value?.anchor === 'string' ? value.anchor.slice(0, 512) : '', index: Math.floor(number('index', 20000)), offset: number('offset', 10000, true), windowY: number('windowY', 10000000), listY: number('listY', 10000000) };
 }
 
 export function readDashboardView(account, week, storage, now = Date.now()) {

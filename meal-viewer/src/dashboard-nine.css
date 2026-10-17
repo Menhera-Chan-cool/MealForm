@@ -1,0 +1,20 @@
+.column-config-tabs{display:flex;gap:4px;position:sticky;top:0;z-index:1;background:var(--meal-ui-card);padding-block:8px}
+:root .meal-ui .column-config-tabs [role=tab]{flex:1;min-width:0;white-space:normal;min-height:44px;padding:8px}
+:root .meal-ui .column-config-tabs [aria-selected=true]{background:var(--meal-ui-primary);color:var(--meal-ui-primary-foreground)}
+.column-chooser [role=tabpanel]{min-height:120px}.permission-diff{flex-basis:100%;color:var(--meal-ui-foreground)}
+.dashboard-email-list li>.actions{flex-basis:100%;margin-block:8px}.member-permissions label{min-height:44px}
+.device-data ul,.connection-map ul,.image-file-states ul{list-style:none;margin:0;padding:0}
+.device-data li{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:16px;border-bottom:1px solid var(--meal-ui-border)}
+.device-data li>div{min-width:0}.device-data li p{margin:6px 0 0}.device-data button{flex-shrink:0}
+.submission-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px;margin-block:16px}
+.submission-filters label{display:grid;gap:6px;min-width:0}.submission-filters small,.submission-filters .menu-inline-error{grid-column:1/-1}
+.submission-filters :is(input,select){width:100%;min-width:0;max-width:100%;min-height:44px}
+.connection-map{margin-block:24px}.connection-map ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:0}
+.connection-map li{display:grid;gap:8px;padding:12px;border:1px solid var(--meal-ui-border);min-width:0;overflow-wrap:anywhere}
+.connection-map li span{font-size:.875rem;color:var(--meal-ui-muted-foreground)}.connection-map small{display:block;margin-top:12px}
+.image-file-states{margin-block:16px}.image-file-states li{display:flex;flex-wrap:wrap;gap:8px 16px;padding-block:8px;border-bottom:1px solid var(--meal-ui-border)}
+.image-file-states li>small{flex-basis:100%;overflow-wrap:anywhere}.image-file-states li>span:first-child{min-width:0;flex:1}.image-file-states>small{display:block;margin-top:8px}
+:root .meal-ui button.audit-filter-shortcut{background:transparent;border:0;box-shadow:none;color:var(--meal-ui-foreground);text-align:start;white-space:normal;overflow-wrap:anywhere;min-height:44px;padding:8px;text-decoration:underline;text-underline-offset:.2em}
+:root .meal-ui button.audit-filter-shortcut:hover{background:var(--meal-ui-muted)}
+@media(max-width:700px){.device-data li{align-items:stretch;flex-direction:column}.device-data button{align-self:start;max-width:100%;white-space:normal}.submission-filters{grid-template-columns:minmax(0,1fr)}}
+@media(forced-colors:active){.column-config-tabs [aria-selected=true]{outline:2px solid Highlight;outline-offset:-2px}.connection-map li{border-color:CanvasText}}
