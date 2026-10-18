@@ -1,5 +1,12 @@
 # Admin upgrades
 
+## OCR attention popover — 2026-10-18
+
+- [x] Adjacent !, collapsed native More-style panel, close/focus and retained settings; three RED/GREEN cases plus prior attention cases passed.
+- [x] One bounded PC/mobile/light-dark/narrow/forced-color inspection, short viewport correction and confirmation.
+- [x] Full verification and canonical sync: 218 UI, 41 native/API/GAS in both copies, five token/guard, 11 compatibility and all builds.
+- [ ] Pinned PR/main, exact immutable artifact promotion, genuine readonly smoke and release README.
+
 ## App/session/attention — 2026-10-18
 
 - [x] session-control: acceptance and focused RED/GREEN tests.

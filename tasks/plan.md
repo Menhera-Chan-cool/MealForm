@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## OCR attention popover — 2026-10-18, main/production authorized
+
+Move only presentation of existing notification/badge controls into the ! beside OCR help. Reuse native auto-popover/More theme and motion plus anchored positioning; preserve parent-owned account settings and explicit permission gestures. Test collapsed/adjoining/close/focus/mobile/shared More and short scrolling RED/GREEN. Bounded visual batch + one correction/confirmation, native/UI/preview builds, guarded canonical sync, pinned immutable web artifact, PR/main merge and same-artifact promotion. No Apps Script/API or actual-data writes.
+
 ## App/session/attention — 2026-10-18, main/production authorized
 
 Published PR #21, source 91e7e78, merge eee4dbb; Apps Script v81 and same tested artifact dpl_C7czC1EZ5Mq1JjaLfvcktCnt6UQj. Named production version 7bb88481-d1d7-4f6d-a818-dfc6aa641f7a. 215 UI, 41 native/API/GAS scripts in both copies, nine immutable-asset cases and genuine readonly smoke passed; details/limits in VERIFICATION-app-session-attention-2026-10-18.md.
