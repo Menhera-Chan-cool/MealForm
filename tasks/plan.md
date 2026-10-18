@@ -1,5 +1,9 @@
 # Approved admin upgrades: implementation plan
 
+## App/session/attention — 2026-10-18, main/production authorized
+
+Map CAPABILITY-MAP-app-session-attention.md; four module specs. Session registry first with native/GAS and all protected-route tests; keep existing signed Google cookie and add opaque per-session identity, no legacy auto-upgrade. Install manifests/notification-only worker next, then opt-in completion and honest window badge. Fixed-source full suites, bounded paired PC/mobile inspection, canonical guard/sync, stage exact web artifact, immutable synthetic tests, guarded GAS private enforcement cutover, pinned merge and immediate same-artifact promotion; genuine readonly smoke and README evidence.
+
 ## Dashboard nine — 2026-10-17, published PR #20 / same artifact production
 
 Map: CAPABILITY-MAP-dashboard-nine.md. Seven scoped specs. Reuse existing permission action, table preferences, atomic image ingestion, draft/cache stores, batched read snapshots and health/audit data. Test each slice RED/GREEN, then fixed-source native and UI suites, preview/Storybook build, bounded PC/mobile inspection. No GAS/API changes or actual-data test writes. Stage exact artifact, test synthetic services, merge pinned source and promote same artifact. Record live readonly smoke and docs.

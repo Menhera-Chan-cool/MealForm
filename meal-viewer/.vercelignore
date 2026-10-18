@@ -8,6 +8,7 @@ test-results
 playwright-report
 dist
 *.test.mjs
+test-helpers
 admin-branding-mobile.png
 dashboard-qol-mobile.png
 editor-qol-mobile.png

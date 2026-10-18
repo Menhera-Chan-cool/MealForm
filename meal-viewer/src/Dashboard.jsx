@@ -51,6 +51,8 @@ import './review-scale.css';
 import FriendlyTime from './FriendlyTime.jsx';
 import CharacterCounter from './CharacterCounter.jsx';
 import SystemReport from './SystemReport.jsx';
+import useAppAttention from './useAppAttention.js';
+import AppAttentionControls from './AppAttentionControls.jsx';
 import MemberPermissionsEditor from './MemberPermissionsEditor.jsx';
 import DeviceData from './DeviceData.jsx';
 import SubmissionFilters from './SubmissionFilters.jsx';
@@ -131,6 +133,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const initialWeek = initialLocation.week;
   const [overview, setOverview] = useState(initialData || { role: '', weeks: [], allowedEmails: [] });
   const [tab, setTabState] = useState(initialLocation.tab);
+  const attention=useAppAttention(overview.accountId,tab==='create');
   const [weekKey, setWeekKey] = useState(initialWeek);
   const tabTitle=({overview:'Tổng quan',create:'Tạo tuần bằng OCR',delete:'Lượt gửi',form:'Điều khiển Form',notice:'Thông báo tuần',reconcile:'Đối soát',branding:'Thương hiệu',health:'Hệ thống',access:'Quyền Gmail'})[tab]||'Quản trị';
   usePageTitle(`${tabTitle} · Dashboard`);
@@ -247,6 +250,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     if(nextWeek!==weekKey){setQuickResponse(null);setWeekKey(nextWeek);}return true;
   }
   const setTab=next=>navigate(next,weekKey),selectWeek=next=>navigate(tab,next);
+  useEffect(()=>{const opened=event=>{if(event.data?.type==='meal-open-ocr-notice'&&!navigate('create',weekKey))setMessage('Có kết quả OCR chưa xem. Hoàn tất thao tác hoặc lưu/bỏ thay đổi rồi mở Tạo tuần.','info');};navigator.serviceWorker?.addEventListener('message',opened);return()=>navigator.serviceWorker?.removeEventListener('message',opened);},[weekKey,tab,busy,brandDirty,noticeDirty,permissionDirty]);
   const navigationHistory=useDashboardHistory({account:overview.accountId,tab,week:weekKey,tabs:allowedDashboardSections(overview.role,permissions).map(section=>section.id),weeks:overview.weeks||[],capture:()=>({view:viewState.save()||viewState.view,auditFilters:{...auditFilters},auditLimit}),onNavigate:(nextTab,nextWeek,snapshot)=>navigate(nextTab,nextWeek,false,snapshot)});
   const quickCommands=useMemo(()=>dashboardCommands(overview),[overview]);
   useQuickCommands(quickCommands,busy||signingOut||Boolean(regionBase)||Boolean(mergeBase)||Boolean(confirmation),async command=>{
@@ -364,6 +368,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       if (manual) highlightTimer.current = setTimeout(() => setHighlightIds([]), 8000);
       setWeekVerified(true); setCacheTime(Date.now());
       writeDashboardCache(overview.accountId, key, result);
+      if(manual&&document.visibilityState==='visible')attention.updates(0,key);
       if(manual)setMessage('Đã tải lại dữ liệu của tuần đang chọn.','success');else setMessage('');
       return true;
     } catch (error) { if (generation === weekRequest.current&&error.name!=='AbortError') setMessage(error.message); return false; }
@@ -421,7 +426,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       checking = true;
       try {
         const result = await request(`/api/dashboard?updates=1&week=${encodeURIComponent(weekKey)}`);
-        if (!stopped && generation === weekRequest.current && result.weekKey === weekKey) { setNewResponses(countNewResponseIds(result.responseIds, baseline)); setPollError(''); }
+        if (!stopped && generation === weekRequest.current && result.weekKey === weekKey) { const count=countNewResponseIds(result.responseIds, baseline);setNewResponses(count);if(count>0)attention.updates(count,weekKey);setPollError(''); }
       } catch { if (!stopped && generation === weekRequest.current) setPollError('Chưa kiểm tra được lượt mới; dùng “Tải lại dữ liệu” để thử lại.'); }
       finally { checking = false; }
     }
@@ -540,7 +545,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
         const result=await request('/api/dashboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ocr-images',images:images.map(entry=>entry.dataUrl)})});
         if(!Array.isArray(result.fragments)||result.fragments.length!==images.length||result.fragments.some((fragment,i)=>fragment.imageIndex!==i))throw new Error('Kết quả OCR không khớp các ảnh nguồn; nháp cũ được giữ.');
         buildImageMerge(result.fragments,menu);
-        setMergeBase({images,menu,fragments:result.fragments});setMessage('OCR xong. Rà soát các nguồn và xung đột trước khi áp dụng.','info');return;
+        setMergeBase({images,menu,fragments:result.fragments});attention.completed();setMessage('OCR xong. Rà soát các nguồn và xung đột trước khi áp dụng.','info');return;
       }
       const result = await request('/api/dashboard', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -548,7 +553,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       });
       const days = (result.days || []).map(day => ({ ...day, meals: [...(day.meals || [])].slice(0, 3) }));
       const next={title:result.title||'Thực đơn bán trú',days};setMenu(next);setOriginalMenu(next);setDraftSource('');setSourceStale(false);
-      setAllowMissing(false);
+      setAllowMissing(false);if(days.length>0)attention.completed();
       setMessage('OCR xong. Hãy rà soát tên món và ngày trước khi tạo tuần.');
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
@@ -751,6 +756,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <div className="field-label-row"><h2>Tạo tuần từ ảnh thực đơn</h2><FieldHelp label="OCR">OCR đọc chữ và món từ ảnh. Kết quả có thể sai; hãy đối chiếu ảnh, sửa ngày và món trước khi bấm Tạo Form và Sheet. Đọc ảnh không tự tạo tuần.</FieldHelp></div>
       <div className="editor-focus-tools"><button type="button" className="secondary" aria-pressed={editorFocused} onClick={toggleEditorFocus}>{editorFocused?'Thoát chế độ tập trung':'Tập trung sửa thực đơn'}</button>{editorFocused&&<span>Chỉ thu gọn giao diện; nháp và lịch sử sửa được giữ.</span>}</div>
       <OcrProgress menu={menu} state={creationState}/>
+      <AppAttentionControls attention={attention}/>
       <CreationReceipt week={createdWeek} onResponses={key=>navigate('delete',key)} onNew={()=>{setCreatedWeek(null);setCreationState('idle');document.querySelector('.image-upload-target')?.focus();}}/>
       <div className="draft-toolbar"><p role="status">{draft.status || 'Nháp lưu riêng trên thiết bị này, không đồng bộ giữa các máy.'}</p><ExplainedButton type="button" className="secondary" disabled={busy || !online || !draft.ready} reason={busy?'Đang xử lý yêu cầu; không xóa nháp trong lúc này.':'Chưa đọc xong nháp trên thiết bị; hãy chờ.'} onClick={()=>void clearDraft()}>Xóa nháp</ExplainedButton></div>
       {sourceStale&&<p className="dashboard-warning" role="status" aria-label="Nguồn ảnh đã thay đổi">Nguồn ảnh đã thay đổi. Kết quả OCR và bản sửa hiện tại chưa phản ánh ảnh mới. Nháp và Undo được giữ; chỉ bấm Đọc thực đơn khi muốn đọc lại.</p>}
@@ -898,7 +904,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     </section>}
     <ActionToast message={toast?.message} kind={toast?.kind} onDismiss={dismissToast} />
     {mergeBase&&<MultiImageReview fragments={mergeBase.fragments} images={mergeBase.images} base={mergeBase.menu} onClose={()=>setMergeBase(null)} onApply={next=>{if(images!==mergeBase.images||menu!==mergeBase.menu)throw new Error('Nháp/ảnh đã thay đổi; hãy đóng và đọc lại.');dispatchMenu({type:'apply',value:next});if(!originalMenu)setOriginalMenu(next);setAllowMissing(false);setSourceStale(false);setMergeBase(null);setMessage('Đã áp dụng bản ghép. Hãy rà soát ngày/món trước khi tạo tuần.','info');}}/>}
-    {regionBase && <RegionOcr image={regionBase.image} menu={regionBase.menu} request={request} onBusy={setBusy} onClose={() => setRegionBase(null)} onApply={(target,result) => {
+    {regionBase && <RegionOcr onResultReady={attention.completed} image={regionBase.image} menu={regionBase.menu} request={request} onBusy={setBusy} onClose={() => setRegionBase(null)} onApply={(target,result) => {
       if (menu !== regionBase.menu || image !== regionBase.image) throw new Error('Nháp đã thay đổi; đóng cửa sổ và chọn vùng lại.');
       dispatchMenu({type:'edit',value:applyRegionResult(menu,target,result)});setAllowMissing(false);setRegionBase(null);
     }} />}

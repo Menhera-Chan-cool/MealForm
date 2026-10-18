@@ -7,6 +7,8 @@ import {useAppearance} from './AppearanceProvider.jsx';
 import SearchInput from './SearchInput.jsx';
 import SearchHighlight from './SearchHighlight.jsx';
 import ChevronIcon from './ChevronIcon.jsx';
+import InstallApp from './InstallApp.jsx';
+import SessionManager from './SessionManager.jsx';
 
 const Comfort=createContext(()=>()=>{});
 const PreferencesSlot=createContext(()=>{});
@@ -80,6 +82,7 @@ export default function ComfortProvider({children}) {
         <button type="button" className="secondary comfort-command" disabled={blocked} onClick={show}>Lệnh nhanh<span aria-hidden="true">Ctrl/⌘ K</span></button>
         <div className="comfort-font-row"><span>Cỡ chữ</span><div className="comfort-font-options" role="group" aria-label="Cỡ chữ"><button className="secondary" type="button" aria-pressed={size==='normal'} onClick={()=>setSize('normal')}>Bình thường</button><button className="secondary" type="button" aria-pressed={size==='large'} onClick={()=>setSize('large')}>Lớn</button></div></div>
         <div className="appearance-controls"><label>Giao diện<select aria-label="Giao diện" value={appearance.theme} onChange={event=>appearance.setPreference({theme:event.target.value})}><option value="light">Sáng</option><option value="dark">Tối</option><option value="system">Theo hệ thống</option></select></label><label>Hiệu ứng<select aria-label="Hiệu ứng" value={appearance.motion} onChange={event=>appearance.setPreference({motion:event.target.value})}><option value="full">Đầy đủ</option><option value="light">Nhẹ</option><option value="off">Tắt</option></select></label></div>
+        <InstallApp/><SessionManager blocked={Boolean(blocked)} beforeSignOut={()=>registered?.beforeNavigate?.()}/>
         <button type="button" className="secondary comfort-command" aria-expanded={shortcutsOpen} aria-controls={shortcutsId} onClick={()=>setShortcutsOpen(value=>!value)}>Phím tắt<ChevronIcon expanded={shortcutsOpen}/></button>
         <section id={shortcutsId} className="shortcut-reference" role="region" aria-label="Hướng dẫn phím tắt" hidden={!shortcutsOpen}><h3>Phím tắt</h3><dl>
           <div><dt><kbd>Ctrl/⌘ K</kbd></dt><dd>Mở Lệnh nhanh khi không có hộp thao tác đang chặn.</dd></div>

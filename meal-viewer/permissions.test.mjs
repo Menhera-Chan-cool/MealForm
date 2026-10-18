@@ -1,3 +1,4 @@
+import {registeredDashboardHandler} from './test-helpers/registered-session.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -37,7 +38,7 @@ const secret = 'session-test-secret';
 const token = createSessionToken({ sub: 'reader', email: 'reader@example.com' }, secret);
 const res = () => ({ setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } });
 const calls = [];
-const handler = createDashboardHandler({ secret, callGas: async payload => { calls.push(payload); return { role: 'manager', permissions: { view: true, create: false, manageResponses: false } }; } });
+const handler = registeredDashboardHandler({ secret, callGas: async payload => { calls.push(payload); return { role: 'manager', permissions: { view: true, create: false, manageResponses: false } }; } });
 for (const [method, body] of [['POST', { action: 'ocr', image: 'test' }], ['POST', { action: 'create' }], ['DELETE', {}], ['POST', { action: 'restore' }], ['POST', { action: 'set-permissions', email: 'other@example.com', permissions: full }]]) {
   const result = res(); const before = calls.length;
   await handler({ method, headers: { cookie: `meal_session=${token}`, origin: 'https://example.com', host: 'example.com' }, body }, result);

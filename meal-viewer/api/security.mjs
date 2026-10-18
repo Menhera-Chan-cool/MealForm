@@ -17,6 +17,8 @@ function equalMac(left, right) {
 export function createSessionToken(identity, secret, now = Date.now()) {
   if (!identity?.sub || !secret) throw new Error('Session identity and secret are required.');
   const claims = { sub: String(identity.sub), exp: Math.floor(now / 1000) + SESSION_SECONDS };
+  claims.sid=identity.sid||randomBytes(32).toString('base64url');
+  if(!/^[A-Za-z0-9_-]{43}$/.test(claims.sid))throw new Error('Invalid session ID.');
   if (identity.email) claims.email = String(identity.email).trim().toLocaleLowerCase();
   const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
   return `${payload}.${mac(payload, secret)}`;
@@ -24,12 +26,13 @@ export function createSessionToken(identity, secret, now = Date.now()) {
 
 export function readSessionToken(token, secret, now = Date.now()) {
   try {
-    if (!token || !secret) return null;
+    if (!token || !secret || String(token).length>4096) return null;
     const [payload, signature, extra] = String(token).split('.');
     if (!payload || !signature || extra !== undefined || !equalMac(mac(payload, secret), signature)) return null;
     const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     if (!claims.sub || !Number.isInteger(claims.exp) || claims.exp <= Math.floor(now / 1000)) return null;
-    return { sub: String(claims.sub), email: String(claims.email || '').toLocaleLowerCase(), exp: claims.exp };
+    if(claims.sid!==undefined&&!/^[A-Za-z0-9_-]{43}$/.test(claims.sid))return null;
+    return { ...(claims.sid?{sid:claims.sid}:{}),sub: String(claims.sub), email: String(claims.email || '').toLocaleLowerCase(), exp: claims.exp };
   } catch {
     return null;
   }
@@ -61,7 +64,8 @@ export function createGasEnvelope(payload, secret, now = Date.now(), nonce = ran
 async function requestAppsScript(url, secret, payload, fetchImpl = fetch, now = Date.now, retried = false) {
   if (!url || !secret) throw new Error('Apps Script API is not configured.');
   const readOnly = payload.action?.startsWith('read-') || ['dashboard-authorize', 'dashboard-overview', 'dashboard-week', 'dashboard-batch', 'dashboard-week-notice', 'dashboard-health', 'dashboard-reconcile', 'dashboard-response-ids', 'dashboard-locate'].includes(payload.action);
-  const signal = readOnly ? AbortSignal.timeout(20000) : undefined;
+  const sessionAction=String(payload.action||'').startsWith('session-');
+  const signal = sessionAction ? AbortSignal.timeout(15000) : readOnly ? AbortSignal.timeout(20000) : undefined;
   const retryRead = () => requestAppsScript(url, secret, payload, fetchImpl, now, true);
   const envelope = createGasEnvelope(payload, secret, now());
   const response = await fetchImpl(url, {
@@ -94,8 +98,8 @@ async function requestAppsScript(url, secret, payload, fetchImpl = fetch, now = 
 }
 
 export function createGasReader({ url, secret, fetchImpl = fetch, now = Date.now }) {
-  return async function readViewerData(sheetId, forceRefresh = false, action = 'read-viewer') {
-    const payload = { action, forceRefresh };
+  return async function readViewerData(sheetId, forceRefresh = false, action = 'read-viewer', session) {
+    const payload = { action, forceRefresh,...(session?{session}:{}) };
     if (action === 'read-viewer') payload.sheetId = sheetId;
     if (action === 'read-history-viewer') payload.weekKey = sheetId;
     return requestAppsScript(url, secret, payload, fetchImpl, now);
@@ -111,11 +115,11 @@ export function requestBody(body) {
   return body && typeof body === 'object' ? body : {};
 }
 
-function requestIsSameOrigin(req) {
+function requestIsSameOrigin(req,allowLocal=false) {
   try {
     const origin = new URL(req.headers?.origin || '');
     const host = String(req.headers?.['x-forwarded-host'] || req.headers?.host || '').split(',')[0].trim().toLowerCase();
-    return origin.host.toLowerCase() === host && origin.protocol === 'https:';
+    return origin.host.toLowerCase() === host && (origin.protocol === 'https:'||allowLocal&&['localhost','127.0.0.1'].includes(origin.hostname));
   } catch {
     return false;
   }
@@ -130,17 +134,19 @@ export function dashboardConfiguration(env) {
   };
 }
 
-export function createDashboardHandler({ secret, callGas, readViewerData, configuration, now = Date.now }) {
+export function createDashboardHandler({ secret, callGas:transport, readViewerData, configuration, now = Date.now }) {
   return async function dashboardHandler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     const session = readSessionToken(cookieValue(req.headers?.cookie, 'meal_session'), secret, now());
-    if (!session?.email) return res.status(401).json({ error: 'Đăng nhập Google để mở dashboard.' });
+    if (!session?.email||!session.sid) return res.status(401).json({ error: 'Đăng nhập Google để mở dashboard.' });
     if (!['GET', 'POST', 'DELETE'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed.' });
     if (req.method !== 'GET' && !requestIsSameOrigin(req)) return res.status(403).json({ error: 'Origin không hợp lệ.' });
 
+    const callGas=payload=>transport({...payload,session:sessionContext(session)});
     try {
       const authorization = await callGas({ action: 'dashboard-authorize', email: session.email, includeWeeks: req.method === 'GET' && req.query?.access === '1' });
+      if(authorization?.sessionActive!==true)return res.status(401).json({error:'Phiên đã hết hạn hoặc được thu hồi. Hãy đăng nhập lại.'});
       const role = authorization?.role;
       if (role !== 'owner' && role !== 'manager') return res.status(403).json({ error: 'Tài khoản này chưa được cấp quyền dashboard.' });
       const permissions = authorization.permissions || { view: true, create: true, manageResponses: true };
@@ -215,6 +221,7 @@ export function createDashboardHandler({ secret, callGas, readViewerData, config
       const data = await callGas(payload);
       return res.status(200).json(req.method === 'GET' && !req.query?.week ? { ...data, permissions, email: session.email, accountId: createHash('sha256').update(session.sub).digest('hex') } : data);
     } catch (error) {
+      if(error.message==='MEAL_SESSION_REVOKED')return res.status(401).json({error:'Phiên đã hết hạn hoặc được thu hồi. Hãy đăng nhập lại.'});
       if (req.method === 'GET' && req.query?.health === '1') return res.status(502).json({ checkedAt: now(), checks: [{ id: 'bridge', label: 'Kết nối Apps Script', status: 'error', message: 'Không hoàn tất được kiểm tra. Kiểm tra deployment, chữ ký API và cấp lại quyền Apps Script bằng tài khoản chủ.' }] });
       return res.status(502).json({ error: String(error?.message || 'Không thể hoàn tất thao tác dashboard.').slice(0, 300),...(normalizeMutationReceipt(error?.receipt)?{receipt:normalizeMutationReceipt(error.receipt)}:{}) });
     }
@@ -260,12 +267,13 @@ export function createViewerHandler({ secret, readViewerData, now = Date.now }) 
     const isNext = req.query?.next === '1';
     const isWeek = isNewest || isNext;
     const session = readSessionToken(cookieValue(req.headers?.cookie, 'meal_session'), secret, now());
-    if (!isWeek && !session) return res.status(401).json({ error: 'Đăng nhập Google để xem thực đơn.' });
+    if (!isWeek && !session?.sid) return res.status(401).json({ error: 'Đăng nhập Google để xem thực đơn.' });
     const sheetId = String(req.query?.view || '');
     if (!isWeek && !SHEET_ID.test(sheetId)) return res.status(400).json({ error: 'Liên kết bảng xem không hợp lệ.' });
     try {
       const action = isNewest ? 'read-latest-viewer' : isNext ? 'read-next-viewer' : 'read-viewer';
-      const data = await readViewerData(sheetId, req.query?.refresh === '1', action);
+      const data = await readViewerData(sheetId, req.query?.refresh === '1', action,isWeek?undefined:sessionContext(session));
+      if(!isWeek&&data.sessionActive!==true)return res.status(401).json({error:'Phiên đã hết hạn hoặc được thu hồi. Hãy đăng nhập lại.'});
       const result = publicViewerData(data,now());
       if (isNewest && data.formStatus === 'closed') {
         try {
@@ -277,6 +285,7 @@ export function createViewerHandler({ secret, readViewerData, now = Date.now }) 
       }
       return res.status(200).json(result);
     } catch (error) {
+      if(error.message==='MEAL_SESSION_REVOKED')return res.status(401).json({error:'Phiên đã hết hạn hoặc được thu hồi. Hãy đăng nhập lại.'});
       if (/^Chưa có thực đơn cho tuần (này|trước|sau)\.$/.test(error?.message || '')) return res.status(404).json({ error: error.message });
       console.error('Viewer data load failed', error?.message || String(error));
       return res.status(502).json({ error: 'Không thể tải dữ liệu thực đơn. Hãy thử tải lại sau.' });
@@ -289,15 +298,77 @@ export function createHistoryHandler({ secret, readViewerData, now = Date.now })
     res.setHeader('Cache-Control', 'no-store');
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed.' });
     const session = readSessionToken(cookieValue(req.headers?.cookie, 'meal_session'), secret, now());
-    if (!session) return res.status(401).json({ error: 'Đăng nhập Google để xem kho tuần cũ.' });
+    if (!session?.sid) return res.status(401).json({ error: 'Đăng nhập Google để xem kho tuần cũ.' });
     const weekKey = String(req.query?.week || '');
     if (weekKey && !/^[A-Za-z0-9_-]{1,120}$/.test(weekKey)) return res.status(400).json({ error: 'Tuần không hợp lệ.' });
     try {
-      const data = await readViewerData(weekKey, req.query?.refresh === '1', weekKey ? 'read-history-viewer' : 'read-history');
+      const data = await readViewerData(weekKey, req.query?.refresh === '1', weekKey ? 'read-history-viewer' : 'read-history',sessionContext(session));
+      if(data.sessionActive!==true)return res.status(401).json({error:'Phiên đã hết hạn hoặc được thu hồi. Hãy đăng nhập lại.'});
       return res.status(200).json(weekKey ? publicViewerData(data,now()) : { weeks: data.weeks || [] });
     } catch (error) {
+      if(error.message==='MEAL_SESSION_REVOKED')return res.status(401).json({error:'Phiên đã hết hạn hoặc được thu hồi. Hãy đăng nhập lại.'});
       return res.status(502).json({ error: /^Không tìm thấy tuần đã đăng ký\.|^Chỉ xem tuần cũ/.test(error.message) ? error.message : 'Không thể tải kho tuần cũ. Hãy thử lại.' });
     }
   };
 }
 import {normalizeMutationReceipt} from '../src/mutation-receipt.mjs';
+
+export function sessionContext(identity){
+  if(!identity?.sub||!/^[A-Za-z0-9_-]{43}$/.test(identity.sid||''))return null;
+  return {accountKey:createHash('sha256').update(String(identity.sub)).digest('hex'),sessionKey:createHash('sha256').update(identity.sid).digest('hex')};
+}
+export function sessionDeviceLabel(agent=''){
+  const ua=String(agent).slice(0,1000),browser=/Edg\//.test(ua)?'Edge':/OPR\//.test(ua)?'Opera':/Firefox\//.test(ua)?'Firefox':/Chrome\//.test(ua)?'Chrome':/Safari\//.test(ua)?'Safari':'Trình duyệt khác';
+  const platform=/Android/.test(ua)?'Android':/iPhone|iPad|iPod/.test(ua)?'iOS':/Windows/.test(ua)?'Windows':/Macintosh/.test(ua)?'macOS':/Linux/.test(ua)?'Linux':'Thiết bị khác';
+  return browser+' · '+platform;
+}
+export function createSessionHandler({secret,clientId,verifyGoogle,callGas,now=Date.now}){
+  function cookie(req,res,identity){
+    const secure=process.env.NODE_ENV==='production'||req.headers?.['x-forwarded-proto']==='https'||req.headers?.origin?.startsWith('https:');
+    res.setHeader('Set-Cookie','meal_session='+createSessionToken(identity,secret,now())+'; Path=/; HttpOnly; SameSite=Lax; Max-Age='+SESSION_SECONDS+(secure?'; Secure':''));
+  }
+  const clear=res=>res.setHeader('Set-Cookie','meal_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure');
+  return async(req,res)=>{
+    res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json; charset=utf-8');
+    if(!['GET','POST','DELETE'].includes(req.method))return res.status(405).json({error:'Method not allowed.'});
+    if(req.method!=='GET'&&!requestIsSameOrigin(req,true))return res.status(403).json({error:'Origin không hợp lệ.'});
+    const identity=readSessionToken(cookieValue(req.headers?.cookie,'meal_session'),secret,now()),context=sessionContext(identity);
+    try{
+      if(req.method==='POST'){
+        if(!clientId||!secret||secret.length<32)return res.status(503).json({error:'Đăng nhập chưa được cấu hình.'});
+        let body;try{body=requestBody(req.body);}catch{return res.status(400).json({error:'Thông tin đăng nhập không hợp lệ.'});}
+        const credential=String(body.credential||'');
+        if(!credential||credential.length>10000)return res.status(400).json({error:'Thiếu thông tin đăng nhập Google.'});
+        let claims;try{claims=await verifyGoogle(credential);}catch{return res.status(401).json({error:'Không xác minh được tài khoản Google.'});}
+        if(!isGoogleIdentity(claims,clientId,now()))return res.status(401).json({error:'Không xác minh được tài khoản Google.'});
+        const next={sub:claims.sub,email:claims.email,sid:randomBytes(32).toString('base64url')};
+        const result=await callGas({action:'session-register',...sessionContext(next),label:sessionDeviceLabel(req.headers?.['user-agent'])});
+        if(result.active!==true)throw Error('unconfirmed');
+        cookie(req,res,next);return res.status(200).json({authenticated:true});
+      }
+      if(!context){if(req.method==='DELETE'&&!req.query?.sessionId){clear(res);return res.status(200).json({authenticated:false});}return res.status(req.query?.list==='1'||req.method==='DELETE'?401:200).json({authenticated:false,error:'Đăng nhập Google để tiếp tục.'});}
+      if(req.method==='GET'){
+        const list=req.query?.list==='1',result=await callGas({action:list?'session-list':'session-renew',...context});
+        if(result.active!==true)return res.status(list?401:200).json({authenticated:false});
+        if(list){
+          if(!Array.isArray(result.sessions)||result.sessions.length>8)throw Error('invalid registry reply');
+          const sessions=result.sessions.map(item=>{if(!/^[a-f0-9]{64}$/.test(item.id||'')||typeof item.label!=='string'||item.label.length>80||![item.createdAt,item.lastSeen,item.expiresAt].every(Number.isFinite))throw Error('invalid session');return {id:item.id,label:item.label,createdAt:item.createdAt,lastSeen:item.lastSeen,expiresAt:item.expiresAt,current:item.id===context.sessionKey};});
+          if(sessions.filter(item=>item.current).length!==1||new Set(sessions.map(item=>item.id)).size!==sessions.length)throw Error('invalid current session');
+          return res.status(200).json({authenticated:true,sessions});
+        }
+        cookie(req,res,identity);return res.status(200).json({authenticated:true});
+      }
+      const targetId=String(req.query?.sessionId||context.sessionKey);
+      if(!/^[a-f0-9]{64}$/.test(targetId))return res.status(400).json({error:'Phiên cần thu hồi không hợp lệ.'});
+      const result=await callGas({action:'session-revoke',...context,targetId});
+      if(result.active!==true)return res.status(401).json({authenticated:false});
+      if(result.revoked!==true)throw Error('unconfirmed revoke');
+      if(targetId===context.sessionKey)clear(res);
+      return res.status(200).json({authenticated:targetId!==context.sessionKey,revoked:true,id:targetId});
+    }catch(error){
+      if(error.message==='MEAL_SESSION_LIMIT')return res.status(409).json({error:'Đã có 8 phiên hoạt động. Hãy đăng xuất một phiên trên thiết bị đang dùng rồi đăng nhập lại.'});
+      if(error.message==='MEAL_SESSION_REVOKED')return res.status(req.query?.list==='1'||req.method==='DELETE'?401:200).json({authenticated:false,error:'Phiên đã hết hạn hoặc được thu hồi. Hãy đăng nhập lại.'});
+      return res.status(503).json({error:'Chưa xác minh được nơi lưu phiên. Hãy thử lại; không tự gửi lại thao tác.'});
+    }
+  };
+}

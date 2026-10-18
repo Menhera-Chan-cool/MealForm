@@ -1,3 +1,4 @@
+import {registeredDashboardHandler,registeredViewerHandler} from './test-helpers/registered-session.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -17,7 +18,7 @@ assert.equal(model.mealRegistrationTarget({ formUrl, formStatus: 'closed', nextF
 
 const response = () => ({ setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } });
 const readActions = [];
-const handler = createViewerHandler({ secret: 'test', readViewerData: async (_id, _refresh, action) => {
+const handler = registeredViewerHandler({ secret: 'test', readViewerData: async (_id, _refresh, action) => {
   readActions.push(action);
   return action === 'read-next-viewer' ? { formUrl, formStatus: 'open', days, rows: [['private-next-row']] } : { formUrl, formStatus: 'closed', days: [], rows: [] };
 } });
@@ -84,7 +85,7 @@ assert.throws(() => context.getMealDashboardHealth_('unregistered'), /đăng ký
 const sessionSecret = 'qol-session-secret';
 const token = createSessionToken({ sub: 'owner', email: 'owner@example.com' }, sessionSecret, now);
 const healthActions = [];
-const dashboard = createDashboardHandler({ secret: sessionSecret, now: () => now, callGas: async payload => {
+const dashboard = registeredDashboardHandler({ secret: sessionSecret, now: () => now, callGas: async payload => {
   healthActions.push(payload.action);
   return payload.action === 'dashboard-authorize' ? { role: 'owner' } : { checks: [{ id: 'ocr', status: 'ok' }] };
 }, readViewerData: async () => ({ days: [] }), configuration: { session: true, viewer: true, dashboard: true } });
@@ -96,7 +97,7 @@ assert.ok(healthResponse.body.checks.some(check => check.id === 'viewer-api'));
 const anonymous = response();
 await dashboard({ method: 'GET', headers: {}, query: { health: '1' } }, anonymous);
 assert.equal(anonymous.code, 401);
-const brokenDashboard = createDashboardHandler({ secret: sessionSecret, now: () => now, callGas: async () => { throw new Error(secretValue); } });
+const brokenDashboard = registeredDashboardHandler({ secret: sessionSecret, now: () => now, callGas: async () => { throw new Error(secretValue); } });
 const broken = response();
 await brokenDashboard({ method: 'GET', headers: { cookie: `meal_session=${token}` }, query: { health: '1' } }, broken);
 assert.equal(broken.code, 502);

@@ -1,5 +1,13 @@
 # MealForm
 
+## Cài ứng dụng, phiên đăng nhập và thông báo — 18/10/2026
+
+Menu `…` có Cài MealForm (bản Thực đơn hoặc Quản trị) và Phiên đăng nhập MealForm. Cài đặt phụ thuộc trình duyệt; không có offline, cache API riêng tư hay đồng bộ nháp. Biểu tượng cài đặt là MealForm chung; thương hiệu trường vẫn dùng trong web.
+
+Google đăng nhập như trước; máy chủ lưu mã phiên băm và nhãn trình duyệt/hệ điều hành gọn, không lưu token, IP hay vị trí. Tối đa 8 phiên hoạt động mỗi tài khoản, hạn 30 ngày có gia hạn khi kiểm tra phiên; không tự đẩy phiên khác ra. Có thể thu hồi đúng phiên sau xác nhận. Cookie cũ cần đăng nhập lại một lần, không tự nâng cấp. Thu hồi không hủy tác vụ máy chủ đã chấp nhận; lỗi nơi lưu phiên sẽ chặn đọc riêng tư, không giả báo đăng xuất thành công.
+
+Trong Tạo tuần, chủ động bật thông báo OCR và gửi thử. Chỉ thông báo khi có kết quả hợp lệ lúc chuyển sang tab khác; nội dung không chứa ảnh/tên/món/Gmail và không tự tạo Form. Dấu chấm phản ánh OCR chưa xem hoặc lượt mới đã phát hiện trong cửa sổ này; không phải tổng chưa đọc đồng bộ nhiều cửa sổ. Có tùy chọn tắt và trạng thái trong trang khi thiết bị không hỗ trợ. Không hứa hoạt động khi đóng web. Phạm vi: CAPABILITY-MAP-app-session-attention.md; bằng chứng và tình trạng phát hành: VERIFICATION-app-session-attention-2026-10-18.md.
+
 ## Chín cải tiến Dashboard — 17/10/2026
 
 Quyền Gmail sửa theo bản nháp rồi Lưu/Bỏ thay đổi; cấu hình cột chia Hiện/Ẩn–Thứ tự–Độ rộng; thay riêng ảnh và trạng thái kiểm tra từng tệp; Hệ thống có quản lý dữ liệu thiết bị và sơ đồ kết nối từ kết quả thật; lọc lượt theo thời điểm gửi/kiểu khớp tên; bấm Gmail hoặc loại thao tác trong lịch sử để lọc.

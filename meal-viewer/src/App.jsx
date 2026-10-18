@@ -272,6 +272,7 @@ function App() {
     };
   }, [auth, isDashboard, loadData]);
 
+  useEffect(()=>{const ended=()=>{authRequest.current++;reads.cancel();clearDashboardCache();setData(null);setDashboardData(null);setAuth('anonymous');setMessage('Phiên đã hết hạn hoặc được thu hồi. Hãy đăng nhập lại.');};window.addEventListener('meal-session-ended',ended);return()=>window.removeEventListener('meal-session-ended',ended);},[]);
   currentSessionCheck.current = checkSession;
   useEffect(() => {
     if (auth !== 'anonymous' || !signInRoot.current || !CLIENT_ID) return undefined;

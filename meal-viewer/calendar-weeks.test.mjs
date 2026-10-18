@@ -1,3 +1,4 @@
+import {registeredViewerHandler} from './test-helpers/registered-session.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -74,7 +75,7 @@ assert.equal(millisecondsUntilMealWeekRollover('2026-10-04T17:00:00Z'), 7 * 8640
 assert.equal(millisecondsUntilMealWeekRollover('2026-12-31T17:00:00Z'), 3 * 86400000);
 
 const calls = [];
-const handler = createViewerHandler({ secret: 'test', readViewerData: async (...args) => {
+const handler = registeredViewerHandler({ secret: 'test', readViewerData: async (...args) => {
   calls.push(args);
   if (args[1]) throw new Error('Chưa có thực đơn cho tuần sau.');
   return { title: 'Tuần sau', headers: [], rows: [], days: [] };

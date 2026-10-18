@@ -1,3 +1,4 @@
+import {registeredDashboardHandler} from './test-helpers/registered-session.mjs';
 import assert from 'node:assert/strict';
 import * as model from './src/dashboard-model.mjs';
 import { createDashboardHandler, createSessionToken } from './api/security.mjs';
@@ -35,7 +36,7 @@ assert.equal(model.isNewBuild({id:'build-2'},'build-1'),true);assert.equal(model
 assert.equal(model.isNewBuild({id:'<html>'},'build-1'),false);assert.equal(model.isNewBuild({},'build-1'),false);
 
 const secret='test-session-secret';const token=createSessionToken({sub:'me',email:'verified@example.com'},secret);
-const calls=[];const handler=createDashboardHandler({secret,callGas:async p=>{calls.push(p);return p.action==='dashboard-authorize'?{role:'manager',permissions:{view:true,create:false,manageResponses:false}}:{weeks:[],email:'untrusted@example.com'};}});
+const calls=[];const handler=registeredDashboardHandler({secret,callGas:async p=>{calls.push(p);return p.action==='dashboard-authorize'?{role:'manager',permissions:{view:true,create:false,manageResponses:false}}:{weeks:[],email:'untrusted@example.com'};}});
 const response=()=>({setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}});
 const headers={cookie:`meal_session=${token}`,origin:'https://example.com',host:'example.com'};
 for(const query of [{access:'1'},{}]){const res=response();await handler({method:'GET',headers,query},res);assert.equal(res.body.email,'verified@example.com','badge identity must come from signed session');}

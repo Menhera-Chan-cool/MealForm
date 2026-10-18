@@ -1,5 +1,16 @@
 # Admin upgrades
 
+## App/session/attention — 2026-10-18
+
+- [x] session-control: acceptance and focused RED/GREEN tests.
+- [x] install-app: acceptance and focused RED/GREEN tests.
+- [x] ocr-notification: acceptance and focused RED/GREEN tests.
+- [x] app-badge: acceptance and focused RED/GREEN tests.
+- [x] All protected API/GAS boundaries, legacy cutover and stale/cancel/privacy cases.
+- [x] Full native/UI/build/Storybook/compatibility and bounded visual verification: 215 UI, 41 native/API/GAS in both copies, five token/guard, 11 compatibility; bounded visual batch and confirmation.
+- [ ] Canonical/share sync, immutable artifact, guarded GAS publication, pinned merge/main and same-artifact promotion.
+- [ ] Genuine readonly smoke and release/README evidence.
+
 ## Dashboard nine — 2026-10-17
 
 - [x] access-draft: spec acceptance + focused tests.

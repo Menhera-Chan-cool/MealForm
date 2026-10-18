@@ -1,5 +1,79 @@
 import { test, expect } from '@playwright/test';
 
+test.describe('app-session-attention',()=>{
+  test.setTimeout(25000);
+  test('current-session logout preserves unsaved settings when their existing discard guard is cancelled',async({page})=>{
+    await interceptMealServices(page);let writes=0,discardPrompts=0;
+    await page.route('**/api/session**',route=>{if(route.request().method()==='DELETE'){writes++;return route.fulfill({json:{authenticated:false,revoked:true,id:'a'.repeat(64)}});}if(new URL(route.request().url()).searchParams.has('list'))return route.fulfill({json:{authenticated:true,sessions:[{id:'a'.repeat(64),label:'Chrome · Windows',current:true,createdAt:1791467940000,lastSeen:1791467940000,expiresAt:1794067940000}]}});return route.fallback();});
+    await page.goto('http://127.0.0.1:5175/dashboard?tab=branding');await page.getByLabel('Tên trường',{exact:true}).fill('Tên chưa lưu');
+    await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();await page.getByRole('button',{name:'Phiên đăng nhập',exact:true}).click();await page.getByRole('dialog',{name:'Phiên đăng nhập MealForm',exact:true}).getByRole('button',{name:'Đăng xuất phiên hiện tại',exact:true}).click();
+    page.once('dialog',async dialog=>{discardPrompts++;await dialog.dismiss();});await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Đăng xuất phiên',exact:true}).click();await expect.poll(()=>discardPrompts).toBe(1);expect(writes).toBe(0);await page.getByRole('dialog',{name:'Phiên đăng nhập MealForm',exact:true}).getByRole('button',{name:'Đóng',exact:true}).click();await expect(page.getByLabel('Tên trường',{exact:true})).toHaveValue('Tên chưa lưu');
+  });
+  test('a denied notification permission never opts in, and successful foreground OCR never sends a system notification',async({page})=>{
+    const writes:object[]=[];await navigationOcr(page,writes);await page.addInitScript(()=>{(window as any).permissionRequests=0;(window as any).notices=[];Object.defineProperty(window,'Notification',{configurable:true,value:Object.assign(function(title:string){(window as any).notices.push(title);},{permission:'denied',requestPermission:async()=>{(window as any).permissionRequests++;return 'denied';}})});});
+    await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page);expect(await page.evaluate(()=>(window as any).permissionRequests)).toBe(0);await page.getByRole('button',{name:'Bật thông báo OCR',exact:true}).click();await expect(page.getByRole('status',{name:'Trạng thái thông báo OCR'})).toContainText('Chưa được cấp quyền');await expect(page.getByRole('button',{name:'Bật thông báo OCR',exact:true})).toBeEnabled();await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await expect(page.locator('#ocr-meal-0-0')).toHaveValue('CƠM GÀ');expect(await page.evaluate(()=>(window as any).notices)).toEqual([]);
+  });
+  test('session failure stays readonly, exact current revoke ends private display and opening measures the usable viewport',async({page})=>{
+    await interceptMealServices(page);let bad=true,revokes=0;
+    await page.route('**/api/session**',route=>{const url=new URL(route.request().url());if(route.request().method()==='DELETE'){revokes++;return route.fulfill({json:bad?{ok:true}:{authenticated:false,revoked:true,id:'a'.repeat(64)}});}if(url.searchParams.has('list'))return route.fulfill({json:{authenticated:true,sessions:[{id:'a'.repeat(64),label:'Chrome · Windows',current:true,createdAt:1791467940000,lastSeen:1791467940000,expiresAt:1794067940000}]}});return route.fallback();});
+    await page.goto('http://127.0.0.1:5175/dashboard');await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();await page.getByRole('button',{name:'Phiên đăng nhập',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Phiên đăng nhập MealForm',exact:true});
+    await expect.poll(()=>dialog.evaluate(node=>parseFloat((node as HTMLElement).style.getPropertyValue('--usable-viewport')))).toBeGreaterThan(100);
+    const out=dialog.getByRole('button',{name:'Đăng xuất phiên hiện tại',exact:true});await out.click();const confirm=page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true});await expect(confirm.getByRole('button',{name:'Hủy',exact:true})).toBeFocused();await confirm.getByRole('button',{name:'Đăng xuất phiên',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('Chưa xác nhận');await expect(out).toBeDisabled();expect(revokes).toBe(1);
+    bad=false;await dialog.getByRole('button',{name:'Tải lại phiên',exact:true}).click();await expect(out).toBeEnabled();await out.click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Đăng xuất phiên',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.getByRole('heading',{name:'Dashboard quản trị',exact:true})).toHaveCount(0);await expect(page.getByRole('region',{name:'Trang sẽ mở sau đăng nhập',exact:true})).toBeVisible();expect(revokes).toBe(2);
+  });
+  test('bounded app controls review covers desktop mobile short viewport and forced colors',async({page})=>{
+    test.setTimeout(60000);const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+    for(const [width,height,theme,forced] of [[1440,900,'light',false],[390,844,'dark',false],[320,256,'light',false],[844,390,'dark',true]] as const){
+      await page.setViewportSize({width,height});await page.emulateMedia({forcedColors:forced?'active':'none'});await page.addInitScript(({theme})=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme,motion:'off'}));}, {theme});await interceptMealServices(page);
+      await page.route('**/api/session?list=1',route=>route.fulfill({json:{authenticated:true,sessions:[{id:'a'.repeat(64),label:'Chrome · Windows',current:true,createdAt:1791467940000,lastSeen:1791467940000,expiresAt:1794067940000}]}}));
+      await page.goto('http://127.0.0.1:5175/dashboard?tab=create');const attention=page.getByRole('region',{name:'Thông báo và dấu chấm ứng dụng'});await attention.scrollIntoViewIfNeeded();await page.evaluate(()=>document.fonts.ready);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:'review/app-session/attention-'+width+'.png'});
+      await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();await page.getByRole('button',{name:'Phiên đăng nhập',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Phiên đăng nhập MealForm',exact:true});await expect(dialog.getByRole('button',{name:'Đóng',exact:true})).toBeInViewport();await expect(dialog.getByText('Chrome · Windows',{exact:true})).toBeVisible();expect(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true);await page.screenshot({path:'review/app-session/sessions-'+width+'.png'});await page.keyboard.press('Escape');
+    }expect(errors).toEqual([]);
+  });
+  test('install menu uses the real prompt only after click and route chooses the correct manifest',async({page})=>{
+    await interceptMealServices(page);await page.addInitScript(()=>{(window as any).installPrompts=0;});
+    await page.goto('http://127.0.0.1:5175/newest');await expect(page.locator('link[rel=manifest]')).toHaveAttribute('href','/viewer.webmanifest');
+    await page.evaluate(()=>{const event=new Event('beforeinstallprompt',{cancelable:true});Object.assign(event,{prompt:async()=>{(window as any).installPrompts++;},userChoice:Promise.resolve({outcome:'dismissed'})});window.dispatchEvent(event);});
+    expect(await page.evaluate(()=>(window as any).installPrompts)).toBe(0);
+    await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();await page.getByRole('button',{name:'Cài MealForm',exact:true}).click();expect(await page.evaluate(()=>(window as any).installPrompts)).toBe(1);await expect(page.getByRole('status',{name:'Trạng thái cài ứng dụng'})).toContainText('Chưa cài');
+    await page.goto('http://127.0.0.1:5175/dashboard');await expect(page.locator('link[rel=manifest]')).toHaveAttribute('href','/dashboard.webmanifest');
+  });
+  test('manual install instructions never invent an install prompt or an offline promise',async({page})=>{
+    await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();await page.getByRole('button',{name:'Cài MealForm',exact:true}).click();
+    const guide=page.getByRole('region',{name:'Cài MealForm trên thiết bị',exact:true});await expect(guide).toContainText('màn hình chính');await expect(guide).toContainText('Không hỗ trợ dùng offline');await expect(guide).toContainText('không đồng bộ nháp');
+  });
+  test('session dialog loads only on demand and confirms the exact other-session revoke without exposing login tokens',async({page})=>{
+    const writes:object[]=[];await interceptMealServices(page);let reads=0,removed=false;
+    await page.route('**/api/session**',route=>{const request=route.request(),url=new URL(request.url());if(request.method()==='DELETE'){const target=url.searchParams.get('sessionId');writes.push({method:'DELETE',target});removed=true;return route.fulfill({json:{authenticated:true,revoked:true,id:target}});}if(url.searchParams.has('list')){reads++;return route.fulfill({json:{authenticated:true,sessions:[{id:'a'.repeat(64),label:'Chrome · Windows',current:true,createdAt:1791467940000,lastSeen:1791467940000,expiresAt:1794067940000},...(!removed?[{id:'b'.repeat(64),label:'Safari · iOS',current:false,createdAt:1791467940000,lastSeen:1791467940000,expiresAt:1794067940000}]:[])]}});}return route.fallback();});
+    await page.goto('http://127.0.0.1:5175/dashboard');expect(reads).toBe(0);await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();await page.getByRole('button',{name:'Phiên đăng nhập',exact:true}).click();
+    const dialog=page.getByRole('dialog',{name:'Phiên đăng nhập MealForm',exact:true});await expect(dialog).toContainText('Phiên hiện tại');await expect(dialog).toContainText('không phải danh sách thiết bị Google');
+    const row=dialog.locator('li').filter({hasText:'Safari · iOS'});await row.getByRole('button',{name:'Đăng xuất phiên này',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Hủy',exact:true}).click();expect(writes).toEqual([]);
+    await row.getByRole('button',{name:'Đăng xuất phiên này',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Đăng xuất phiên',exact:true}).click();await expect(row).toHaveCount(0);expect(writes).toEqual([{method:'DELETE',target:'b'.repeat(64)}]);
+  });
+  test('OCR completion notification requires opt-in, hidden-page success, and never carries menu/student details',async({page})=>{
+    const writes:object[]=[];await navigationOcr(page,writes);await page.addInitScript(()=>{
+      const sent:any[]=[];(window as any).notices=sent;(window as any).permissionRequests=0;(window as any).hiddenForTest=false;
+      Object.defineProperty(document,'visibilityState',{get:()=>(window as any).hiddenForTest?'hidden':'visible'});
+      Object.defineProperty(window,'Notification',{configurable:true,value:Object.assign(function(title:string,options:object){sent.push({title,...options});},{permission:'granted',requestPermission:async()=>{(window as any).permissionRequests++;return 'granted';}})});
+      Object.defineProperty(navigator,'serviceWorker',{configurable:true,value:{register:async()=>({active:{},showNotification:async(title:string,options:object)=>sent.push({title,...options})}),addEventListener(){},removeEventListener(){}}});
+    });
+    await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page);expect(await page.evaluate(()=>(window as any).permissionRequests)).toBe(0);
+    await page.getByRole('button',{name:'Bật thông báo OCR',exact:true}).click();await page.evaluate(()=>{(window as any).hiddenForTest=true;});await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();
+    await expect.poll(()=>page.evaluate(()=>(window as any).notices.length)).toBe(1);const notices=await page.evaluate(()=>(window as any).notices);expect(notices[0].title).toBe('MealForm');expect(notices[0].body).toBe('Đã có kết quả OCR cần rà soát.');expect(JSON.stringify(notices)).not.toContain('CƠM GÀ');expect(writes).toEqual([{action:'ocr'}]);
+  });
+  test('badge is a true unread flag, acknowledges visible OCR and keeps completion failure isolated from work',async({page})=>{
+    const writes:object[]=[];await navigationOcr(page,writes);await page.addInitScript(()=>{
+      (window as any).badges=[];(window as any).hiddenForTest=false;
+      Object.defineProperty(document,'visibilityState',{get:()=>(window as any).hiddenForTest?'hidden':'visible'});
+      Object.defineProperty(navigator,'setAppBadge',{configurable:true,value:async()=>{(window as any).badges.push('set');}});
+      Object.defineProperty(navigator,'clearAppBadge',{configurable:true,value:async()=>{(window as any).badges.push('clear');}});
+    });
+    await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page);await page.evaluate(()=>{(window as any).hiddenForTest=true;});await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await expect.poll(()=>page.evaluate(()=>(window as any).badges.at(-1))).toBe('set');
+    await page.evaluate(()=>{(window as any).hiddenForTest=false;document.dispatchEvent(new Event('visibilitychange'));});await expect.poll(()=>page.evaluate(()=>(window as any).badges.at(-1))).toBe('clear');await expect(page.locator('#ocr-meal-0-0')).toHaveValue('CƠM GÀ');
+    await page.route('**/api/dashboard',route=>route.request().method()==='POST'?route.fulfill({status:500,json:{error:'Lỗi OCR thử'}}):route.fallback());await page.evaluate(()=>{(window as any).hiddenForTest=true;(window as any).badges=[];});await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await expect(page.locator('.dashboard-message')).toContainText('Lỗi OCR thử');expect(await page.evaluate(()=>(window as any).badges.includes('set'))).toBe(false);
+  });
+});
+
 test.describe('dashboard-nine',()=>{
   test.setTimeout(20000);
   test('a malformed permission acknowledgement preserves the staged change and never retries automatically',async({page})=>{

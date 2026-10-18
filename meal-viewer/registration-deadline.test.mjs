@@ -1,3 +1,4 @@
+import {registeredViewerHandler,registeredHistoryHandler} from './test-helpers/registered-session.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -13,7 +14,7 @@ for(const [at,status,time,want] of [[deadline,'open',now,'Còn khoảng 1 ngày 
 
 const response=()=>({setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}});
 for(const invalid of [false,true]){
-  const reply=response();await createViewerHandler({secret:'test',now:()=>now,readViewerData:async(_id,_refresh,action)=>({formStatus:action==='read-next-viewer'?'open':'closed',formUrl:'https://docs.google.com/forms/d/e/example/viewform',lockAt:invalid?'bad':action==='read-next-viewer'?deadline:'2026-10-12T00:00:00+07:00',calendarDays:['Thứ 2 (19/10/2026)'],closedDays:['Thứ 2 (19/10/2026)'],days:[{day:'Thứ 3 (20/10/2026)'}],rows:[['private']],customLockAt:'private'})})({method:'GET',headers:{},query:{newest:'1'}},reply);
+  const reply=response();await registeredViewerHandler({secret:'test',now:()=>now,readViewerData:async(_id,_refresh,action)=>({formStatus:action==='read-next-viewer'?'open':'closed',formUrl:'https://docs.google.com/forms/d/e/example/viewform',lockAt:invalid?'bad':action==='read-next-viewer'?deadline:'2026-10-12T00:00:00+07:00',calendarDays:['Thứ 2 (19/10/2026)'],closedDays:['Thứ 2 (19/10/2026)'],days:[{day:'Thứ 3 (20/10/2026)'}],rows:[['private']],customLockAt:'private'})})({method:'GET',headers:{},query:{newest:'1'}},reply);
   assert.equal(reply.body.lockAt,invalid?null:'2026-10-12T00:00:00+07:00');
   assert.equal(reply.body.nextForm.lockAt,invalid?null:deadline);
   assert.equal(reply.body.nextForm.serverNow,now);
@@ -22,7 +23,7 @@ for(const invalid of [false,true]){
   const target=model.mealRegistrationTarget(reply.body,true);assert.equal(target.lockAt,invalid?null:deadline);assert.equal(target.serverNow,now);
 }
 const archived=response(),token=createSessionToken({email:'owner@example.com',sub:'owner'},'test',now);
-await createHistoryHandler({secret:'test',now:()=>now,readViewerData:async()=>({lockAt:deadline})})({method:'GET',headers:{cookie:'meal_session='+token},query:{week:'2026-10-12_2026-10-13_2026-10-14_2026-10-15_2026-10-16'}},archived);
+await registeredHistoryHandler({secret:'test',now:()=>now,readViewerData:async()=>({lockAt:deadline})})({method:'GET',headers:{cookie:'meal_session='+token},query:{week:'2026-10-12_2026-10-13_2026-10-14_2026-10-15_2026-10-16'}},archived);
 assert.equal(archived.body.lockAt,deadline);
 
 const gas=vm.createContext({});vm.runInContext(fs.readFileSync(new URL('../MealForm.gs',import.meta.url),'utf8'),gas);
