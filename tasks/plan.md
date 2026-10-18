@@ -2,6 +2,8 @@
 
 ## App/session/attention — 2026-10-18, main/production authorized
 
+Published PR #21, source 91e7e78, merge eee4dbb; Apps Script v81 and same tested artifact dpl_C7czC1EZ5Mq1JjaLfvcktCnt6UQj. Named production version 7bb88481-d1d7-4f6d-a818-dfc6aa641f7a. 215 UI, 41 native/API/GAS scripts in both copies, nine immutable-asset cases and genuine readonly smoke passed; details/limits in VERIFICATION-app-session-attention-2026-10-18.md.
+
 Map CAPABILITY-MAP-app-session-attention.md; four module specs. Session registry first with native/GAS and all protected-route tests; keep existing signed Google cookie and add opaque per-session identity, no legacy auto-upgrade. Install manifests/notification-only worker next, then opt-in completion and honest window badge. Fixed-source full suites, bounded paired PC/mobile inspection, canonical guard/sync, stage exact web artifact, immutable synthetic tests, guarded GAS private enforcement cutover, pinned merge and immediate same-artifact promotion; genuine readonly smoke and README evidence.
 
 ## Dashboard nine — 2026-10-17, published PR #20 / same artifact production
