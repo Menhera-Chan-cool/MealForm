@@ -170,10 +170,6 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   const menu = menuHistory.present;
   const [originalMenu,setOriginalMenu]=useState(null),[draftSource,setDraftSource]=useState('');
   const [sourceStale,setSourceStale]=useState(false);
-  const [editorFocused,setEditorFocused]=useState(false),focusScroll=useRef(null);
-  function toggleEditorFocus(){const next=!editorFocused;if(next)focusScroll.current={top:window.scrollY,left:window.scrollX};setEditorFocused(next);requestAnimationFrame(()=>{if(next)document.querySelector('.editor-focus-tools')?.scrollIntoView({block:'start'});else if(focusScroll.current)window.scrollTo({...focusScroll.current,behavior:'instant'});});}
-  useEffect(()=>{if(tab!=='create')setEditorFocused(false);},[tab]);
-  useEffect(()=>{const escape=event=>{if(editorFocused&&event.key==='Escape'&&!document.querySelector('dialog:modal,:popover-open')){event.preventDefault();toggleEditorFocus();}};document.addEventListener('keydown',escape);return()=>document.removeEventListener('keydown',escape);},[editorFocused]);
   const [reviewEpoch,setReviewEpoch]=useState(0);
   const [ocrQuery,setOcrQuery]=useState(''),[ocrActive,setOcrActive]=useState('');
   const setMenu = value => {if(!value){setOriginalMenu(null);setDraftSource('');setSourceStale(false);}setReviewEpoch(epoch=>epoch+1);setOcrQuery('');setOcrActive('');dispatchMenu({ type: 'reset', value });};
@@ -727,7 +723,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
   useEffect(()=>{if(!online){setWeekVerified(false);warningRevision.current++;setHealth(null);setReconciliation(null);}},[online]);
   const missingScriptPermission = isAppsScriptPermissionError(message);
-  return <DashboardLayout editorFocused={editorFocused} warnings={warnings} tab={tab} onNavigate={setTab} role={overview.role} permissions={permissions} email={overview.email} schoolName={branding.schoolName} busy={busy||signingOut} onSignOut={signOut}><main id="dashboard-content" className="dashboard-shell meal-ui" data-density={viewState.view.density}>
+  return <DashboardLayout warnings={warnings} tab={tab} onNavigate={setTab} role={overview.role} permissions={permissions} email={overview.email} schoolName={branding.schoolName} busy={busy||signingOut} onSignOut={signOut}><main id="dashboard-content" className="dashboard-shell meal-ui" data-density={viewState.view.density}>
     <header className="dashboard-header">
       <div><h1>Dashboard quản trị</h1><p className="sub">Quản lý tuần thực đơn, tạo Form từ ảnh và xử lý lượt gửi.</p></div>
       <DisplayPreferencesSlot/>
@@ -754,12 +750,11 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
 
     {tab === 'create' && permissions.create && <section className="dashboard-panel">
       <div className="field-label-row"><h2>Tạo tuần từ ảnh thực đơn</h2><div className="ocr-header-tools"><AppAttentionControls attention={attention}/><FieldHelp label="OCR">OCR đọc chữ và món từ ảnh. Kết quả có thể sai; hãy đối chiếu ảnh, sửa ngày và món trước khi bấm Tạo Form và Sheet. Đọc ảnh không tự tạo tuần.</FieldHelp></div></div>
-      <div className="editor-focus-tools"><button type="button" className="secondary" aria-pressed={editorFocused} onClick={toggleEditorFocus}>{editorFocused?'Thoát chế độ tập trung':'Tập trung sửa thực đơn'}</button>{editorFocused&&<span>Chỉ thu gọn giao diện; nháp và lịch sử sửa được giữ.</span>}</div>
       <OcrProgress menu={menu} state={creationState}/>
       <CreationReceipt week={createdWeek} onResponses={key=>navigate('delete',key)} onNew={()=>{setCreatedWeek(null);setCreationState('idle');document.querySelector('.image-upload-target')?.focus();}}/>
-      <div className="draft-toolbar"><p role="status">{draft.status || 'Nháp lưu riêng trên thiết bị này, không đồng bộ giữa các máy.'}</p><ExplainedButton type="button" className="secondary" disabled={busy || !online || !draft.ready} reason={busy?'Đang xử lý yêu cầu; không xóa nháp trong lúc này.':'Chưa đọc xong nháp trên thiết bị; hãy chờ.'} onClick={()=>void clearDraft()}>Xóa nháp</ExplainedButton></div>
+      <p className="draft-status" role="status">{draft.status || 'Nháp lưu riêng trên thiết bị này, không đồng bộ giữa các máy.'}</p>
       {sourceStale&&<p className="dashboard-warning" role="status" aria-label="Nguồn ảnh đã thay đổi">Nguồn ảnh đã thay đổi. Kết quả OCR và bản sửa hiện tại chưa phản ánh ảnh mới. Nháp và Undo được giữ; chỉ bấm Đọc thực đơn khi muốn đọc lại.</p>}
-      <DraftTransfer menu={menu} disabled={busy||!online||!draft.ready||Boolean(mergeBase)||Boolean(regionBase)} onApply={(next,before,kind)=>{if(busy||!online||!draft.ready||before!==menu)throw Error('Nháp đã thay đổi hoặc chưa thể sửa; hãy xem trước lại.');dispatchMenu({type:'apply',value:next});if(!menu)setOriginalMenu(next);if(!image)setDraftSource('table');setAllowMissing(false);setCreationState('idle');setMessage(kind==='table'?'Đã áp dụng bảng vào nháp. Chưa tạo Form/Sheet.':'Đã sao chép món trong nháp. Có thể hoàn tác.','success');}}/>
+      <DraftTransfer menu={menu} disabled={busy||!online||!draft.ready||Boolean(mergeBase)||Boolean(regionBase)} onApply={(next,before,kind)=>{if(busy||!online||!draft.ready||before!==menu)throw Error('Nháp đã thay đổi hoặc chưa thể sửa; hãy xem trước lại.');dispatchMenu({type:'apply',value:next});if(!menu)setOriginalMenu(next);if(!image)setDraftSource('table');setAllowMissing(false);setCreationState('idle');setMessage(kind==='table'?'Đã áp dụng bảng vào nháp. Chưa tạo Form/Sheet.':'Đã sao chép món trong nháp. Có thể hoàn tác.','success');}}><ExplainedButton type="button" className="secondary" disabled={busy || !online || !draft.ready} reason={busy?'Đang xử lý yêu cầu; không xóa nháp trong lúc này.':'Chưa đọc xong nháp trên thiết bị; hãy chờ.'} onClick={()=>void clearDraft()}>Xóa nháp</ExplainedButton></DraftTransfer>
       {menu&&<DraftInspection menu={menu} original={originalMenu} onJump={jumpToReview} disabled={busy||!online}/>}
       <ImageInput onReplace={replaceImage} onLabel={(index,label)=>{if(!busy&&draft.ready&&!mergeBase&&!regionBase)setImages(current=>current.map((entry,i)=>i===index?{...entry,label}:entry));}} onReorder={next=>{if(!busy&&draft.ready&&!imageOrderBlocked)setImages(next);}} reorderBlocked={imageOrderBlocked} images={images} activeImage={image} disabled={busy||!draft.ready} onBusy={setBusy} onMessage={setMessage} onChoose={chooseImage} onRemove={removeImage} onImages={(next,append)=>{setCreationState('idle');setImages(next);chooseImage(next[0]);if(!append){setMenu(null);setAllowMissing(false);}setMergeBase(null);}}/>
       {image && file?.name && !file.type && <p className="menu-image-hint">Ảnh đã khôi phục: {file.name}. Không cần chọn lại để tiếp tục OCR hoặc sửa món.</p>}
