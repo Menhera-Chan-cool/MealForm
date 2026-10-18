@@ -3,6 +3,9 @@
 ## Objective / acceptance
 Per-account local opt-in, permission requested only on explicit user gesture. Notify only validated successful full/multi/region OCR received after the page became hidden; no failures, cancel, fake progress or stale account. Generic fixed message contains no students, email, image, dishes, IDs, tokens or source URLs. Persistent SW notification preferred when available; graceful unsupported/denied/error feedback, manual test clearly labeled and disabled by default. Click focuses existing Dashboard and posts a guarded request to open OCR; no silent navigation over unsaved data, no auto create. No push server or promise after tab/browser closes.
 
+## Controls presentation — 2026-10-18
+Controls are collapsed behind a 44px CircleAlert (!) button immediately left of OCR help (?). Reuse the native auto-popover and More menu theme/motion, anchor by the trigger on PC, bottom panel above mobile navigation. Close by outside click, Escape or explicit Close; keyboard focus returns to the opener. Settings/state remain in the existing parent hook; no extra permission request/read/write on opening. Very short screens use available viewport with scrolling and sticky Close. This presentation-only delta does not change API/GAS v81 or notification/badge logic.
+
 ## Commands
 `npm test` in meal-viewer; `npm exec -- playwright test --config .playwright-cli/reading-polish.config.ts --grep app-session-attention` in mealform-preview. Final fixed-source entire UI suite, preview `npm test`, `npm run build`, `npm run build-storybook`, built compatibility; exact staged artifact tests before merge/promotion.
 

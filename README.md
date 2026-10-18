@@ -1,5 +1,9 @@
 # MealForm
 
+## Bảng thông báo sau nút ! — 18/10/2026
+
+Phần tạo tuần chỉ hiện nút `!` cạnh `?`; bấm mở bảng nổi cùng kiểu Thêm. PC đặt bảng cạnh nút, điện thoại mở ở dưới; có Đóng, Escape hoặc bấm ngoài, giữ tùy chọn khi mở lại. Màn hình thấp vẫn cuộn được và luôn có nút đóng. Không đổi cơ chế thông báo/dấu chấm, không tự xin quyền hoặc gọi thêm API, Apps Script giữ v81. Phạm vi/kiểm thử/phát hành: VERIFICATION-attention-popover-2026-10-18.md.
+
 ## Cài ứng dụng, phiên đăng nhập và thông báo — 18/10/2026
 
 Menu `…` có Cài MealForm (bản Thực đơn hoặc Quản trị) và Phiên đăng nhập MealForm. Cài đặt phụ thuộc trình duyệt; không có offline, cache API riêng tư hay đồng bộ nháp. Biểu tượng cài đặt là MealForm chung; thương hiệu trường vẫn dùng trong web.
