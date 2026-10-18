@@ -1,3 +1,4 @@
+import {registeredHistoryHandler} from './test-helpers/registered-session.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -22,7 +23,7 @@ assert.equal(typeof security.createHistoryHandler, 'function');
 const secret = 'history-session-secret';
 const token = security.createSessionToken({ sub: 'viewer', email: 'viewer@example.com' }, secret);
 const calls = [];
-const handler = security.createHistoryHandler({ secret, readViewerData: async (key, _refresh, action) => {
+const handler = registeredHistoryHandler({ secret, readViewerData: async (key, _refresh, action) => {
   calls.push({ key, action });
   return action === 'read-history' ? { weeks } : { title: 'Old week', headers: ['Họ tên', 'Email'], rows: [['An', 'private@example.com']], days: [] };
 } });

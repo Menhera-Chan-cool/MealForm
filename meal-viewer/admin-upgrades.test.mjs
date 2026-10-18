@@ -1,3 +1,4 @@
+import {registeredDashboardHandler} from './test-helpers/registered-session.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -129,7 +130,7 @@ assert.equal(JSON.stringify(gas.getMealBranding_()).includes('test-hmac-secret')
 const sessionSecret='test-session-secret';
 const token=createSessionToken({sub:'manager',email:'manager@example.com'},sessionSecret,now);
 const calls=[];
-const handler=createDashboardHandler({secret:sessionSecret,now:()=>now,callGas:async p=>{calls.push(p);return p.action==='dashboard-authorize'?{role:'manager',permissions:{view:true,create:true,manageResponses:true}}:report;}});
+const handler=registeredDashboardHandler({secret:sessionSecret,now:()=>now,callGas:async p=>{calls.push(p);return p.action==='dashboard-authorize'?{role:'manager',permissions:{view:true,create:true,manageResponses:true}}:report;}});
 const res=()=>({setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}});
 const denied=res();await handler({method:'POST',headers:{cookie:`meal_session=${token}`,host:'example.com',origin:'https://example.com'},body:{action:'form-control',weekKey:key}},denied);assert.equal(denied.code,403);
 const rec=res();await handler({method:'GET',headers:{cookie:`meal_session=${token}`},query:{reconcile:'1',week:key}},rec);assert.equal(rec.code,200);assert.equal(calls.at(-1).action,'dashboard-reconcile');

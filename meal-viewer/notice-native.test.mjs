@@ -1,3 +1,4 @@
+import {registeredDashboardHandler,registeredViewerHandler} from './test-helpers/registered-session.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';import vm from 'node:vm';
 import {createDashboardHandler,createSessionToken,createViewerHandler} from './api/security.mjs';
@@ -25,10 +26,10 @@ now=Date.parse('2026-10-13T03:00:00Z');const cleared=gas.handleMealDashboardRequ
 assert.throws(()=>gas.handleMealDashboardRequest_({...request,endsOn:'2026-10-14',expectedUpdatedAt:saved.notice.updatedAt}),/thay đổi|tải lại/);
 failAudit=true;assert.throws(()=>gas.handleMealDashboardRequest_({...request,endsOn:'2026-10-14',expectedUpdatedAt:cleared.notice.updatedAt}),/chưa|kiểm tra/);assert.equal(gas.readMealWeekNotice_(week).text,'Thứ Tư nghỉ','partial audit failure must not pretend property write failed');
 const secret='unit-secret',token=createSessionToken({sub:'manager',email:'manager@example.com'},secret),calls=[];
-const handler=createDashboardHandler({secret,callGas:async p=>{calls.push(p);return{role:'manager',permissions:{view:true,create:true,manageResponses:true}};}});
+const handler=registeredDashboardHandler({secret,callGas:async p=>{calls.push(p);return{role:'manager',permissions:{view:true,create:true,manageResponses:true}};}});
 const res=()=>({setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}});
 for(const req of [{method:'GET',query:{notice:'1',week}},{method:'POST',body:{action:'set-week-notice',weekKey:week,text:'x',endsOn:'2026-10-14',expectedUpdatedAt:0}}]){const reply=res(),before=calls.length;await handler({...req,headers:{cookie:`meal_session=${token}`,origin:'https://example.com',host:'example.com'}},reply);assert.equal(reply.code,403);assert.equal(calls.length,before+1,'non-owner notice access cannot reach backend');}
-const publicReply=res();await createViewerHandler({secret,now:()=>now,readViewerData:async()=>({title:'Test',serverNow:now,weekNotice:{text:'Public',expiresAt:now+1000,actor:'private'}})})({method:'GET',headers:{},query:{newest:'1',guest:'1'}},publicReply);
+const publicReply=res();await registeredViewerHandler({secret,now:()=>now,readViewerData:async()=>({title:'Test',serverNow:now,weekNotice:{text:'Public',expiresAt:now+1000,actor:'private'}})})({method:'GET',headers:{},query:{newest:'1',guest:'1'}},publicReply);
 assert.equal(publicReply.body.weekNotice?.text,'Public','public API must retain notice');assert.equal('actor' in publicReply.body.weekNotice,false);
-const expiredReply=res();await createViewerHandler({secret,now:()=>now+1000,readViewerData:async()=>({title:'Test',serverNow:now,weekNotice:{text:'Expired',expiresAt:now+1000}})})({method:'GET',headers:{},query:{next:'1'}},expiredReply);assert.equal(expiredReply.body.weekNotice,null,'gateway must filter cached expired notices too');
+const expiredReply=res();await registeredViewerHandler({secret,now:()=>now+1000,readViewerData:async()=>({title:'Test',serverNow:now,weekNotice:{text:'Expired',expiresAt:now+1000}})})({method:'GET',headers:{},query:{next:'1'}},expiredReply);assert.equal(expiredReply.body.weekNotice,null,'gateway must filter cached expired notices too');
 console.log('Owner-only weekly notices, expiry, stale edits, public filtering and audit failures passed');

@@ -1,3 +1,4 @@
+import {registeredDashboardHandler} from './test-helpers/registered-session.mjs';
 import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import crypto from 'node:crypto';
 import {compareResponseVersions} from './src/dashboard-model.mjs';
 import {createDashboardHandler,createSessionToken} from './api/security.mjs';
@@ -27,7 +28,7 @@ assert.throws(()=>gas.analyzeMealImages_(['data:image/png;base64,'+'Zg=='.repeat
 const fragments=gas.handleMealDashboardRequest_({action:'dashboard-ocr-images',email:'owner@example.com',images:[image,image]});assert.equal(fragments.fragments.length,2);assert.equal(fragments.fragments[0].days.length,1,'partial photos must not fabricate absent days');assert.equal(fragments.fragments[1].imageIndex,1);assert.equal(providerCalls,2);
 ocrResult={title:'Bad',days:[{day:'Thứ 2',date:'x',meals:['a','b','c','d']}]};assert.throws(()=>gas.analyzeMealImages_([image],'owner@example.com'),/hợp lệ|món/);
 const secret='test-secret',token=createSessionToken({sub:'reader',email:'reader@example.com'},secret);const calls=[];
-const handler=createDashboardHandler({secret,callGas:async value=>{calls.push(value);return{role:'manager',permissions:{view:true,create:false,manageResponses:false}};}});
+const handler=registeredDashboardHandler({secret,callGas:async value=>{calls.push(value);return{role:'manager',permissions:{view:true,create:false,manageResponses:false}};}});
 const reply={setHeader(){},status(value){this.code=value;return this;},json(value){this.body=value;return this;}};
 await handler({method:'POST',headers:{cookie:`meal_session=${token}`,origin:'https://example.com',host:'example.com'},body:{action:'ocr-images',images:[image,image]}},reply);assert.equal(reply.code,403);assert.equal(calls.length,1,'unauthorized OCR cannot reach provider backend');
 console.log('Native whole-week content versions and guarded bounded multi-image OCR passed');

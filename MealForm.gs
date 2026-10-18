@@ -67,16 +67,19 @@ function doPost(e) {
     if (!contents || contents.length > 4200000) throw new Error('Yêu cầu quá lớn hoặc không hợp lệ.');
     const envelope = JSON.parse(contents);
     const hint = envelope && typeof envelope.payload === 'string' ? JSON.parse(envelope.payload) : null;
+    if(hint && String(hint.action||'').indexOf('session-')===0){if(contents.length>4096)throw new Error('Yêu cầu phiên không hợp lệ.');return createMealViewerJsonOutput_({data:handleMealSessionRequest_(verifyMealDashboardEnvelope_(envelope))});}
     if (hint && String(hint.action || '').indexOf('dashboard-') === 0) {
       if (contents.length > 4200000) throw new Error('Ảnh quá lớn; hãy chọn ảnh nhỏ hơn 3 MB.');
-      return createMealViewerJsonOutput_({ data: handleMealDashboardRequest_(verifyMealDashboardEnvelope_(envelope)) });
+      const request=verifyMealDashboardEnvelope_(envelope);assertMealSession_(request.session);
+      return createMealViewerJsonOutput_({ data: handleMealDashboardRequest_(request) });
     }
     if (contents.length > 10000) throw new Error('Yêu cầu không hợp lệ.');
     const request = verifyMealViewerEnvelope_(envelope);
     if (!request || ['read-viewer', 'read-latest-viewer', 'read-next-viewer', 'read-history', 'read-history-viewer', 'read-branding'].indexOf(request.action) < 0) throw new Error('Yêu cầu không hợp lệ.');
+    if(['read-viewer','read-history','read-history-viewer'].indexOf(request.action)>=0)assertMealSession_(request.session);
     if (request.action === 'read-branding') return createMealViewerJsonOutput_({ data: getMealBranding_() });
-    if (request.action === 'read-history') return createMealViewerJsonOutput_({ data: { weeks: getMealHistoryWeeks_() } });
-    if (request.action === 'read-history-viewer') return createMealViewerJsonOutput_({ data: getMealHistoryViewerData_(request.weekKey, request.forceRefresh === true) });
+    if (request.action === 'read-history') return createMealViewerJsonOutput_({ data: { weeks: getMealHistoryWeeks_(),sessionActive:true } });
+    if (request.action === 'read-history-viewer') return createMealViewerJsonOutput_({ data: Object.assign({},getMealHistoryViewerData_(request.weekKey, request.forceRefresh === true),{sessionActive:true}) });
     if (request.action === 'read-latest-viewer') {
       const latest = getLatestMealFormRegistration_();
       if (!latest) throw new Error('Chưa có thực đơn cho tuần này.');
@@ -88,10 +91,51 @@ function doPost(e) {
       return createMealViewerJsonOutput_({ data: getViewerData_(next.spreadsheetId, request.forceRefresh === true) });
     }
     const spreadsheetId = normalizeViewerSheetId_(request.sheetId);
-    return createMealViewerJsonOutput_({ data: getViewerData_(spreadsheetId, request.forceRefresh === true) });
+    return createMealViewerJsonOutput_({ data: Object.assign({},getViewerData_(spreadsheetId, request.forceRefresh === true),{sessionActive:true}) });
   } catch (error) {
     return createMealViewerJsonOutput_(Object.assign({ error: cleanMealText_(error && error.message) || 'Yêu cầu bị từ chối.' },error && error.receipt ? {receipt:error.receipt} : {}));
   }
+}
+
+function handleMealSessionRequest_(request) {
+  if (!request || !/^[a-f0-9]{64}$/.test(request.accountKey || '') || !/^[a-f0-9]{64}$/.test(request.sessionKey || '') || ['session-register','session-check','session-renew','session-list','session-revoke'].indexOf(request.action)<0) throw new Error('Yêu cầu phiên không hợp lệ.');
+  const properties=PropertiesService.getUserProperties(),prefix='MEAL_SESSIONS_V1_',key=prefix+request.accountKey,now=Date.now(),ttl=30*86400000;
+  function read(raw) {
+    if (!raw) return [];
+    let records;try{records=JSON.parse(raw);}catch(error){throw new Error('Không đọc được danh sách phiên.');}
+    if (!Array.isArray(records) || records.length>8 || records.some(function(item){return !item || !/^[a-f0-9]{64}$/.test(item.id||'') || typeof item.label!=='string' || item.label.length>80 || ![item.createdAt,item.lastSeen,item.expiresAt].every(function(value){return typeof value==='number'&&isFinite(value)&&value>0;}) || item.createdAt>item.lastSeen || item.lastSeen>item.expiresAt;}) || new Set(records.map(function(item){return item.id;})).size!==records.length) throw new Error('Danh sách phiên không hợp lệ.');
+    return records.filter(function(item){return item.expiresAt>now;});
+  }
+  if(request.action==='session-check')return {active:read(properties.getProperty(key)).some(function(item){return item.id===request.sessionKey;})};
+  const lock=LockService.getScriptLock();lock.waitLock(5000);
+  try {
+    let records=read(properties.getProperty(key)),current=records.find(function(item){return item.id===request.sessionKey;});
+    if(request.action==='session-register') {
+      if(typeof request.label!=='string'||!request.label.trim()||request.label.length>80||/[\r\n<>]/.test(request.label))throw new Error('Nhãn phiên không hợp lệ.');
+      if(current)throw new Error('Phiên đã tồn tại; không tạo trùng.');
+      if(records.length>=8)throw new Error('MEAL_SESSION_LIMIT');
+      const all=properties.getProperties();
+      Object.keys(all).filter(function(name){return name.indexOf(prefix)===0&&/^[a-f0-9]{64}$/.test(name.slice(prefix.length));}).forEach(function(name){try{if(read(all[name]).length===0)properties.deleteProperty(name);}catch(error){/* Invalid registry is never erased automatically. */}});
+      current={id:request.sessionKey,label:request.label,createdAt:now,lastSeen:now,expiresAt:now+ttl};records.push(current);
+      properties.setProperty(key,JSON.stringify(records));return {active:true,session:current};
+    }
+    if(!current){if(request.action==='session-renew')return {active:false};throw new Error('MEAL_SESSION_REVOKED');}
+    if(request.action==='session-renew') {
+      if(now-current.lastSeen>=300000){current.lastSeen=now;current.expiresAt=now+ttl;properties.setProperty(key,JSON.stringify(records));}
+      return {active:true,expiresAt:current.expiresAt};
+    }
+    if(request.action==='session-revoke') {
+      if(!/^[a-f0-9]{64}$/.test(request.targetId||''))throw new Error('Phiên cần thu hồi không hợp lệ.');
+      records=records.filter(function(item){return item.id!==request.targetId;});
+      if(records.length)properties.setProperty(key,JSON.stringify(records));else properties.deleteProperty(key);
+      return {active:true,revoked:true,targetId:request.targetId,current:request.targetId===request.sessionKey};
+    }
+    return {active:true,serverNow:now,sessions:records.map(function(item){return {id:item.id,label:item.label,createdAt:item.createdAt,lastSeen:item.lastSeen,expiresAt:item.expiresAt,current:item.id===request.sessionKey};})};
+  } finally {lock.releaseLock();}
+}
+
+function assertMealSession_(session) {
+  if(!session || !handleMealSessionRequest_({action:'session-check',accountKey:session.accountKey,sessionKey:session.sessionKey}).active)throw new Error('MEAL_SESSION_REVOKED');
 }
 
 function verifyMealViewerEnvelope_(envelope) {
@@ -357,7 +401,7 @@ function handleMealDashboardRequest_(request) {
   const role = getMealDashboardAccessRole_(request.email);
   const permissions = getMealDashboardPermissions_(request.email);
   if (request.action === 'dashboard-authorize') {
-    const authorization = { role: role, permissions: permissions };
+    const authorization = { role: role, permissions: permissions,sessionActive:Boolean(request.session) };
     if (role && permissions.view && request.includeWeeks === true) {
       const registry = getMealFormRegistry_();
       authorization.weeks = Object.keys(registry).filter(function(key) { return registry[key] && registry[key].formId && registry[key].spreadsheetId; }).sort().reverse().map(function(key) {

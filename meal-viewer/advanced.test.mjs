@@ -1,3 +1,4 @@
+import {registeredDashboardHandler} from './test-helpers/registered-session.mjs';
 import assert from 'node:assert/strict';
 import { errorMessage, spreadsheetIdFromUrl } from './src/viewer-model.mjs';
 import { cookieValue, createDashboardGasClient, createDashboardHandler, createGasReader, createSessionToken, readSessionToken, requestBody } from './api/security.mjs';
@@ -74,7 +75,7 @@ const session = createSessionToken({ sub: 'google-sub', email: 'owner@example.co
 assert.equal(readSessionToken(session, sessionSecret, 1789991800000).email, 'owner@example.com');
 
 const calls = [];
-const dashboard = createDashboardHandler({
+const dashboard = registeredDashboardHandler({
   secret: sessionSecret,
   now: () => 1789991800000,
   callGas: async payload => {
@@ -107,7 +108,7 @@ assert.deepEqual(allowed.body.weeks, []);
 assert.equal(calls.at(-1).action, 'dashboard-overview');
 
 const ownerCalls = [];
-const ownerDashboard = createDashboardHandler({
+const ownerDashboard = registeredDashboardHandler({
   secret: sessionSecret,
   now: () => 1789991800000,
   callGas: async payload => {
@@ -128,7 +129,7 @@ assert.deepEqual(scriptAuth.body, { authorizationRequired: true, authorizationUr
 assert.equal(ownerCalls.at(-1).action, 'dashboard-script-auth');
 
 const managerCalls = [];
-const managerDashboard = createDashboardHandler({
+const managerDashboard = registeredDashboardHandler({
   secret: sessionSecret,
   now: () => 1789991800000,
   callGas: async payload => {

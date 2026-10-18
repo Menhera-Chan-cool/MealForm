@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import ElapsedWait from './ElapsedWait.jsx';
 import { cropPixelRect, applyRegionResult } from './dashboard-model.mjs';
 
-export default function RegionOcr({ image, menu, request, onApply, onClose, onBusy }) {
+export default function RegionOcr({ image, menu, request, onApply, onClose, onBusy, onResultReady }) {
   const dialog = useRef(null), picture = useRef(null), drag = useRef(null), controller = useRef(null);
   const [target, setTarget] = useState({mode:'day',dayIndex:0});
   const [rect, setRect] = useState({x:10,y:10,width:50,height:40});
@@ -27,7 +27,7 @@ export default function RegionOcr({ image, menu, request, onApply, onClose, onBu
       const cropped=canvas.toDataURL('image/jpeg',.92);
       if(cropped.length>4000000)throw Error('Vùng ảnh quá lớn; hãy khoanh nhỏ hơn.');
       const result=await request('/api/dashboard',{method:'POST',signal:controller.current.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ocr-region',image:cropped,target})});
-      applyRegionResult(menu,target,result);setProposal(result);
+      applyRegionResult(menu,target,result);setProposal(result);onResultReady?.();
     } catch(error) { if(error.name!=='AbortError')setError(error.message); }
     finally {setBusy(false);onBusy(false);}
   }
