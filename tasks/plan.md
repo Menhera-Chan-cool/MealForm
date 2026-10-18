@@ -2,6 +2,8 @@
 
 ## OCR attention popover — 2026-10-18, main/production authorized
 
+Published PR #22, source c60f1ef, merge cc5c3e2; same artifact dpl_BWAbqGGkkJBAnCiDGH2s2RKCBHtE / version9bcb7651-1ca9-4d59-b705-bd95b0fdd555 promoted. 218 UI, 41 native/API/GAS in both copies, 11 built-asset cases and genuine readonly smoke passed. Apps Script/API unchanged; details in VERIFICATION-attention-popover-2026-10-18.md.
+
 Move only presentation of existing notification/badge controls into the ! beside OCR help. Reuse native auto-popover/More theme and motion plus anchored positioning; preserve parent-owned account settings and explicit permission gestures. Test collapsed/adjoining/close/focus/mobile/shared More and short scrolling RED/GREEN. Bounded visual batch + one correction/confirmation, native/UI/preview builds, guarded canonical sync, pinned immutable web artifact, PR/main merge and same-artifact promotion. No Apps Script/API or actual-data writes.
 
 ## App/session/attention — 2026-10-18, main/production authorized

@@ -4,6 +4,8 @@
 
 Phần tạo tuần chỉ hiện nút `!` cạnh `?`; bấm mở bảng nổi cùng kiểu Thêm. PC đặt bảng cạnh nút, điện thoại mở ở dưới; có Đóng, Escape hoặc bấm ngoài, giữ tùy chọn khi mở lại. Màn hình thấp vẫn cuộn được và luôn có nút đóng. Không đổi cơ chế thông báo/dấu chấm, không tự xin quyền hoặc gọi thêm API, Apps Script giữ v81. Phạm vi/kiểm thử/phát hành: VERIFICATION-attention-popover-2026-10-18.md.
 
+Đã merge [PR #22](https://github.com/Menhera-Chan-cool/MealForm/pull/22) vào main và chuyển đúng artifact đã kiểm thử lên [production](https://menutaythanh.vercel.app), phiên bản `9bcb7651-1ca9-4d59-b705-bd95b0fdd555`. **218/218 ca UI**, 41 bộ ứng dụng/API/GAS ở cả hai bản, năm token/guard, 11 tương thích, TypeScript/Vite/Storybook và 11 ca trên tài nguyên Vercel đạt. Website thật chỉ đọc đạt; không ghi dữ liệu thật, không đổi API/Apps Script v81/cookie đăng nhập. Log 15 phút không thấy HTTP5xx; hai DEP0169 ghi mức error trên yêu cầu200 chưa truy nguồn. Chưa thử điện thoại vật lý; RAR/mã chia sẻ cũ không được rebuild.
+
 ## Cài ứng dụng, phiên đăng nhập và thông báo — 18/10/2026
 
 Menu `…` có Cài MealForm (bản Thực đơn hoặc Quản trị) và Phiên đăng nhập MealForm. Cài đặt phụ thuộc trình duyệt; không có offline, cache API riêng tư hay đồng bộ nháp. Biểu tượng cài đặt là MealForm chung; thương hiệu trường vẫn dùng trong web.
