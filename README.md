@@ -1,5 +1,11 @@
 # MealForm
 
+## Bố cục theo công việc — 19/10/2026
+
+Cài đặt có phần giải thích bên trái/ô chỉnh bên phải trên PC, chuyển một cột trên mobile; Hệ thống và Thương hiệu có mục lục hoặc “Đến mục”. Lượt gửi/đối soát dùng vùng rộng, Form/thông báo/đăng nhập có khung vừa; nhóm con dùng khoảng cách/đường ngăn thay thẻ lồng. Thanh Lượt gửi theo thứ tự Tuần → Tìm/lọc → Thao tác, xuống hàng theo nhóm. Kho tuần PC có danh sách bên trái và Viewer gốc bên phải; mobile xem trang tuần riêng, quay về giữ bộ lọc/vị trí. Tuần chưa có thực đơn hiện thông báo gọn tại vùng nội dung. Không đổi API/GAS, quyền, nháp/Undo hoặc các xác nhận.
+
+Phạm vi/đặc tả: CAPABILITY-MAP-task-layouts.md và bốn SPEC được dẫn trong đó. Kiểm thử/phát hành đang hoàn tất; chưa coi nội dung này là xác nhận production.
+
 ## Thanh nháp gọn hơn — 18/10/2026
 
 `Dán bảng vào nháp` nằm cạnh `Xóa nháp`, kể cả mobile/chữ lớn; trường nhập bảng vẫn chiếm đủ chiều rộng. Đã bỏ nút/chế độ Tập trung sửa thực đơn cùng mã không còn dùng. Giữ xác nhận xóa nháp, xem trước/áp dụng bảng, sao chép món, Undo và chặn thao tác khi offline/bận. Không đổi API/Apps Script. Hồ sơ: VERIFICATION-draft-toolbar-2026-10-18.md.

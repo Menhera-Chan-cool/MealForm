@@ -1,5 +1,14 @@
 # Admin upgrades
 
+## Task layouts — 2026-10-19
+
+- [x] Foundations: task width and flat inner sections, RED/GREEN responsive checks.
+- [x] Settings: explain/control, linear inputs, safe contents focus, drafts/permissions retained.
+- [x] Toolbars: context/filter/action DOM and responsive grouping, guards retained.
+- [x] Archive: desktop list/detail, mobile return state, contextual empty and unauthorized paths.
+- [x] Full tests/builds, bounded visual review, guarded canonical sync.
+- [ ] Pinned GitHub/main, identical Vercel artifact, readonly production smoke and release docs.
+
 ## OCR draft toolbar — 2026-10-18
 
 - [x] Clear/Paste adjacent with retained cancel/offline/preview/Undo; focus mode and dead wiring removed.

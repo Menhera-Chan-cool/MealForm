@@ -131,7 +131,11 @@ The original comfort provider owns normal/large text persistence. Large text cha
 
 ## Layout
 
-The Dashboard uses a sticky scrollable sidebar (232px), a flexible main column and an outer cap of 1680px. Its main area has a 1440px cap and 32px padding. The nine existing section identifiers and role checks remain authoritative. The sidebar groups meal tasks and administration; account context sits below.
+The Dashboard uses a sticky scrollable sidebar (232px), a flexible main column and an outer cap of 1920px. Responses/reconciliation use the available main width; branding/system/access cap at1280px, Form/notice at960px, with32px desktop padding. Login uses an800px page and720px inner measure. The nine section identifiers and role checks remain authoritative. The sidebar groups meal tasks and administration; account context sits below.
+
+Task layouts (19/10/2026) keep explanations left and one-axis controls right in wide settings, above controls below700px. Branding/system contents sit beside long pages above1200px and become native “Đến mục” below. Jumps focus visible sections without changing route or draft. Ordinary inner lists/filters use dividers rather than nested card surfaces. Responses group week, search/filter and actions in DOM order and stack whole groups; the full inline-filter toolbar stays in normal flow so a tall fixed region cannot obscure mobile content.
+
+Authenticated archive above1100px places list at left (300–360px) and the original Viewer at right. Smaller selected routes hide the list and keep the full Viewer; native links, month/calendar/status context and UI-only history return position remain available. List/detail navigation performs a document read, without iframe, private API payload cache or speculative detail prefetch. Missing current/next is a compact content-region status with unchanged navigation/retry, distinct from no submissions and authorization errors.
 
 Current/next cards and week lists use two columns, becoming one at 1100px and below. This intermediate-width behavior preserves readable cards beside the sidebar. Viewer summaries use three columns, two at the same breakpoint and one on mobile. The viewer itself is centered with a 1440px cap and 32px padding, without a Dashboard sidebar.
 
