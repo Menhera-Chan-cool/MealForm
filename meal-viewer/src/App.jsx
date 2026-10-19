@@ -12,7 +12,7 @@ import FilterControls, { ComboSelect } from './FilterControls.jsx';
 import RegistrationContext from './RegistrationContext.jsx';
 import ChevronIcon from './ChevronIcon.jsx';
 import useDisclosureAnimation from './useDisclosureAnimation.js';
-import HistoryArchive from './HistoryArchive.jsx';
+import ArchiveWorkspace from './ArchiveWorkspace.jsx';
 import SetupChecklist from './SetupChecklist.jsx';
 import VersionNotice from './VersionNotice.jsx';
 import { readLoginState } from './session-client.mjs';
@@ -377,7 +377,7 @@ function App() {
   if (isSetup) return <SetupChecklist authenticated={auth === 'authenticated'} />;
   if (auth === 'error') return <main className="meal-ui ui-viewer"><section className="login-panel"><h1>Chưa kết nối được</h1><p role="alert">{message}</p><p>Thông tin phiên chưa bị xóa. Bạn không cần đăng xuất để thử lại.</p><div className="actions"><button type="button" onClick={() => void checkSession()}>Kiểm tra lại</button><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đăng xuất</button>{isWeekPage && <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>}</div><ErrorReportButton report={failure} /></section></main>;
   if (isHistoryList && auth === 'loading') return <main className="meal-ui ui-viewer"><ContentSkeleton label="Đang xác nhận đăng nhập…" /><ElapsedWait active label="Đang xác nhận đăng nhập"/></main>;
-  if (isHistoryList && auth === 'authenticated') return <main className="meal-ui ui-viewer"><header className="viewer-header"><h1>Kho thực đơn tuần cũ</h1><DisplayPreferencesSlot/></header><WeekNavigation current="history"/><HistoryArchive onUnauthorized={() => setAuth('anonymous')} /></main>;
+  if (isHistoryList && auth === 'authenticated') return <ArchiveWorkspace onUnauthorized={() => {setData(null);setAuth('anonymous');}}/>;
   if (isDashboard) {
     if (auth === 'loading') return <main className="meal-ui ui-viewer"><ContentSkeleton label="Đang xác nhận đăng nhập và quyền dashboard…" /><ElapsedWait active label="Đang xác nhận đăng nhập"/></main>;
     if (auth === 'anonymous') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2><LoginContext/>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p><ErrorReportButton report={failure} /></section></main>;
@@ -385,7 +385,7 @@ function App() {
     return <Dashboard key={dashboardData?.accountId} initialData={dashboardData} onSignOut={signOutDashboard} onUnauthorized={(message, status) => { setFailure(safeErrorReport('dashboard', { status })); clearDashboardCache(); authRequest.current++; setDashboardData(null); setAuth(status === 401 ? 'anonymous' : 'forbidden'); setMessage(message); }} />;
   }
 
-  return <main className="meal-ui ui-viewer">
+  const viewer=<main className="meal-ui ui-viewer">
     <VersionNotice disabled={busy} />
     <header className="viewer-header">
       <div className="viewer-title-group">
@@ -412,13 +412,13 @@ function App() {
         <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>
       </div>}
       <div className="message" role="status" aria-live="polite">{message}</div>
-    </section> : auth === 'loading' ? <ContentSkeleton label="Đang xác nhận phiên đăng nhập…" /> : busy && !data ? <ContentSkeleton label="Đang tải thực đơn…" /> : weekUnavailable || (stoppedReading&&!data) ? <section className="login-panel" role="status">
+    </section> : auth === 'loading' ? <ContentSkeleton label="Đang xác nhận phiên đăng nhập…" /> : busy && !data ? <ContentSkeleton label="Đang tải thực đơn…" /> : weekUnavailable || (stoppedReading&&!data) ? <section className="viewer-empty-region" role="region" aria-label="Nội dung thực đơn"><div role="status">
       <h2>{weekUnavailable?loadError:'Chưa tải được dữ liệu tuần này.'}</h2>
       <div className="actions">
         {weekLink.map(link => <a key={link.href} className="form-link week-link" href={link.href}>{link.label}</a>)}
         <ExplainedButton className="secondary" type="button" disabled={busy || checking} reason="Đang đọc dữ liệu; hãy chờ hoặc dùng Dừng chờ dữ liệu." onClick={() => void loadData(true, auth === 'guest')}>Tải lại dữ liệu</ExplainedButton>
       </div>
-    </section> : !data&&(loadProblem||auth==='forbidden')?<ViewerLinkProblem kind={auth==='forbidden'?'forbidden':loadProblem} message={loadError} archiveHref={isHistory?archiveBackHref(new URLSearchParams(viewerSearch).get('week')||'',viewerSearch):'/history'} onRetry={()=>void loadData(true,auth==='guest')} onChangeAccount={()=>void signOutDashboard().catch(error=>setLoadError(error.message))}/>: <>
+    </div></section> : !data&&(loadProblem||auth==='forbidden')?<ViewerLinkProblem kind={auth==='forbidden'?'forbidden':loadProblem} message={loadError} archiveHref={isHistory?archiveBackHref(new URLSearchParams(viewerSearch).get('week')||'',viewerSearch):'/history'} onRetry={()=>void loadData(true,auth==='guest')} onChangeAccount={()=>void signOutDashboard().catch(error=>setLoadError(error.message))}/>: <>
       <FilterControls days={days} closedDays={data?.closedDays} calendarDays={data?.calendarDays} nameOptions={nameOptions} mealOptions={mealOptions} filters={filters} onChange={setFilter} />
 
       <div className="toolbar">
@@ -496,6 +496,7 @@ function App() {
       </div>
     </>}
   </main>;
+  return isHistory&&auth==='authenticated'?<ArchiveWorkspace weekKey={new URLSearchParams(viewerSearch).get('week')||''} onUnauthorized={()=>{setData(null);setAuth('anonymous');}}>{viewer}</ArchiveWorkspace>:viewer;
 }
 
 export default App;
