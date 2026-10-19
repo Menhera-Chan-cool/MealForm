@@ -1,5 +1,9 @@
 # MealForm
 
+## Thanh nháp gọn hơn — 18/10/2026
+
+`Dán bảng vào nháp` nằm cạnh `Xóa nháp`, kể cả mobile/chữ lớn; trường nhập bảng vẫn chiếm đủ chiều rộng. Đã bỏ nút/chế độ Tập trung sửa thực đơn cùng mã không còn dùng. Giữ xác nhận xóa nháp, xem trước/áp dụng bảng, sao chép món, Undo và chặn thao tác khi offline/bận. Không đổi API/Apps Script. Hồ sơ: VERIFICATION-draft-toolbar-2026-10-18.md.
+
 ## Bảng thông báo sau nút ! — 18/10/2026
 
 Phần tạo tuần chỉ hiện nút `!` cạnh `?`; bấm mở bảng nổi cùng kiểu Thêm. PC đặt bảng cạnh nút, điện thoại mở ở dưới; có Đóng, Escape hoặc bấm ngoài, giữ tùy chọn khi mở lại. Màn hình thấp vẫn cuộn được và luôn có nút đóng. Không đổi cơ chế thông báo/dấu chấm, không tự xin quyền hoặc gọi thêm API, Apps Script giữ v81. Phạm vi/kiểm thử/phát hành: VERIFICATION-attention-popover-2026-10-18.md.

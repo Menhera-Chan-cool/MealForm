@@ -13,7 +13,7 @@ export default function useFocusVisibility(){
       let start=top+12,end=bottom-12;
       const box=active.getBoundingClientRect();
       const layer=active.closest(':popover-open,dialog:modal');
-      for(const bar of document.querySelectorAll('.dashboard-sticky-tools,.ocr-pane-tabs,.editor-focus-tools,.ui-mobile-nav,.contextual-save-bar,.action-toast')){
+      for(const bar of document.querySelectorAll('.dashboard-sticky-tools,.ocr-pane-tabs,.ui-mobile-nav,.contextual-save-bar,.action-toast')){
         if(layer&&!layer.contains(bar))continue;
         if(bar.contains(active)||!bar.checkVisibility()||!['sticky','fixed'].includes(getComputedStyle(bar).position))continue;
         const rect=bar.getBoundingClientRect();

@@ -1,5 +1,12 @@
 # Admin upgrades
 
+## OCR draft toolbar — 2026-10-18
+
+- [x] Clear/Paste adjacent with retained cancel/offline/preview/Undo; focus mode and dead wiring removed.
+- [x] Bounded light/dark PC/mobile/large-text/short/forced-color review, both empty and OCR-present states.
+- [x] Full verification and guarded canonical sync: 221 UI,41 native/API/GAS in both copies, five token/guard,11 compatibility and builds.
+- [ ] Pinned main merge, same-artifact production, readonly smoke and release README.
+
 ## OCR attention popover — 2026-10-18
 
 - [x] Adjacent !, collapsed native More-style panel, close/focus and retained settings; three RED/GREEN cases plus prior attention cases passed.

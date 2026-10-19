@@ -1,4 +1,5 @@
 .draft-inspection,.draft-transfer,.session-feedback {margin-block:16px;min-width:0;}
+.draft-transfer>.actions {display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px;}
 .draft-edit-fields {border:0;padding:0;margin:0;min-width:0;}
 .dashboard-assist-tools {display:flex;gap:12px;flex-wrap:wrap;align-items:start;margin-block:12px;}
 .dashboard-assist-tools .session-feedback {margin:0;}
@@ -31,26 +32,24 @@
 .context-guide p {overflow-wrap:anywhere;}
 .context-guide .actions {display:flex;gap:8px;flex-wrap:wrap;}
 [data-guide-target] {outline:2px solid var(--meal-ui-primary)!important;outline-offset:4px;}
-.editor-focus-tools {display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-block:12px;}
 .ui-dashboard-layout:has(.response-quick-dialog:not(:modal)[open]) {--quick-panel-width:clamp(300px,36vw,420px);}
 @media(min-width:701px){
   :root .ui-dashboard-layout .response-quick-dialog:not(:modal) {position:fixed;inset:12px 12px 12px auto;margin:0;width:var(--quick-panel-width);max-width:none;max-height:none;height:calc(100dvh - 24px);z-index:30;border-radius:14px;background:var(--meal-ui-card);}
   :root .ui-dashboard-layout:has(.response-quick-dialog:not(:modal)[open]) main.dashboard-shell {padding-inline-end:calc(var(--quick-panel-width) + 36px);}
   :root .ui-dashboard-layout:has(.response-quick-dialog:not(:modal)[open]) .dashboard-section-title {flex-wrap:wrap;}
 }
-.ui-dashboard-layout[data-editor-focus=true] {display:block;}
-:root .ui-dashboard-layout[data-editor-focus=true] :is(.ui-sidebar,.ui-mobile-nav,.dashboard-header,.dashboard-account,.session-feedback,.version-notice) {display:none!important;}
-:root .ui-dashboard-layout[data-editor-focus=true] main.dashboard-shell {max-width:none;padding:20px;}
-.ui-dashboard-layout[data-editor-focus=true] .editor-focus-tools {position:sticky;top:0;z-index:20;background:var(--meal-ui-card);padding-block:8px;}
 @media(max-width:1100px){.draft-mapping {grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:700px){
+  .draft-transfer>.actions {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
+  .draft-transfer>.actions>.explained-action {align-items:stretch;}
+  :root .meal-ui .draft-transfer>.actions>button {min-width:0;width:100%;height:auto;white-space:normal;}
+  .draft-transfer>.actions>.draft-copy-action {grid-column:1/-1;}
   .draft-mapping,.draft-inspection dl {grid-template-columns:minmax(0,1fr);}
   :root .ui-dashboard-layout.meal-ui .response-quick-dialog[open]:modal {inset:0;margin:0;width:100%;max-width:none;height:var(--usable-viewport,100dvh);max-height:var(--usable-viewport,100dvh);border-radius:0;}
   .draft-simulator {padding:16px;}
   .draft-simulator>header {flex-wrap:wrap;}
 }
 @media(max-height:480px){
-  :root .ui-dashboard-layout[data-editor-focus=true] .editor-focus-tools {position:static;}
   :root .ui-dashboard-layout.meal-ui .response-quick-dialog[open] {display:block;overflow:auto;}
   .response-quick-dialog .response-quick-body {overflow:visible;}
   .response-quick-dialog .response-quick-header {position:sticky;top:0;z-index:1;background:var(--meal-ui-card);}

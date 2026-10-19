@@ -1,9 +1,9 @@
 # Spec: focused-workspaces
 
 ## Objective and acceptance
-PC readable nonmodal response side panel, full mobile modal; focus editor without remounting content.
+PC readable nonmodal response side panel, full mobile modal; normal OCR editor with navigation and stable content DOM.
 
-Keep one response DOM and current fresh responseId lookup, before/next limited to loaded filtered rows. PC table gets actual space rather than hidden behind panel; close returns opener. Mobile showModal focus containment, safe Escape. From an already expanded table, PC also uses a modal above that parent to preserve native top-layer access; normal PC pages retain the nonmodal side panel. Editor focus only create tab, hides unrelated shell, explicit exit and Escape outside dialogs/popovers, restores exact window position; menu/image DOM, Undo and draft unchanged. Never embed delete writes in readonly quick view.
+Keep one response DOM and current fresh responseId lookup, before/next limited to loaded filtered rows. PC table gets actual space rather than hidden behind panel; close returns opener. Mobile showModal focus containment, safe Escape. From an already expanded table, PC also uses a modal above that parent to preserve native top-layer access; normal PC pages retain the nonmodal side panel. The user retired editor focus mode on 2026-10-18: remove its entrypoint, transient state, Escape listener and focus-only styles. Keep normal navigation visible and menu/image DOM, Undo and draft unchanged. Place paste beside clear; preserve preview, discard confirmation and offline/busy guards. Never embed delete writes in readonly quick view.
 
 ## Commands / tests
 App: `npm test` in meal-viewer (native/API/GAS and build). Actual entrypoint: `.\\node_modules\\.bin\\playwright.cmd test --config .playwright-cli/reading-polish.config.ts` in mealform-preview. Preview: `npm test`, `npm run build`, `npm run build-storybook`; built compatibility: `.\\node_modules\\.bin\\playwright.cmd test --config .playwright-cli/reading-polish-compat.config.ts`. Add meaningful native and browser RED before implementation; fixtures only at external APIs/images. Run builds/browser serially; PC/mobile/light/dark/narrow/forced-colors batched visual inspection then one confirmation. Deployed immutable assets tested before pinned merge/same-artifact promotion; genuine smoke GET-only.
