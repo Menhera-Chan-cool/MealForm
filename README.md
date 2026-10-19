@@ -4,7 +4,9 @@
 
 Cài đặt có phần giải thích bên trái/ô chỉnh bên phải trên PC, chuyển một cột trên mobile; Hệ thống và Thương hiệu có mục lục hoặc “Đến mục”. Lượt gửi/đối soát dùng vùng rộng, Form/thông báo/đăng nhập có khung vừa; nhóm con dùng khoảng cách/đường ngăn thay thẻ lồng. Thanh Lượt gửi theo thứ tự Tuần → Tìm/lọc → Thao tác, xuống hàng theo nhóm. Kho tuần PC có danh sách bên trái và Viewer gốc bên phải; mobile xem trang tuần riêng, quay về giữ bộ lọc/vị trí. Tuần chưa có thực đơn hiện thông báo gọn tại vùng nội dung. Không đổi API/GAS, quyền, nháp/Undo hoặc các xác nhận.
 
-Phạm vi/đặc tả: CAPABILITY-MAP-task-layouts.md và bốn SPEC được dẫn trong đó. Kiểm thử/phát hành đang hoàn tất; chưa coi nội dung này là xác nhận production.
+Phạm vi/đặc tả: CAPABILITY-MAP-task-layouts.md và bốn SPEC được dẫn trong đó. Bằng chứng: VERIFICATION-task-layouts-2026-10-19.md.
+
+Đã merge [PR #24](https://github.com/Menhera-Chan-cool/MealForm/pull/24) vào main và đưa đúng bản đã kiểm thử lên [production](https://menutaythanh.vercel.app), phiên bản `159ca600-6488-4890-a28d-d3822931c899`. **232/232 ca UI**, 41 bộ ứng dụng/API/GAS ở cả hai bản, năm token/guard, 11 tương thích, TypeScript/Vite/Storybook và 12 ca chức năng trên tài nguyên Vercel đạt; bỏ qua một lượt chụp lặp lại đã kiểm tra cục bộ. Website thật chỉ đọc đạt, mobile không tràn ngang, không ghi dữ liệu thật. Không đổi API; Apps Script giữ v81. Log 15 phút không thấy HTTP5xx; hai cảnh báo DEP0169 trên yêu cầu200 chưa truy nguồn. Chưa chứng nhận điện thoại vật lý/trình đọc màn hình/Chromatic cloud; gói chia sẻ/RAR cũ không được rebuild.
 
 ## Thanh nháp gọn hơn — 18/10/2026
 

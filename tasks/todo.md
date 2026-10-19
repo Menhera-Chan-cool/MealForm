@@ -7,7 +7,7 @@
 - [x] Toolbars: context/filter/action DOM and responsive grouping, guards retained.
 - [x] Archive: desktop list/detail, mobile return state, contextual empty and unauthorized paths.
 - [x] Full tests/builds, bounded visual review, guarded canonical sync.
-- [ ] Pinned GitHub/main, identical Vercel artifact, readonly production smoke and release docs.
+- [x] PR #24/main, same Vercel artifact/version, genuine readonly smoke and release docs completed; GAS v81 unchanged.
 
 ## OCR draft toolbar — 2026-10-18
 

@@ -2,6 +2,8 @@
 
 ## Task layouts — 2026-10-19, approved main/production
 
+Published PR #24, source a0d24d1/merge9b64d8a; artifact dpl_4GP17uSmorfeseoQ7W3W4jftyfyK/version159ca600-6488-4890-a28d-d3822931c899. 232 UI,12 artifact cases and GET-only production smoke passed; API/GAS v81 unchanged. Evidence: VERIFICATION-task-layouts-2026-10-19.md.
+
 Map CAPABILITY-MAP-task-layouts.md; four scoped specs. First responsive foundations, then grouped linear settings/contents, grouped toolbars, archive split workspace and contextual empty. Reuse existing viewer/controller/route links, no iframe or duplicate data model. RED/GREEN behavior/layout cases first, fixed-source full native/UI/build/Storybook and one bounded responsive batch. Preserve drafts/dirty navigation/readonly/auth. Guard canonical sync, stage immutable production artifact, verify synthetic reads, pin PR/main, promote same artifact and genuine GET-only smoke. Record README/rollback/limits; no GAS/API changes.
 
 ## OCR draft toolbar — 2026-10-18, main/production authorized
