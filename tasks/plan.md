@@ -2,6 +2,8 @@
 
 ## OCR draft toolbar — 2026-10-18, main/production authorized
 
+Published 2026-10-19, PR #23 merge191e25f/source1baba72; same artifact dpl_F7VLc3hFuWef4595MoJg5WkNToZ6/version a44655cd-aced-4060-9406-360b2c124e1c. 221 UI, five immutable-asset functional cases and genuine readonly production smoke passed; see VERIFICATION-draft-toolbar-2026-10-18.md. No API/GAS changes.
+
 Compose the existing Clear action into DraftTransfer's existing action row, not the table input panel, preserving handler/disabled/preview/Undo guards. Retire unreachable focus mode state, listener, prop, selectors and its focus-visibility entry. Update old focus tests to prove normal editor/DOM/navigation/Undo instead; retain simulation, paste/copy and narrow-layout checks. Run one paired visual batch, native/full UI/preview builds, guarded canonical sync, pinned production artifact, PR/main merge and same-artifact promotion. No API/GAS/data changes; README and readonly live evidence afterward.
 
 ## OCR attention popover — 2026-10-18, main/production authorized

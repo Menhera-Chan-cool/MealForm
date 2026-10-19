@@ -5,7 +5,7 @@
 - [x] Clear/Paste adjacent with retained cancel/offline/preview/Undo; focus mode and dead wiring removed.
 - [x] Bounded light/dark PC/mobile/large-text/short/forced-color review, both empty and OCR-present states.
 - [x] Full verification and guarded canonical sync: 221 UI,41 native/API/GAS in both copies, five token/guard,11 compatibility and builds.
-- [ ] Pinned main merge, same-artifact production, readonly smoke and release README.
+- [x] PR #23 pinned main merge, same-artifact production, readonly smoke and release README completed 2026-10-19; GAS remains v81.
 
 ## OCR attention popover — 2026-10-18
 

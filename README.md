@@ -4,6 +4,8 @@
 
 `Dán bảng vào nháp` nằm cạnh `Xóa nháp`, kể cả mobile/chữ lớn; trường nhập bảng vẫn chiếm đủ chiều rộng. Đã bỏ nút/chế độ Tập trung sửa thực đơn cùng mã không còn dùng. Giữ xác nhận xóa nháp, xem trước/áp dụng bảng, sao chép món, Undo và chặn thao tác khi offline/bận. Không đổi API/Apps Script. Hồ sơ: VERIFICATION-draft-toolbar-2026-10-18.md.
 
+Đã merge [PR #23](https://github.com/Menhera-Chan-cool/MealForm/pull/23) vào main và đưa đúng bản đã kiểm thử lên [production](https://menutaythanh.vercel.app) ngày **19/10/2026**, phiên bản `a44655cd-aced-4060-9406-360b2c124e1c`. **221/221 ca UI**, 41 bộ ứng dụng/API/GAS ở cả hai bản, năm token/guard, 11 tương thích, TypeScript/Vite/Storybook và năm ca chức năng trên tài nguyên Vercel đạt; bỏ qua một lượt chụp lặp lại đã kiểm tra cục bộ. Website thật chỉ đọc đạt, mobile không tràn ngang, không ghi dữ liệu thật. Không đổi API/Apps Script v81. Log 15 phút không thấy HTTP5xx; hai cảnh báo DEP0169 trên yêu cầu200 chưa truy nguồn. Chưa thử điện thoại vật lý/Chromatic cloud; RAR/mã chia sẻ cũ không được rebuild.
+
 ## Bảng thông báo sau nút ! — 18/10/2026
 
 Phần tạo tuần chỉ hiện nút `!` cạnh `?`; bấm mở bảng nổi cùng kiểu Thêm. PC đặt bảng cạnh nút, điện thoại mở ở dưới; có Đóng, Escape hoặc bấm ngoài, giữ tùy chọn khi mở lại. Màn hình thấp vẫn cuộn được và luôn có nút đóng. Không đổi cơ chế thông báo/dấu chấm, không tự xin quyền hoặc gọi thêm API, Apps Script giữ v81. Phạm vi/kiểm thử/phát hành: VERIFICATION-attention-popover-2026-10-18.md.
