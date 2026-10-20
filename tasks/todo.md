@@ -8,7 +8,7 @@
 - [x] viewer-help: archive hierarchy/return, Viewer login choices, accessible contextual help pane.
 - [x] reconciliation-read: tested bounded additive GAS/API reads, actual paired view, no new matching or writes.
 - [x] Canonical guarded sync, 251 UI /42 native scripts in both copies /5 preview guards /11 compatibility, Vite/TypeScript/Storybook, bounded review. Release gate remains pending below.
-- [ ] Exact PR/artifact verification, existing-session GAS update, main merge, same artifact production, readonly smoke/docs.
+- [ ] Existing-session GAS update, pinned main merge, same artifact promotion and named-domain readonly smoke. Draft PR #25/source10fad08 and READY artifact dpl_FG7BWndNrwyTBxeq12isuppYfjjq/version85cec74e-c429-4901-b06c-81fa61386be9 already verified (20 functional cases + genuine readonly stage smoke); Edge connection is the release blocker.
 
 ## Task layouts — 2026-10-19
 
