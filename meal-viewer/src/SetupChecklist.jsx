@@ -19,8 +19,8 @@ const STEPS = [
   ['Redeploy và kiểm tra cuối', 'Redeploy Vercel sau khi đổi env. Đăng nhập Gmail chủ rồi kiểm tra bên dưới. Đọc ảnh và tạo một tuần thử cần bạn xác nhận riêng; checklist không tự gọi OCR hoặc tạo Form.', 'https://vercel.com/docs/environment-variables']
 ];
 
-export function SetupInstructions() {
-  return <section className="setup-instructions"><h2>Hướng dẫn cài đặt</h2><ol className="setup-steps">{STEPS.map(([title, text, url]) => <li key={title}><h3>{title}</h3><p>{text}</p>{url && <ExternalLink className="action-link" href={url}>Mở hướng dẫn / dịch vụ</ExternalLink>}</li>)}</ol></section>;
+export function SetupInstructions({heading=true}) {
+  return <section className="setup-instructions">{heading&&<h2>Hướng dẫn cài đặt</h2>}<ol className="setup-steps">{STEPS.map(([title, text, url]) => <li key={title}><h3>{title}</h3><p>{text}</p>{url && <ExternalLink className="action-link" href={url}>Mở hướng dẫn / dịch vụ</ExternalLink>}</li>)}</ol></section>;
 }
 
 export default function SetupChecklist({ authenticated }) {

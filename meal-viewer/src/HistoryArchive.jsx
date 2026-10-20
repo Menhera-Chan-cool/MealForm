@@ -4,6 +4,7 @@ import { ALL, errorMessage } from './viewer-model.mjs';
 import VersionNotice from './VersionNotice.jsx';
 import ContentSkeleton from './ContentSkeleton.jsx';
 import ArchiveCalendar from './ArchiveCalendar.jsx';
+import {archiveHierarchy} from './workspace-ui.mjs';
 import {archiveMonths,weekMonths} from './ui-model.mjs';
 import {archiveWeekHref,filterConditions,archiveFormStatus} from './ui-clarity.mjs';
 import FilterEmptyState from './FilterEmptyState.jsx';
@@ -49,13 +50,16 @@ export default function HistoryArchive({ onUnauthorized,selectedWeekKey='' }) {
     if(!saved||saved.href!==window.location.pathname+window.location.search||typeof saved.week!=='string')return;
     let cancelled=false;
     void document.fonts.ready.then(()=>{if(cancelled)return;
-    const link=Array.from(list.current?.querySelectorAll('a[data-week]')||[]).find(node=>node.dataset.week===saved.week);
+    const link=Array.from(list.current?.querySelectorAll('a[data-week]')||[]).find(node=>node.dataset.week===saved.week&&(!saved.branch||node.dataset.archiveMonth===saved.branch));
+    if(Array.isArray(saved.expanded))for(const node of list.current?.querySelectorAll('details[data-archive-key]')||[])node.open=saved.expanded.includes(node.dataset.archiveKey);
+    for(let node=link?.parentElement;node&&node!==list.current;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;
     if(link)link.focus({preventScroll:true});
     const pane=list.current?.closest('.archive-list-pane');
     if(pane&&Number.isFinite(saved.listTop))pane.scrollTop=Math.max(0,saved.listTop);
     if(Number.isFinite(saved.top))window.scrollTo(0,Math.max(0,saved.top));
     });return()=>{cancelled=true;};
   },[busy]);
+  function weekList(entries,branch){return <ul className="archive-weeks">{entries.map(week => <li key={week.weekKey}><a data-archive-month={branch} data-week={week.weekKey} aria-current={selectedWeekKey===week.weekKey?'page':undefined} href={archiveWeekHref(week.weekKey,selectedMonth,view,formStatus)}><strong>{week.name}</strong><ArchiveWeekMetadata week={week}/><span>Xem tuần →</span></a></li>)}</ul>;}
   return <section className="archive-panel">
     <VersionNotice disabled={busy} />
     <ElapsedWait active={busy} label="Đang tải kho tuần"/>
@@ -69,6 +73,6 @@ export default function HistoryArchive({ onUnauthorized,selectedWeekKey='' }) {
     {message && <p role="status">{message}</p>}
     {busy && !weeks.length && <ContentSkeleton label="Đang tải kho tuần cũ…" />}
     {!busy && !message && !visible.length && <FilterEmptyState title={weeks.length?(formStatus==='all'?'Không có tuần trong tháng đã chọn':'Không có tuần phù hợp'):'Chưa có tuần cũ'} conditions={weeks.length?conditions:[]} recoveries={recoveries} onClear={key=>{if(key==='status')setFormStatus('all');else{setMonth(ALL);setView('list');}document.getElementById(key==='status'?'archive-status':'archive-month')?.focus();}}/>}
-    <div className="archive-list-scroll" ref={list}>{view==='calendar'?<><ArchiveCalendar month={selectedMonth} weeks={visible} status={formStatus} selectedWeekKey={selectedWeekKey}/>{weeks.some(week=>!weekMonths(week).length)&&<p>Có tuần chưa rõ ngày; chuyển Danh sách và chọn Tất cả để xem.</p>}</>:<ul className="archive-weeks">{visible.map(week => <li key={week.weekKey}><a data-week={week.weekKey} aria-current={selectedWeekKey===week.weekKey?'page':undefined} href={archiveWeekHref(week.weekKey,selectedMonth,view,formStatus)}><strong>{week.name}</strong><ArchiveWeekMetadata week={week}/><span>Xem tuần →</span></a></li>)}</ul>}</div>
+    <div className="archive-list-scroll" ref={list}>{view==='calendar'?<><ArchiveCalendar month={selectedMonth} weeks={visible} status={formStatus} selectedWeekKey={selectedWeekKey}/>{weeks.some(week=>!weekMonths(week).length)&&<p>Có tuần chưa rõ ngày; chuyển Danh sách và chọn Tất cả để xem.</p>}</>:archiveHierarchy(visible,month===ALL?'':selectedMonth).map((year,yearIndex)=><details className="archive-year" data-archive-key={'year-'+year.year} key={year.year} open={yearIndex===0||year.months.some(group=>group.weeks.some(week=>week.weekKey===selectedWeekKey))}><summary>{year.year==='unknown'?'Chưa rõ ngày':'Năm '+year.year}</summary>{year.months.map((group,index)=>group.key?<details className="archive-month" data-month={group.key} data-archive-key={'month-'+group.key} key={group.key} open={index===0||group.weeks.some(week=>week.weekKey===selectedWeekKey)}><summary>Tháng {group.key.slice(5)}/{year.year}</summary>{weekList(group.weeks,group.key)}</details>:weekList(group.weeks,''))}</details>)}</div>
   </section>;
 }

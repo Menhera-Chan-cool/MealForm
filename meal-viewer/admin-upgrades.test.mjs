@@ -80,6 +80,19 @@ hidden=false;const before=writes.length;
 const openSpreadsheet=gas.SpreadsheetApp.openById;
 gas.SpreadsheetApp.openById=(id)=>({...openSpreadsheet(id),getSheetByName:()=>{throw Error('Reconciliation must not touch the audit Sheet');}});
 let report=gas.handleMealDashboardRequest_({action:'dashboard-reconcile',email:'manager@example.com',weekKey:key});
+assert.equal(report.comparison?.version,1,'reconciliation needs verified source pairs, not inferred client-side matches');
+assert.equal(report.comparison.checkedAt,now);assert.deepEqual(Array.from(report.comparison.dayLabels),['Thứ 2','Thứ 3']);
+assert.deepEqual(JSON.parse(JSON.stringify(report.comparison.pairs)).map(pair=>[pair.form.meals[0],pair.sheet.meals[0],pair.sheet.rowNumber]),[['GÀ KHO','GÀ KHO',2],['THỊT RAM','THỊT RAM',3]]);
+assert.equal(JSON.stringify(report.comparison).includes('deleteToken'),false);
+const priorForms=formResponses,priorRows=rows;
+formResponses=Array.from({length:51},(_,i)=>answer('pair-'+i,['Món '+i,'CÁ KHO']));rows=[priorRows[0],...formResponses.map((_,i)=>[timestamp,'Nguyễn An','Món '+i,'CÁ KHO'])];
+const firstPairs=gas.handleMealDashboardRequest_({action:'dashboard-reconcile',email:'manager@example.com',weekKey:key});
+assert.equal(firstPairs.comparison.total,51);assert.equal(firstPairs.comparison.pairs.length,50);assert.equal(firstPairs.comparison.nextOffset,50);
+const nextPairs=gas.handleMealDashboardRequest_({action:'dashboard-reconcile',email:'manager@example.com',weekKey:key,comparisonOffset:50});
+assert.equal(nextPairs.comparison.pairs.length,1);assert.equal(nextPairs.comparison.pairs[0].sheet.rowNumber,52);assert.equal(nextPairs.comparison.nextOffset,null);
+for(const comparisonOffset of [-1,1,0.5,100001,'50',null,NaN])assert.throws(()=>gas.handleMealDashboardRequest_({action:'dashboard-reconcile',email:'manager@example.com',weekKey:key,comparisonOffset}),/đối soát|hợp lệ/);
+formResponses=priorForms;rows=priorRows;
+assert.equal(writes.length,before,'paired reads cannot write properties, history or either source');
 assert.equal(report.matchedCount,2);assert.equal(report.issues.length,0);assert.equal(writes.length,before,'reconciliation never writes, including hiding an audit Sheet');
 formResponses=[answer('one',['GÀ KHO','CÁ KHO'])];
 rows=[rows[0],[timestamp,'Nguyễn An','THỊT RAM','CÁ KHO']];
@@ -88,7 +101,7 @@ assert.deepEqual(Array.from(report.issues,r=>r.kind).sort(),['form-only','sheet-
 formResponses=[answer('one',['GÀ KHO','CÁ KHO']),answer('duplicate',['GÀ KHO','CÁ KHO'])];
 rows=[rows[0],[timestamp,'Nguyễn An','GÀ KHO','CÁ KHO']];
 report=gas.handleMealDashboardRequest_({action:'dashboard-reconcile',email:'manager@example.com',weekKey:key});
-assert.equal(report.matchedCount,0);assert.ok(report.issues.every(r=>r.kind==='ambiguous'));
+assert.equal(report.matchedCount,0);assert.ok(report.issues.every(r=>r.kind==='ambiguous'));assert.equal(report.comparison.pairs.length,0,'ambiguous records never become pairs');
 gas.SpreadsheetApp.openById=openSpreadsheet;
 assert.equal(gas.getMealDashboardHistorySheet_({getSheetByName:()=>({getLastRow:()=>0,getRange:()=>{throw Error('Read must not initialize history');}})},false),null);
 assert.ok(gas.getMealDashboardWeek_(key).responses.every(r=>!r.deletable),'shared Sheet row cannot be offered for deletion');
@@ -134,6 +147,8 @@ const handler=registeredDashboardHandler({secret:sessionSecret,now:()=>now,callG
 const res=()=>({setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}});
 const denied=res();await handler({method:'POST',headers:{cookie:`meal_session=${token}`,host:'example.com',origin:'https://example.com'},body:{action:'form-control',weekKey:key}},denied);assert.equal(denied.code,403);
 const rec=res();await handler({method:'GET',headers:{cookie:`meal_session=${token}`},query:{reconcile:'1',week:key}},rec);assert.equal(rec.code,200);assert.equal(calls.at(-1).action,'dashboard-reconcile');
+const pageTwo=res();await handler({method:'GET',headers:{cookie:`meal_session=${token}`},query:{reconcile:'1',week:key,comparisonOffset:'50'}},pageTwo);assert.equal(pageTwo.code,200);assert.equal(calls.at(-1).comparisonOffset,50);
+for(const comparisonOffset of ['-1','1','0.5','100001','oops',['50']]){const failed=res(),count=calls.filter(call=>call.action==='dashboard-reconcile').length;await handler({method:'GET',headers:{cookie:`meal_session=${token}`},query:{reconcile:'1',week:key,comparisonOffset}},failed);assert.equal(failed.code,400);assert.equal(calls.filter(call=>call.action==='dashboard-reconcile').length,count);}
 const access=res(),beforeAccessCalls=calls.length;await handler({method:'GET',headers:{cookie:`meal_session=${token}`},query:{access:'1'}},access);
 assert.equal(access.code,200);assert.equal(calls.length-beforeAccessCalls,1,'access check must not fetch the expensive overview');assert.equal(access.body.overviewPending,true);
 const changed=res();await handler({method:'GET',headers:{cookie:`meal_session=${token}`},query:{updates:'1',week:key}},changed);assert.equal(calls.at(-1).action,'dashboard-response-ids');

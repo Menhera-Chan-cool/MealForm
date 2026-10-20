@@ -1,5 +1,15 @@
 # Admin upgrades
 
+## Task workspaces — 2026-10-19
+
+- [x] workspace-shell: contextual title, tablet/manual rail, More grid, task overview and permissions.
+- [x] response-audit: retained-filter tabs, timeline, identity column and legacy safety assertions.
+- [x] ocr-media: near-viewer filmstrip/current-source controls and responsive full-image tool rail.
+- [x] viewer-help: archive hierarchy/return, Viewer login choices, accessible contextual help pane.
+- [x] reconciliation-read: tested bounded additive GAS/API reads, actual paired view, no new matching or writes.
+- [x] Canonical guarded sync, 251 UI /42 native scripts in both copies /5 preview guards /11 compatibility, Vite/TypeScript/Storybook, bounded review. Release gate remains pending below.
+- [ ] Exact PR/artifact verification, existing-session GAS update, main merge, same artifact production, readonly smoke/docs.
+
 ## Task layouts — 2026-10-19
 
 - [x] Foundations: task width and flat inner sections, RED/GREEN responsive checks.

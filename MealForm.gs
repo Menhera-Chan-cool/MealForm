@@ -422,7 +422,11 @@ function handleMealDashboardRequest_(request) {
     if (role !== 'owner') throw new Error('Chỉ chủ sở hữu được thay đổi Form và thương hiệu.');
     return request.action === 'dashboard-form-control' ? controlMealDashboardForm_(request) : setMealBranding_(request);
   }
-  if (request.action === 'dashboard-reconcile') return getMealDashboardWeek_(request.weekKey, true);
+  if (request.action === 'dashboard-reconcile') {
+    const offset=request.comparisonOffset===undefined?0:request.comparisonOffset;
+    if(typeof offset!=='number'||!Number.isSafeInteger(offset)||offset<0||offset>100000||offset%50!==0)throw new Error('Tham số trang đối soát không hợp lệ.');
+    return getMealDashboardWeek_(request.weekKey, true, undefined, offset);
+  }
   if (request.action === 'dashboard-response-ids') return getMealDashboardResponseIds_(request.weekKey);
   if (request.action === 'dashboard-batch') {
     const batch = getMealDashboardBatch_(request);
@@ -757,7 +761,9 @@ function dashboardResponseTarget_(response, layout, headers, itemTitles) {
   };
 }
 
-function getMealDashboardWeek_(weekKey, onlyReconciliation, snapshot) {
+function getMealDashboardWeek_(weekKey, onlyReconciliation, snapshot, comparisonOffset) {
+  const offset=comparisonOffset===undefined?0:comparisonOffset;
+  if(onlyReconciliation===true&&(typeof offset!=='number'||!Number.isSafeInteger(offset)||offset<0||offset>100000||offset%50!==0))throw new Error('Tham số trang đối soát không hợp lệ.');
   const key = cleanMealText_(weekKey);
   const item = getMealFormRegistry_()[key];
   if (!item || !isLiveMealFile_(item.spreadsheetId) || !isLiveMealFile_(item.formId)) throw new Error('Không tìm thấy tuần đã đăng ký.');
@@ -807,6 +813,12 @@ function getMealDashboardWeek_(weekKey, onlyReconciliation, snapshot) {
   responses.sort(function(left, right) { return right.timestamp - left.timestamp; });
   const reconciliation = { formCount: formResponses.length, sheetCount: rowCount, matchedCount: candidateRows.filter(function(matches) { return matches.length === 1 && rowUses[matches[0] - 2] === 1; }).length, issues: issues };
   if (onlyReconciliation === 'location') return { spreadsheetId: item.spreadsheetId, sheetId: sheet.getSheetId(), responses: responses, issues: issues };
+  if (onlyReconciliation===true) {
+    const describe=function(target,rowNumber){const name=cleanMealText_(target.name),meals=target.meals.map(cleanMealText_),value={name:name.slice(0,500),timestamp:dashboardTimestampMs_(target.timestamp),meals:meals.slice(0,5).map(function(meal){return meal.slice(0,500);}),truncated:name.length>500||meals.length>5||meals.some(function(meal){return meal.length>500;})};if(rowNumber)value.rowNumber=rowNumber;return value;};
+    const verified=candidateRows.map(function(matches,index){return matches.length===1&&rowUses[matches[0]-2]===1?{index:index,rowNumber:matches[0]}:null;}).filter(Boolean);
+    const pairs=verified.slice(offset,offset+50).map(function(pair){return {form:describe(formTargets[pair.index]),sheet:describe(rowTargets[pair.rowNumber-2],pair.rowNumber)};});
+    reconciliation.comparison={version:1,checkedAt:Date.now(),offset:offset,limit:50,total:verified.length,nextOffset:offset+pairs.length<verified.length?offset+pairs.length:null,dayLabels:layout.dayIndexes.slice(0,5).map(function(index){return cleanMealText_(headers[index]).slice(0,500);}),pairs:pairs};
+  }
   if (onlyReconciliation) return reconciliation;
   const versionSecret=PropertiesService.getScriptProperties().getProperty('MEAL_DASHBOARD_HMAC_SECRET');
   const responseVersions=versionSecret?formResponses.map(function(response,index){const target=formTargets[index];return[cleanMealText_(response.getId()),mealViewerHmacHex_(JSON.stringify([dashboardTimestampMs_(target.timestamp),cleanMealText_(target.name),target.meals.map(cleanMealText_)]),versionSecret)];}):undefined;

@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import ImageMinimap from './ImageMinimap.jsx';
 import SourceFilename from './SourceFilename.jsx';
 
-export default function MenuImagePreview({ src, name, onRegion, regionDisabled }) {
+export default function MenuImagePreview({ src, name, onRegion, regionDisabled,sourceRef,sourceDetailsRef }) {
   const [zoom, setZoom] = useState(100);
   const id = useId();
   const dialog = useRef(null);
@@ -47,10 +47,10 @@ export default function MenuImagePreview({ src, name, onRegion, regionDisabled }
   }
 
   return <aside className="menu-image-pane" aria-label="Đối chiếu ảnh thực đơn">
-    <h3>Ảnh gốc</h3>
+    <h3>Ảnh gốc</h3><div className="image-source-slot" ref={sourceRef}/>
     {controls()}
     {canvas()}
-    <div className="menu-image-filename"><SourceFilename name={name}/></div>
+    <div className="menu-image-filename"><SourceFilename name={name}/></div><div className="image-source-details-slot" ref={sourceDetailsRef}/>
     <p className="menu-image-hint">Phóng to rồi cuộn hoặc giữ chuột kéo ảnh. Bản đồ nhỏ và thao tác cuộn cảm ứng vẫn dùng được.</p>
     <dialog ref={dialog} className="menu-image-dialog" aria-labelledby={`${id}-title`} onClose={stopPan}>
       <div className="menu-image-dialog-header"><h2 id={`${id}-title`}>Ảnh gốc thực đơn</h2><button type="button" className="secondary" onClick={() => dialog.current.close()}>Đóng ảnh</button></div>

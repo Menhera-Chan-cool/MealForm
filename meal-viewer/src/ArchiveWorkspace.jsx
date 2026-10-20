@@ -17,7 +17,7 @@ export default function ArchiveWorkspace({weekKey='',onUnauthorized,children}){
     const back=new URL(target);back.searchParams.delete('week');
     let saved=window.history.state?.mealArchiveReturn;
     if(target.searchParams.has('week')&&link.closest('.archive-list-pane')){
-      saved={href:back.pathname+back.search,top:window.scrollY,listTop:document.querySelector('.archive-list-pane')?.scrollTop||0,week:target.searchParams.get('week')};
+      saved={href:back.pathname+back.search,top:window.scrollY,listTop:document.querySelector('.archive-list-pane')?.scrollTop||0,week:target.searchParams.get('week'),branch:link.dataset.archiveMonth||'',expanded:[...document.querySelectorAll('.archive-panel details[data-archive-key][open]')].map(node=>node.dataset.archiveKey).slice(0,240)};
       window.history.replaceState({...window.history.state,mealArchiveReturn:saved},'',weekKey?current.pathname+current.search:back.pathname+back.search);
     }
     // Keep UI-only return position on the history entry; modified links remain native.
