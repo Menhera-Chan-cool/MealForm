@@ -1,0 +1,13 @@
+import {comparisonPage} from './workspace-ui.mjs';
+import FriendlyTime from './FriendlyTime.jsx';
+import {mealCellLabel} from './reading-ui.mjs';
+export default function ReconciliationComparison({report,busy,onPage}){
+  const page=comparisonPage(report?.comparison);
+  if(!page)return <p role="status" aria-label="Chi tiết hai nguồn">Chưa có chi tiết hai nguồn hợp lệ từ máy chủ. Không tự suy đoán cặp từ tên; các số lượng và lỗi phía trên là kết quả đã trả.</p>;
+  return <section className="reconciliation-comparison" aria-label="Các cặp đã xác minh"><h2>Đối chiếu hai nguồn</h2><p>Kết quả lúc <FriendlyTime value={page.checkedAt}/>. Mỗi lần chuyển trang là một lần đối soát mới, không ghép dữ liệu giữa các lần đọc.</p><p>{page.pairs.length?`Cặp ${page.offset+1}–${page.offset+page.pairs.length} / ${page.total}`:page.total?'Trang này không còn cặp; kết quả có thể đã thay đổi.':'Không có cặp được xác minh duy nhất trong lần đọc này.'}</p><div className="actions"><button type="button" className="secondary" disabled={busy||page.offset===0} onClick={()=>onPage(Math.max(0,page.offset-50))}>Trang cặp trước</button><button type="button" className="secondary" disabled={busy||page.nextOffset===null||page.nextOffset>100000} onClick={()=>onPage(page.nextOffset)}>Trang cặp tiếp</button></div>
+    {page.pairs.map(pair=>{
+      const fields=[['Họ tên',pair.form.name,pair.sheet.name],['Thời điểm gửi',pair.form.timestamp,pair.sheet.timestamp],...page.dayLabels.map((day,index)=>[day,pair.form.meals[index],pair.sheet.meals[index]])];
+      return <article className="comparison-pair" key={pair.sheet.rowNumber} aria-label={'Cặp đã xác minh — hàng Sheet '+pair.sheet.rowNumber}><h3>Đã ghép duy nhất · hàng Sheet {pair.sheet.rowNumber}</h3><div className="comparison-sources" style={{'--comparison-rows':fields.length+1}}>{[['form','Google Form'],['sheet','Google Sheet']].map(([source,label],sourceIndex)=><section key={source} className="comparison-source" role="region" aria-label={label}><h4>{label}</h4><dl>{fields.map(([name,formValue,sheetValue],index)=>{const value=sourceIndex?sheetValue:formValue,different=formValue!==sheetValue;return <div key={index}><dt>{name}</dt><dd data-different={different}>{index===1?<><FriendlyTime value={value}/>{different&&value>0&&<small className="comparison-precision"><time dateTime={new Date(value).toISOString()}>{new Date(value).toISOString()}</time></small>}</>:index===0?value||'(Thiếu tên)':mealCellLabel(value)||value}</dd></div>;})}</dl></section>)}</div>{(pair.form.truncated||pair.sheet.truncated)&&<p>Một số nội dung quá dài đã rút gọn. Mở nguồn gốc để đối chiếu đầy đủ; không coi phần rút gọn là toàn bộ bản ghi.</p>}</article>;
+    })}
+  </section>;
+}

@@ -1,5 +1,11 @@
 # Approved admin upgrades: implementation plan
 
+## Task workspaces — 2026-10-19, approved13 + readonly GAS extension / main / production
+
+Local implementation and fixed-source verification complete:251 UI,42 native/API/GAS scripts in both copies,5 token guards,11 compatibility and builds passed. Draft PR #25/source10fad08 pushed; READY artifact dpl_FG7BWndNrwyTBxeq12isuppYfjjq/version85cec74e-c429-4901-b06c-81fa61386be9 passed20 immutable-asset functional cases and genuine GET-only stage smoke. Do not merge/promote until the existing Edge GAS connection is restored and the guarded two-function addition is deployed; no live GAS or user-facing primary-domain change yet. Evidence: VERIFICATION-task-workspaces-2026-10-19.md.
+
+Map CAPABILITY-MAP-task-workspaces.md. Build shell, response/audit, OCR media, viewer/help, then readonly paired reconciliation provider/consumer with native trust-boundary tests. Preserve original source/control callbacks, use theme tokens, no new dependency. Tests first; intentionally retire generic authenticated title/history-table controls and update their tests without dropping data/action assertions. Serial builds then fixed-source full UI run (no HMR edits/build overlap), bounded batched review + one confirmation. Guard canonical sync, exact source PR/staged Vercel artifact, synthetic asset tests; carefully baseline-patch existing live GAS and version same deployment without new browser windows, pinned merge/promotion, genuine readonly smoke and release README.
+
 ## Task layouts — 2026-10-19, approved main/production
 
 Published PR #24, source a0d24d1/merge9b64d8a; artifact dpl_4GP17uSmorfeseoQ7W3W4jftyfyK/version159ca600-6488-4890-a28d-d3822931c899. 232 UI,12 artifact cases and GET-only production smoke passed; API/GAS v81 unchanged. Evidence: VERIFICATION-task-layouts-2026-10-19.md.

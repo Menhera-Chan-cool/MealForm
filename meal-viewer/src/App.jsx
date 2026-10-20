@@ -7,6 +7,7 @@ import { clearDashboardCache } from './dashboard-cache.mjs';
 import { safeErrorReport } from './safe-error-report.mjs';
 import ErrorReportButton from './ErrorReportButton.jsx';
 import DetailTable from './DetailTable.jsx';
+import {identityDetailModel} from './workspace-ui.mjs';
 import LoginContext from './LoginContext.jsx';
 import FilterControls, { ComboSelect } from './FilterControls.jsx';
 import RegistrationContext from './RegistrationContext.jsx';
@@ -336,6 +337,7 @@ function App() {
   const activeDrilldown=Boolean(drilldown&&drilldown.data===data&&JSON.stringify(drilldown.selected)===JSON.stringify(filters));
   useEffect(()=>{if(drilldown&&!activeDrilldown)setDrilldown(null);},[drilldown,activeDrilldown]);
   const model = useMemo(() => buildDetailModel(data, filters, responseSort,activeDrilldown), [data, filters, responseSort,activeDrilldown]);
+  const displayModel=useMemo(()=>identityDetailModel(model),[model]);
   const resultCounts = detailResultCounts(model);
   const emptyResults=Boolean(data&&model.sourceRows.length===0);
   const formStatus = busy || !data ? 'loading' : data.formStatus || 'loading';
@@ -406,11 +408,11 @@ function App() {
       <h2>{isWeekPage ? 'Đăng nhập hoặc xem với tư cách khách' : 'Đăng nhập để xem thực đơn'}</h2>
       <LoginContext/>
       <p>Chỉ xác minh tài khoản Google; trang này không yêu cầu quyền truy cập Drive, Sheets hay Forms.</p>
-      {CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}
-      {isWeekPage && <div>
+      <div className={isWeekPage?'viewer-login-choices':'viewer-login-choices single-choice'}><section role="region" aria-label="Đăng nhập Google"><h3>Đăng nhập Google</h3>      {CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}
+      </section>{isWeekPage && <section role="region" aria-label="Xem với tư cách khách"><h3>Xem với tư cách khách</h3>
         <p>Khách không cần đăng nhập. Bất kỳ ai có liên kết tuần đều có thể xem họ tên và món đã chọn; chỉ xem, không thể sửa.</p>
         <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>
-      </div>}
+      </section>}</div>
       <div className="message" role="status" aria-live="polite">{message}</div>
     </section> : auth === 'loading' ? <ContentSkeleton label="Đang xác nhận phiên đăng nhập…" /> : busy && !data ? <ContentSkeleton label="Đang tải thực đơn…" /> : weekUnavailable || (stoppedReading&&!data) ? <section className="viewer-empty-region" role="region" aria-label="Nội dung thực đơn"><div role="status">
       <h2>{weekUnavailable?loadError:'Chưa tải được dữ liệu tuần này.'}</h2>
@@ -480,7 +482,7 @@ function App() {
       </section>
 
       <section className="data-section viewer-reading-panel" id="viewer-detail" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-detail':undefined} hidden={mobileViewer&&viewerTab!=='detail'}>
-        <TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết" preferenceKey="viewer-detail" context={{week:weekDates.length?`Tuần ${weekDates[0]} – ${weekDates.at(-1)}`:'Chưa đọc được ngày của tuần',filters:formatFilterSummary(filters),sort:RESPONSE_SORT_OPTIONS.find(option=>option.value===responseSort)?.label}} headers={model.headers} requiredColumns={[model.nameIndex,...(model.headers.indexOf('Ngày')>=0?[model.headers.indexOf('Ngày')]:[])]}>
+        <TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết" preferenceKey="viewer-detail" context={{week:weekDates.length?`Tuần ${weekDates[0]} – ${weekDates.at(-1)}`:'Chưa đọc được ngày của tuần',filters:formatFilterSummary(filters),sort:RESPONSE_SORT_OPTIONS.find(option=>option.value===responseSort)?.label}} headers={displayModel.headers} requiredColumns={[displayModel.nameIndex,...(displayModel.headers.indexOf('Ngày')>=0?[displayModel.headers.indexOf('Ngày')]:[])]}>
         <div className="section-heading detail-heading">
           <div className="section-heading-title"><PeopleIcon /><h2 id="viewer-detail-title" tabIndex={-1}>Chi tiết lựa chọn</h2></div>
           <div className="detail-sort">
@@ -490,7 +492,7 @@ function App() {
               onChange={label => setResponseSort(RESPONSE_SORT_OPTIONS.find(option => option.label === label)?.value || 'newest')} />
           </div>
         </div>
-        <div key={JSON.stringify([filters, responseSort])} className="detail-results"><DetailTable model={model} filters={filters} closedDays={data?.closedDays}/></div>
+        <div key={JSON.stringify([filters, responseSort])} className="detail-results"><DetailTable model={displayModel} filters={filters} closedDays={data?.closedDays}/></div>
         </TableWorkspace>
       </section>
       </div>

@@ -1,0 +1,12 @@
+# Read-only paired reconciliation
+
+## Objective / contract
+User explicitly approved additive private API/GAS reads. Keep dashboardMatchKey_, candidateRows and rowUses unchanged. Only uniquely verified Form/Sheet records may form a pair; orphan/ambiguous records stay separate by source, never paired by display name. Return no mutation/delete/restore token.
+Existing counts/issues retained. Add versioned comparison with actual day labels, paired sanitized Form/Sheet name/timestamp/meals and Sheet row, plus checkedAt and offset/limit50/total/nextOffset. Strict bounded nonnegative offset validation in Vercel and signed GAS dispatcher, existing session/role/registered-week checks unchanged. Each explicit page replaces the prior comparison with its fresh counts/issues/time; never append across independent reads or present a snapshot guarantee. No automatic extra reads. Old web ignores addition; new web honestly labels an old/malformed unavailable comparison.
+PC presents both sources with aligned corresponding fields; mobile stacks labeled sources. Highlight only actual returned differences. View-only pairs have no mutation action. Retain issue-specific safe Sheet location callbacks and stale-week/read-generation guards.
+## Structure / style
+MealForm.gs existing reconciliation provider/dispatch, api/security.mjs read branch, Dashboard request and paired comparison UI/model. No new matching abstraction. Example {version:1,offset:0,limit:50,total:…,pairs:[{form:…,sheet:…}]}.
+## Commands / testing
+node MealForm.test.js; node MealPermissions.test.js; npm test (meal-viewer); full browser/preview commands from SPEC-workspace-shell.md. Native/API tests first: one verified pair, duplicate names/timestamps/meals, orphans, ambiguity, pagination/invalid offsets/session denial, no tokens and no writes. UI stale/offline/missing/legacy pages and source alignment/issue actions. Verify live source baseline, update only approved GAS functions, same deployment owner/URL/scopes/HMAC; browser reads only in QA.
+## Boundaries / release
+Always actual identities and authorization; unknown pairing stays unknown. Ask before changing matching/writes/scopes. Never run real destructive/create/OCR QA writes. Stage/test exact web artifact, deploy backwards-compatible GAS addition using existing browser session only (no new windows), merge pinned main and promote same artifact. Keep rollback GAS v81 and web PR24.

@@ -192,6 +192,13 @@ export function createDashboardHandler({ secret, callGas:transport, readViewerDa
           if (String(req.query?.target || '').length > 4000) return res.status(400).json({ error: 'Lượt Sheet không hợp lệ.' });
           Object.assign(payload, { source: req.query?.source, responseId: req.query?.responseId, target: req.query?.target ? JSON.parse(req.query.target) : undefined });
         }
+        if(payload.action==='dashboard-reconcile'){
+          const raw=req.query?.comparisonOffset;
+          if(raw!==undefined&&(typeof raw!=='string'||!/^\d+$/.test(raw)))return res.status(400).json({error:'Tham số trang đối soát không hợp lệ.'});
+          const offset=Number(raw||0);
+          if(!Number.isSafeInteger(offset)||offset<0||offset>100000||offset%50!==0)return res.status(400).json({error:'Tham số trang đối soát không hợp lệ.'});
+          payload.comparisonOffset=offset;
+        }
       } else {
         const body = requestBody(req.body);
         if (['ocr', 'ocr-images', 'ocr-region', 'create'].includes(body.action) && permissions.create !== true) return res.status(403).json({ error: 'Tài khoản này không có quyền OCR hoặc tạo tuần.' });
