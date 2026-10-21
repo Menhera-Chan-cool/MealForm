@@ -18,4 +18,4 @@ Approved 2026-10-21. Existing tasks/plan.md and todo.md remain previous release 
 - [x] attention-navigation
 - [x] confirmation-scope
 - [x] Full verification and canonical guarded sync
-- [ ] PR/main and same-artifact production verified
+- [x] PR/main and same-artifact production verified
