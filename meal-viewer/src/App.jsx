@@ -377,13 +377,13 @@ function App() {
 
   if(routeIssue)return <main className="meal-ui ui-viewer"><header className="viewer-header"><h1>Liên kết thực đơn</h1><DisplayPreferencesSlot/></header><ViewerLinkProblem kind={routeIssue}/></main>;
   if (isSetup) return <SetupChecklist authenticated={auth === 'authenticated'} />;
-  if (auth === 'error') return <main className="meal-ui ui-viewer"><section className="login-panel"><h1>Chưa kết nối được</h1><p role="alert">{message}</p><p>Thông tin phiên chưa bị xóa. Bạn không cần đăng xuất để thử lại.</p><div className="actions"><button type="button" onClick={() => void checkSession()}>Kiểm tra lại</button><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đăng xuất</button>{isWeekPage && <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>}</div><ErrorReportButton report={failure} /></section></main>;
+  if (auth === 'error') return <main className="meal-ui ui-viewer"><section className="login-panel recovery-layout"><h1>Chưa kết nối được</h1><p role="alert">{message}</p><p>Thông tin phiên chưa bị xóa. Bạn không cần đăng xuất để thử lại.</p><div className="actions"><button type="button" onClick={() => void checkSession()}>Kiểm tra lại</button><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đăng xuất</button>{isWeekPage && <button className="secondary" type="button" onClick={() => { setAuth('guest'); void loadData(false, true); }}>Tiếp tục với tư cách khách</button>}</div><ErrorReportButton report={failure} /></section></main>;
   if (isHistoryList && auth === 'loading') return <main className="meal-ui ui-viewer"><ContentSkeleton label="Đang xác nhận đăng nhập…" /><ElapsedWait active label="Đang xác nhận đăng nhập"/></main>;
   if (isHistoryList && auth === 'authenticated') return <ArchiveWorkspace onUnauthorized={() => {setData(null);setAuth('anonymous');}}/>;
   if (isDashboard) {
     if (auth === 'loading') return <main className="meal-ui ui-viewer"><ContentSkeleton label="Đang xác nhận đăng nhập và quyền dashboard…" /><ElapsedWait active label="Đang xác nhận đăng nhập"/></main>;
     if (auth === 'anonymous') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Đăng nhập bằng Gmail được chủ sở hữu cấp quyền.</p></header><section className="login-panel"><h2>Đăng nhập để quản trị</h2><LoginContext/>{CLIENT_ID ? <div className="google-signin" ref={signInRoot} /> : <p className="error">Chưa cấu hình đăng nhập Google cho trang này.</p>}<p className="message" role="status">{message}</p><ErrorReportButton report={failure} /></section></main>;
-    if (auth === 'forbidden') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đổi tài khoản Google</button><ErrorReportButton report={failure} /></section></main>;
+    if (auth === 'forbidden') return <main className="meal-ui ui-viewer"><header><h1>Dashboard quản trị thực đơn</h1><p className="sub">Chỉ Gmail được chủ sở hữu cấp quyền mới sử dụng được dashboard.</p></header><section className="login-panel recovery-layout"><p className="error">{message}</p><button className="secondary" type="button" onClick={() => void signOutDashboard().catch(error => setMessage(error.message))}>Đổi tài khoản Google</button><ErrorReportButton report={failure} /></section></main>;
     return <Dashboard key={dashboardData?.accountId} initialData={dashboardData} onSignOut={signOutDashboard} onUnauthorized={(message, status) => { setFailure(safeErrorReport('dashboard', { status })); clearDashboardCache(); authRequest.current++; setDashboardData(null); setAuth(status === 401 ? 'anonymous' : 'forbidden'); setMessage(message); }} />;
   }
 
@@ -492,7 +492,7 @@ function App() {
               onChange={label => setResponseSort(RESPONSE_SORT_OPTIONS.find(option => option.label === label)?.value || 'newest')} />
           </div>
         </div>
-        <div key={JSON.stringify([filters, responseSort])} className="detail-results"><DetailTable model={displayModel} filters={filters} closedDays={data?.closedDays}/></div>
+        <div key={JSON.stringify([filters, responseSort])} className="detail-results"><DetailTable model={displayModel} filters={filters} closedDays={data?.closedDays}/><p className="table-data-footer">Đã tải {data?.rows?.length??0} lượt gửi · Đang hiển thị {resultCounts.responses} lượt gửi theo bộ lọc.</p></div>
         </TableWorkspace>
       </section>
       </div>

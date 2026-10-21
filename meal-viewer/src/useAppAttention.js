@@ -1,12 +1,13 @@
+import {attentionEvent} from './reading-layouts.mjs';
 import {useEffect,useRef,useState} from 'react';
 import {attentionDefaults,readAttentionPreferences,writeAttentionPreferences,notificationCapability,showOcrNotification} from './app-platform.mjs';
 export default function useAppAttention(account,viewingOcr){
-  const [state,setState]=useState(()=>({account,preferences:readAttentionPreferences(account),ocr:false,updates:false})),[status,setStatus]=useState(''),[permissionBusy,setPermissionBusy]=useState(false),[badgeStatus,setBadgeStatus]=useState('');
+  const [state,setState]=useState(()=>({account,preferences:readAttentionPreferences(account),ocr:false,updates:false,events:[]})),[status,setStatus]=useState(''),[permissionBusy,setPermissionBusy]=useState(false),[badgeStatus,setBadgeStatus]=useState('');
   const current=useRef(null),queue=useRef(Promise.resolve());current.current={account,state,viewingOcr};
-  const value=state.account===account?state:{account,preferences:attentionDefaults,ocr:false,updates:false};
-  useEffect(()=>{setState({account,preferences:readAttentionPreferences(account),ocr:false,updates:false});setStatus('');setBadgeStatus('');setPermissionBusy(false);return()=>{current.current=null;queue.current=queue.current.catch(()=>{}).then(()=>navigator.clearAppBadge?.()).catch(()=>{});};},[account]);
+  const value=state.account===account?state:{account,preferences:attentionDefaults,ocr:false,updates:false,events:[]};
+  useEffect(()=>{setState({account,preferences:readAttentionPreferences(account),ocr:false,updates:false,events:[]});setStatus('');setBadgeStatus('');setPermissionBusy(false);return()=>{current.current=null;queue.current=queue.current.catch(()=>{}).then(()=>navigator.clearAppBadge?.()).catch(()=>{});};},[account]);
   useEffect(()=>{
-    function viewed(){if(document.visibilityState==='visible'&&current.current?.viewingOcr)setState(value=>value.account===account?{...value,ocr:false}:value);}
+    function viewed(){if(document.visibilityState==='visible'&&current.current?.viewingOcr)setState(value=>value.account===account?{...value,ocr:false,events:attentionEvent(value.events,{kind:'ocr',scope:'',viewed:true})}:value);}
     viewed();document.addEventListener('visibilitychange',viewed);return()=>document.removeEventListener('visibilitychange',viewed);
   },[account,viewingOcr,state.ocr]);
   useEffect(()=>{
@@ -34,10 +35,10 @@ export default function useAppAttention(account,viewingOcr){
   function completed(){
     const scope=account;if(current.current?.account!==scope)return;
     const hidden=document.visibilityState!=='visible';
-    if(hidden||!current.current.viewingOcr)setState(value=>value.account===scope?{...value,ocr:true}:value);
+    setState(value=>value.account===scope?{...value,ocr:hidden||!current.current.viewingOcr,events:attentionEvent(value.events,{kind:'ocr',scope:'',viewed:!hidden&&current.current.viewingOcr,at:Date.now()})}:value);
     if(hidden&&current.current.state.preferences.ocr&&notificationCapability()==='granted')void showOcrNotification(false,()=>current.current?.account===scope&&current.current.state.preferences.ocr).catch(()=>{if(current.current?.account===scope)setStatus('Chưa gửi được thông báo hệ thống. Kết quả OCR vẫn được giữ trong trang.');});
   }
-  const updates=(count,week)=>setState(value=>value.account===account?{...value,updates:count>0?week:value.updates===week?'':value.updates}:value);
+  const updates=(count,week)=>setState(value=>value.account===account?{...value,updates:count>0?week:value.updates===week?'':value.updates,events:attentionEvent(value.events,{kind:'updates',scope:week,viewed:count<=0,at:Date.now()})}:value);
   async function test(){const scope=account;try{await showOcrNotification(true,()=>current.current?.account===scope&&current.current.state.preferences.ocr);if(current.current?.account===scope)setStatus('Đã gửi thông báo thử cho hệ điều hành.');}catch{if(current.current?.account===scope)setStatus('Chưa gửi được thông báo thử. Kiểm tra quyền và bản cài ứng dụng.');}}
-  return {preferences:value.preferences,ocrPending:value.ocr,updatesPending:value.updates,status,badgeStatus,permissionBusy,enable,preference,completed,updates,test};
+  return {events:value.events,preferences:value.preferences,ocrPending:value.ocr,updatesPending:value.updates,status,badgeStatus,permissionBusy,enable,preference,completed,updates,test};
 }
