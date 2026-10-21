@@ -27,3 +27,4 @@ const redirect = rootRedirectTarget(window.location.pathname, window.location.se
 if (window.location.pathname === '/newform') window.location.replace('/dashboard?tab=create');
 else if (redirect) window.location.replace(redirect);
 else createRoot(document.getElementById('root')).render(<React.StrictMode><AppearanceProvider><BrandingProvider><ComfortProvider><App /></ComfortProvider></BrandingProvider></AppearanceProvider></React.StrictMode>);
+import './reading-layouts.css';

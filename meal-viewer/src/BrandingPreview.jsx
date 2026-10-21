@@ -1,14 +1,15 @@
-import {useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {normalizeBranding,uiThemeVariables} from './branding.mjs';
 import {Badge} from './components/ui/badge.jsx';
 
 /** @param {{draft:any,saved?:any,logoAttempt?:number,onLogoStatus?:(value:{url:string,attempt:number,state:string})=>void}} props */
 export default function BrandingPreview({draft,saved,logoAttempt=0,onLogoStatus}) {
   const [surface,setSurface]=useState('viewer'),[device,setDevice]=useState('phone'),[scheme,setScheme]=useState('light');
-  const [side,setSide]=useState('draft');
+  const [side,setSide]=useState('draft'),[enlarged,setEnlarged]=useState(null),dialog=useRef(null),opener=useRef(null);
+  useEffect(()=>{if(!enlarged)return;const node=dialog.current;node.showModal();return()=>{node.close();opener.current?.focus({preventScroll:true});};},[enlarged]);
   return <section className="branding-context-preview" aria-label="Xem trước thương hiệu">
     <h3>Xem trước thương hiệu</h3><p>Minh họa bố cục và màu sắc. Chưa áp dụng lên web cho tới khi lưu.</p>
-    <div className="branding-preview-controls">
+    <div className="brand-contact-sheet" role="group" aria-label="Bảng mẫu thương hiệu">{[['pc','light','PC sáng'],['pc','dark','PC tối'],['phone','light','Mobile sáng'],['phone','dark','Mobile tối']].map(([device,scheme,label])=><div className="brand-contact-cell" key={label}><h4>{label}</h4><div className="brand-contact-crop" inert><BrandingSample brand={normalizeBranding(draft)} surface={surface} device={device} scheme={scheme}/></div><button type="button" className="secondary" aria-label={'Phóng mẫu '+label} onClick={event=>{opener.current=event.currentTarget;setEnlarged({device,scheme,label});}}>Xem lớn {label}</button></div>)}</div>{enlarged&&<dialog ref={dialog} className="brand-sample-dialog meal-ui" aria-label="Mẫu thương hiệu" onCancel={()=>setEnlarged(null)}><header><h3>{enlarged.label} · Bản đang sửa</h3><button type="button" className="secondary" autoFocus onClick={()=>setEnlarged(null)}>Đóng</button></header><BrandingSample brand={normalizeBranding(draft)} surface={surface} device={enlarged.device} scheme={enlarged.scheme}/></dialog>}<div className="branding-preview-controls">
       <label>Trang minh họa<select value={surface} onChange={event=>setSurface(event.target.value)}><option value="viewer">Trang xem</option><option value="dashboard">Dashboard</option></select></label>
       <label>Thiết bị minh họa<select value={device} onChange={event=>setDevice(event.target.value)}><option value="phone">Điện thoại</option><option value="pc">PC</option></select></label>
       <label>Giao diện minh họa<select value={scheme} onChange={event=>setScheme(event.target.value)}><option value="light">Sáng</option><option value="dark">Tối</option></select></label>

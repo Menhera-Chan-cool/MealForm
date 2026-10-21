@@ -31,7 +31,8 @@ export default function ComfortProvider({children}) {
   const [shortcutsOpen,setShortcutsOpen]=useState(false),shortcutsId=useId();
   const [displaySlot,setDisplaySlot]=useState(null);
   const register=useCallback(value=>{setRegistered(value);return()=>setRegistered(null);},[]);
-  const commands=useMemo(()=>[...(registered?.commands||[]),...pages].filter(command=>foldSearchText(command.label).includes(foldSearchText(query))),[registered,query]);
+  const themeCommands=[['light','Giao diện sáng'],['dark','Giao diện tối'],['system','Giao diện theo thiết bị']].map(([theme,label])=>({id:'theme-'+theme,kind:'appearance',theme,label}));
+  const commands=useMemo(()=>[...pages,...(registered?.commands||[]).filter(command=>command.kind==='tab'),...(registered?.commands||[]).filter(command=>command.kind!=='tab'),...themeCommands].filter(command=>foldSearchText(command.label).includes(foldSearchText(query))),[registered,query]);
   const blocked=registered?.blocked||navigating;
   useEffect(()=>{document.documentElement.dataset.textSize=size;writeTextSize(size);},[size]);
   function show(){if(blocked||document.querySelector('dialog:modal'))return;returnFocus.current=settings.current?.matches(':popover-open')?settingsTrigger.current:document.activeElement;settings.current?.hidePopover();setQuery('');setIndex(0);setError('');setOpen(true);}
@@ -69,7 +70,8 @@ export default function ComfortProvider({children}) {
     if(!command||blocked)return;
     setNavigating(true);setError('');
     try{
-      if(command.kind==='page'){if(await registered?.beforeNavigate?.()===false)return;window.location.assign(command.href);}
+      if(command.kind==='appearance'){appearance.setPreference({theme:command.theme});setOpen(false);}
+      else if(command.kind==='page'){if(await registered?.beforeNavigate?.()===false)return;window.location.assign(command.href);}
       else {if(await registered?.run(command)===false)return;setOpen(false);}
     }catch{setError('Chưa lưu nháp/vị trí được; trang chưa chuyển. Hãy thử lại.');}
     finally{setNavigating(false);}
@@ -81,7 +83,7 @@ export default function ComfortProvider({children}) {
         <h2>Tùy chọn hiển thị</h2>
         <button type="button" className="secondary comfort-command" disabled={blocked} onClick={show}>Lệnh nhanh<span aria-hidden="true">Ctrl/⌘ K</span></button>
         <div className="comfort-font-row"><span>Cỡ chữ</span><div className="comfort-font-options" role="group" aria-label="Cỡ chữ"><button className="secondary" type="button" aria-pressed={size==='normal'} onClick={()=>setSize('normal')}>Bình thường</button><button className="secondary" type="button" aria-pressed={size==='large'} onClick={()=>setSize('large')}>Lớn</button></div></div>
-        <div className="appearance-controls"><label>Giao diện<select aria-label="Giao diện" value={appearance.theme} onChange={event=>appearance.setPreference({theme:event.target.value})}><option value="light">Sáng</option><option value="dark">Tối</option><option value="system">Theo hệ thống</option></select></label><label>Hiệu ứng<select aria-label="Hiệu ứng" value={appearance.motion} onChange={event=>appearance.setPreference({motion:event.target.value})}><option value="full">Đầy đủ</option><option value="light">Nhẹ</option><option value="off">Tắt</option></select></label></div>
+        <div className="appearance-controls"><fieldset className="theme-sample-options"><legend>Giao diện</legend>{[['light','Sáng'],['dark','Tối'],['system','Theo thiết bị']].map(([theme,label])=><label key={theme}><input type="radio" name={settingsId+'-theme'} value={theme} checked={appearance.theme===theme} onChange={()=>appearance.setPreference({theme})}/><span className="theme-sample" data-theme={theme} aria-hidden="true"><span/><span/></span><span>{label}</span></label>)}</fieldset><label>Hiệu ứng<select aria-label="Hiệu ứng" value={appearance.motion} onChange={event=>appearance.setPreference({motion:event.target.value})}><option value="full">Đầy đủ</option><option value="light">Nhẹ</option><option value="off">Tắt</option></select></label></div>
         <InstallApp/><SessionManager blocked={Boolean(blocked)} beforeSignOut={()=>registered?.beforeNavigate?.()}/>
         <button type="button" className="secondary comfort-command" aria-expanded={shortcutsOpen} aria-controls={shortcutsId} onClick={()=>setShortcutsOpen(value=>!value)}>Phím tắt<ChevronIcon expanded={shortcutsOpen}/></button>
         <section id={shortcutsId} className="shortcut-reference" role="region" aria-label="Hướng dẫn phím tắt" hidden={!shortcutsOpen}><h3>Phím tắt</h3><dl>
@@ -104,12 +106,12 @@ export default function ComfortProvider({children}) {
     {displaySlot?createPortal(toolbar,displaySlot):toolbar}
     {children}
     {open&&<dialog ref={dialog} className="quick-dialog" aria-labelledby="quick-title" onCancel={event=>{event.preventDefault();if(!navigating)setOpen(false);}}>
-      <h2 id="quick-title">Lệnh nhanh</h2><p>Chỉ mở trang, tuần hoặc tab; không xóa hay thay đổi dữ liệu.</p>
+      <h2 id="quick-title">Lệnh nhanh</h2><p className="quick-context">Ngữ cảnh: {document.querySelector('main h1')?.textContent||'MealForm'}</p><p>Chỉ mở trang, tuần hoặc tab; không xóa hay thay đổi dữ liệu.</p>
       <SearchInput ref={input} label="Tìm lệnh hoặc tuần" onClear={()=>{setQuery('');setIndex(0);}} role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="quick-results" aria-activedescendant={commands[index]?`quick-result-${index}`:undefined} value={query} disabled={navigating} onChange={event=>{setQuery(event.target.value);setIndex(0);}} onKeyDown={event=>{
         if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();setIndex(value=>commands.length?(value+(event.key==='ArrowDown'?1:-1)+commands.length)%commands.length:0);}
         if(event.key==='Enter'){event.preventDefault();void choose(commands[index]);}
       }} placeholder="Tìm tuần, ngày, Dashboard…" />
-      <div id="quick-results" role="listbox" aria-label="Kết quả lệnh">{commands.map((command,i)=><button key={command.id} id={`quick-result-${i}`} type="button" role="option" aria-selected={index===i} disabled={navigating} className="secondary" onClick={()=>void choose(command)}><SearchHighlight text={command.label} query={query}/></button>)}</div>
+      <div id="quick-results" role="listbox" aria-label="Kết quả lệnh">{['Đi đến','Tuần đang xem','Giao diện'].map(label=>{const group=commands.map((command,i)=>({command,i})).filter(({command})=>(command.kind==='appearance'?'Giao diện':command.kind==='week'?'Tuần đang xem':'Đi đến')===label);return group.length>0&&<div role="group" aria-label={label} key={label}><h3>{label}</h3>{label==='Tuần đang xem'&&<small>Danh sách tuần đã tải; chọn để chuyển tuần.</small>}{group.map(({command,i})=><button key={command.id} id={`quick-result-${i}`} type="button" role="option" aria-selected={index===i} disabled={navigating} className="secondary" onClick={()=>void choose(command)}><SearchHighlight text={command.label} query={query}/></button>)}</div>;})}</div>
       {!commands.length&&<p role="status">Không có lệnh phù hợp.</p>}{error&&<p role="alert">{error}</p>}
       <button type="button" className="secondary" disabled={navigating} onClick={()=>setOpen(false)}>Đóng</button>
     </dialog>}

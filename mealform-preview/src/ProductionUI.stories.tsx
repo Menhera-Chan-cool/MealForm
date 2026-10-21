@@ -31,6 +31,7 @@ import '../../meal-viewer/src/operating-feedback.css';
 import '../../meal-viewer/src/ocr-navigation.css';
 import '../../meal-viewer/src/task-layouts.css';
 import '../../meal-viewer/src/task-workspaces.css';
+import '../../meal-viewer/src/reading-layouts.css';
 
 function ProductionSurface({section='Tổng quan',viewer=false}:{section?:string;viewer?:boolean}){
   const root=useRef<HTMLDivElement>(null),[filters,setFilters]=useState(readViewerFilters(''));

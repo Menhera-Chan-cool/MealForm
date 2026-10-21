@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+const ui=await import('./src/reading-layouts.mjs').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error;});
+assert.equal(typeof ui.headerGroups,'function','grouped headers must reflect displayed order and visibility');
+assert.deepEqual(ui.headerGroups([0,1,2,3,4],[3],[1,2,3]),[{label:'Thông tin lượt gửi',span:1},{label:'Thực đơn',span:2},{label:'Thông tin lượt gửi',span:1}]);
+assert.deepEqual(ui.headerGroups([0,2,4,1,3],[],[1,2,3]).map(x=>x.span),[1,1,1,2]);
+assert.deepEqual(ui.headerGroups([],[],[]),[]);
+assert.equal(typeof ui.attentionEvent,'function');
+let events=ui.attentionEvent([], {kind:'ocr',scope:'',viewed:false,at:1});
+assert.deepEqual(events,[{kind:'ocr',scope:'',viewed:false,at:1}]);
+events=ui.attentionEvent(events,{kind:'ocr',scope:'',viewed:true});
+assert.equal(events[0].at,1);assert.equal(events[0].viewed,true);
+assert.deepEqual(ui.attentionEvent([],{kind:'updates',scope:'week',viewed:true}),[]);
+assert.deepEqual(ui.attentionEvent([],{kind:'updates',scope:'week',viewed:true,at:2}),[], 'a no-new-results poll must not fabricate a seen event');
+events=ui.attentionEvent(events,{kind:'updates',scope:'week',viewed:false,at:2});
+assert.equal(ui.attentionEvent(events,{kind:'updates',scope:'week',viewed:false,at:3})[0].at,2);
+assert.equal(ui.attentionEvent(events,{kind:'updates',scope:'other',viewed:true})[0].viewed,false);
+assert.equal(ui.attentionEvent(Array.from({length:20},(_,at)=>({kind:'ocr',scope:String(at),viewed:true,at})),{kind:'ocr',scope:'new',viewed:false,at:21}).length,20);
+console.log('Grouped headers preserve actual order/hidden columns; attention events never fabricate seen history');
