@@ -1,6 +1,7 @@
+import {parseServingDay} from './viewer-model.mjs';
 const text=value=>typeof value==='string'?value.trim():'';
 export function mealCellLabel(value,closed=false){if(closed)return 'Không phục vụ';if(value==null||!['string','number'].includes(typeof value))return 'Chưa đọc được';return String(value).trim()===''?'Chưa chọn':'';}
-function dayDate(label){const match=text(label).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(!match)return '';const key=`${match[3]}-${match[2].padStart(2,'0')}-${match[1].padStart(2,'0')}`,date=new Date(key+'T00:00:00Z');return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===key?key:'';}
+function dayDate(label){return parseServingDay(label)?.key||'';}
 export function sameDisplayDay(left,right){return Boolean(text(left)&&text(right)&&(text(left)===text(right)||dayDate(left)&&dayDate(left)===dayDate(right)));}
 export function isClosedDay(label,closedDays=[]){return Array.isArray(closedDays)&&closedDays.some(day=>sameDisplayDay(label,day));}
 export function calendarDayChoices(days=[],closedDays=[],calendarDays=[]){

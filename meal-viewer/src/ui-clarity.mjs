@@ -1,4 +1,4 @@
-import {ALL,foldSearchText} from './viewer-model.mjs';
+import {ALL,foldSearchText,parseServingDay} from './viewer-model.mjs';
 import {weekRange,weekMonths} from './ui-model.mjs';
 
 export function highlightPieces(value,query,accent=true) {
@@ -28,10 +28,9 @@ export function displayHeader(value) {
 
 export function compactDayLabel(value) {
   const label=String(value??'');
-  const match=label.match(/^(Thứ\s+(?:[2-7]|Hai|Ba|Tư|Bốn|Năm|Sáu|Bảy)|Chủ\s+nhật)\s*(?:\(|[·,–-])?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\)?$/iu);
-  if(!match)return label;
-  const [,weekday,day,month,year]=match,iso=`${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`;
-  if(!weekRange({startDate:iso,endDate:iso}))return label;
+  const match=label.match(/^(Thứ\s+(?:[2-7]|Hai|Ba|Tư|Bốn|Năm|Sáu|Bảy)|Chủ\s+nhật)\s*(?:\(|[·,–-])?\s*(\d{1,2})[./-](\d{1,2})[./-](\d{4})\)?$/iu);
+  if(!match||!parseServingDay(label))return label;
+  const [,weekday,day,month]=match;
   const short=({'thu hai':'T2','thu ba':'T3','thu tu':'T4','thu bon':'T4','thu nam':'T5','thu sau':'T6','thu bay':'T7','chu nhat':'CN'})[foldSearchText(weekday)]||weekday.replace(/^Thứ\s+/iu,'T');
   return `${short} · ${day.padStart(2,'0')}/${month.padStart(2,'0')}`;
 }
@@ -62,7 +61,7 @@ export function groupAuditDays(events){
   return [...groups.values()];
 }
 export function viewerPageTitle(data,fallback) {
-  const dates=(data?.calendarDays||data?.days||[]).map(day=>String(typeof day==='string'?day:day.day).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)).filter(Boolean).map(match=>`${match[3]}-${match[2].padStart(2,'0')}-${match[1].padStart(2,'0')}`).sort();
+  const dates=(data?.calendarDays||data?.days||[]).map(parseServingDay).filter(Boolean).map(day=>day.key).sort();
   const range=weekRange({startDate:dates[0],endDate:dates.at(-1)});
   if(!range)return fallback;
   const start=range.start.split('-').reverse(),end=range.end.split('-').reverse();

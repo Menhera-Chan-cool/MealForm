@@ -25,19 +25,24 @@ export function foldSearchText(value) {
   return String(value ?? '').normalize('NFD').replace(/\p{M}/gu, '').replace(/[đĐ]/g, 'd').toLocaleLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+// Display-only: keep source headers and selected filter values unchanged.
+export function parseServingDay(value) {
+  const match=dayName(value).match(/(?:^|[^\d])(\d{1,2})([./-])(\d{1,2})\2(\d{4})(?!\d)/);
+  if(!match)return null;
+  const key=`${match[4]}-${match[3].padStart(2,'0')}-${match[1].padStart(2,'0')}`,date=new Date(key+'T00:00:00Z');
+  return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===key?{key,text:match[1]+match[2]+match[3]+match[2]+match[4]}:null;
+}
+
 export function todayDayLabel(days, nowValue = Date.now()) {
   const today = new Date(new Date(nowValue).getTime() + 7 * 3600000).toISOString().slice(0, 10);
-  return (days || []).map(dayName).find(label => {
-    const date = label.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    return date && `${date[3]}-${date[2].padStart(2, '0')}-${date[1].padStart(2, '0')}` === today;
-  }) || '';
+  return (days || []).map(dayName).find(label => parseServingDay(label)?.key===today) || '';
 }
 
 export function mealRegistrationTarget(data, allowNext = false) {
   const safeUrl = value => /^https:\/\/(?:docs\.google\.com\/forms\/|forms\.gle\/)/i.test(value || '') ? value : '';
   const next = allowNext && data?.formStatus === 'closed' && data?.nextForm?.formStatus === 'open' && safeUrl(data.nextForm.formUrl);
   const target = next ? data.nextForm : data;
-  const dates = (target?.calendarDays || target?.days || []).map(day => dayName(day).match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0]).filter(Boolean);
+  const dates = (target?.calendarDays || target?.days || []).map(parseServingDay).filter(Boolean).map(day=>day.text);
   return {
     formUrl: safeUrl(target?.formUrl), status: target?.formStatus || 'unknown',
     lockAt: target?.lockAt, serverNow: target?.serverNow,

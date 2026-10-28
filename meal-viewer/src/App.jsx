@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ALL, buildDetailModel, detailResultCounts, errorMessage, readViewerFilters, spreadsheetIdFromUrl, viewerApiUrl, weekNavigation, shouldDeferViewerUpdate, millisecondsUntilMealWeekRollover, todayDayLabel, mealRegistrationTarget,formatFilterSummary } from './viewer-model.mjs';
+import { ALL, buildDetailModel, detailResultCounts, errorMessage, readViewerFilters, spreadsheetIdFromUrl, viewerApiUrl, weekNavigation, shouldDeferViewerUpdate, millisecondsUntilMealWeekRollover, todayDayLabel, mealRegistrationTarget,formatFilterSummary,parseServingDay } from './viewer-model.mjs';
 import Dashboard from './Dashboard.jsx';
 import ContentSkeleton from './ContentSkeleton.jsx';
 import {useAppearance} from './AppearanceProvider.jsx';
@@ -318,8 +318,7 @@ function App() {
   }, [auth, checkSession, appearance.scheme]);
 
   const days = Array.isArray(data?.days) ? data.days : [];
-  const weekDates = (data?.calendarDays || days).map(day => typeof day === 'string' ? day : String(day?.day || ''))
-    .map(label => label.match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0]).filter(Boolean);
+  const weekDates = (data?.calendarDays || days).map(parseServingDay).filter(Boolean).map(day=>day.text);
   const pageTitle = isNewestPage ? 'Thực đơn tuần này' : isNextPage ? 'Thực đơn tuần sau' : isHistory ? 'Kho thực đơn tuần cũ' : 'Thực đơn bán trú';
   usePageTitle(routeIssue?'Liên kết thực đơn':isDashboard?(auth==='authenticated'?'':'Dashboard'):isSetup?'':isHistoryList?(auth==='authenticated'?'':'Kho tuần cũ'):viewerPageTitle(data,pageTitle));
   const nameOptions = useMemo(() => [...new Set((data?.rows || []).map(row => String(row?.[1] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')), [data]);
