@@ -1,5 +1,14 @@
 import { test, expect } from '@playwright/test';
 import {useImmutableAssets} from './immutable-assets';
+test('serving-date-regression: Today recognizes dotted week dates and preserves theme/source filters',async({page})=>{
+  await page.clock.install({time:new Date('2026-10-28T03:00:00Z')});const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);
+  const labels=['26','27','28','29','30'].map((day,index)=>'Thứ '+(index+2)+' ('+day+'.10.2026)');
+  await page.route('**/api/viewer**',route=>route.fulfill({json:{headers:['Timestamp','Họ tên',...labels],rows:[['28/10/2026 08:00','Tên minh họa',...labels.map(()=>'Cơm')]],days:labels.map(day=>({day,meals:['Cơm']})),calendarDays:labels,formStatus:'closed'}}));
+  await page.addInitScript(()=>localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'off'})));
+  await page.goto('http://127.0.0.1:5175/newest');const today=page.getByRole('button',{name:'Hôm nay',exact:true});await expect(today).toBeEnabled();await expect(page.locator('.week-date-range')).toContainText('26.10.2026 – 30.10.2026');
+  await today.click();await expect(today).toHaveAttribute('aria-pressed','true');await expect(page.getByRole('combobox',{name:'Ngày',exact:true})).toHaveValue(labels[2]);await expect(page.locator('.detail-wrap tbody')).toContainText('Cơm');await expect(page).toHaveTitle(/Tuần 26–30\/10\/2026/);
+  await page.setViewportSize({width:390,height:844});await expect(today).toBeEnabled();await page.getByRole('button',{name:/^Bộ lọc/}).click();await expect(page.getByRole('combobox',{name:'Ngày',exact:true})).toHaveValue(labels[2]);await page.getByRole('button',{name:'Đóng bộ lọc',exact:true}).click();expect(writes).toEqual([]);
+});
 if(process.env.MEAL_ARTIFACT_URL)test.beforeEach(async({page})=>useImmutableAssets(page,process.env.MEAL_ARTIFACT_URL!));
 async function expandMobileRows(page:import('@playwright/test').Page){
   if((page.viewportSize()?.width||1000)>700)return;
