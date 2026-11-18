@@ -1,5 +1,7 @@
+export const DEFAULT_DASHBOARD_TAB='delete';
 export function readDashboardLocation(search,tabs,weeks,fallback){
-  const params=new URLSearchParams(search),tab=params.get('tab'),week=params.get('week');
+  const params=new URLSearchParams(search),rawTab=params.get('tab'),week=params.get('week');
+  const tab=rawTab==='overview'&&!tabs.includes('overview')?DEFAULT_DASHBOARD_TAB:rawTab;
   return {tab:tabs.includes(tab)?tab:fallback.tab,week:weeks.some(item=>item.weekKey===week)?week:fallback.week};
 }
 export function dashboardHref(tab,week){const params=new URLSearchParams({tab});if(week)params.set('week',week);return '/dashboard?'+params;}
