@@ -28,11 +28,11 @@ async page => {
  },mode);}
  try{
   for(const width of [1280,390,320]){
-   changed=false;stage=`${width}: preference`;await p.setViewportSize({width,height:844});await p.emulateMedia({colorScheme:'light',reducedMotion:'no-preference'});await p.goto('http://127.0.0.1:5176/dashboard');await p.locator('.dashboard-account').waitFor();
+   changed=false;stage=`${width}: preference`;await p.setViewportSize({width,height:844});await p.emulateMedia({colorScheme:'light',reducedMotion:'no-preference'});await p.goto('http://127.0.0.1:5176/dashboard');await p.locator('.dashboard-account').waitFor({state:'attached'});
    await chooseAppearance('Giao diện','dark');await p.waitForFunction(()=>document.documentElement.dataset.colorScheme==='dark');
    if(await p.evaluate(()=>getComputedStyle(document.querySelector('main')).backgroundColor)==='rgb(255, 255, 255)')throw Error('Dark surface stayed white');
    await chooseAppearance('Giao diện','system');await p.emulateMedia({colorScheme:'dark'});await p.waitForFunction(()=>document.documentElement.dataset.colorScheme==='dark');await chooseAppearance('Giao diện','light');await p.emulateMedia({colorScheme:'dark'});if(await p.evaluate(()=>document.documentElement.dataset.colorScheme)!=='light')throw Error('Explicit light followed system');
-   await chooseAppearance('Hiệu ứng','off');await p.reload();await p.locator('.dashboard-account').waitFor();if(await p.getByLabel('Hiệu ứng',{exact:true}).inputValue()!=='off')throw Error('Motion preference lost');
+   await chooseAppearance('Hiệu ứng','off');await p.reload();await p.locator('.dashboard-account').waitFor({state:'attached'});if(await p.getByLabel('Hiệu ứng',{exact:true}).inputValue()!=='off')throw Error('Motion preference lost');
    stage=`${width}: changes`;await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.getByText(/^Dữ liệu đã xác minh\./).waitFor();changed=true;await p.getByRole('button',{name:'Tải lại dữ liệu',exact:true}).click();await p.getByText('1 mới · 1 đã mất · 1 thay đổi',{exact:false}).waitFor();
    stage=`${width}: import`;await p.getByRole('button',{name:'Tạo tuần bằng OCR',exact:true}).click();await p.getByRole('heading',{name:'Tạo tuần từ ảnh thực đơn',exact:true}).waitFor();await p.waitForFunction(()=>!document.querySelector('.dashboard-file input')?.disabled);await addImage('file');await p.waitForFunction(()=>document.querySelectorAll('.image-source').length===1);
    await addImage('paste');await p.waitForFunction(()=>document.querySelectorAll('.image-source').length===2);

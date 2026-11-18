@@ -71,7 +71,7 @@
 .help-drawer footer{padding-top:12px;border-top:1px solid var(--meal-ui-border)}
 .help-drawer .setup-steps{padding-inline-start:20px}
 :root .help-drawer .setup-steps li{border:0;border-bottom:1px solid var(--meal-ui-border);border-radius:0;padding:16px 0;background:transparent}
-@media(min-width:701px){:root .ui-dashboard-layout:has(.help-drawer[open]:not(:modal)){padding-inline-end:min(420px,37vw)}}
+@media(min-width:701px){:root:has(.help-drawer[open]:not(:modal)) .ui-dashboard-layout{padding-inline-end:min(420px,37vw)}}
 @media(max-width:700px){
   .viewer-login-choices{grid-template-columns:minmax(0,1fr);gap:20px}
   .viewer-login-choices>section+section{border-inline-start:0;border-top:1px solid var(--meal-ui-border);padding-inline-start:0;padding-top:20px}

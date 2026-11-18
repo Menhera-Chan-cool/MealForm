@@ -13,6 +13,8 @@ import SessionManager from './SessionManager.jsx';
 const Comfort=createContext(()=>()=>{});
 const PreferencesSlot=createContext(()=>{});
 export function DisplayPreferencesSlot(){const setSlot=useContext(PreferencesSlot);return <div className="ui-preferences-slot" ref={setSlot}/>;}
+const MenuExtra=createContext(null);
+export function MenuExtraSlot({children}){const host=useContext(MenuExtra);return host?createPortal(children,host):null;}
 const pages=[['/newest','Tuần này'],['/next','Tuần sau'],['/history','Kho tuần cũ'],['/dashboard','Dashboard'],['/setup','Cài đặt']].map(([href,label])=>({id:href,kind:'page',href,label}));
 
 export function useQuickCommands(commands,blocked,run,beforeNavigate) {
@@ -29,7 +31,7 @@ export default function ComfortProvider({children}) {
   const [settingsOpen,setSettingsOpen]=useState(false);
   const [updatesOpen,setUpdatesOpen]=useState(false),updatesId=useId();
   const [shortcutsOpen,setShortcutsOpen]=useState(false),shortcutsId=useId();
-  const [displaySlot,setDisplaySlot]=useState(null);
+  const [displaySlot,setDisplaySlot]=useState(null),[menuExtraHost,setMenuExtraHost]=useState(null);
   const register=useCallback(value=>{setRegistered(value);return()=>setRegistered(null);},[]);
   const themeCommands=[['light','Giao diện sáng'],['dark','Giao diện tối'],['system','Giao diện theo thiết bị']].map(([theme,label])=>({id:'theme-'+theme,kind:'appearance',theme,label}));
   const commands=useMemo(()=>[...pages,...(registered?.commands||[]).filter(command=>command.kind==='tab'),...(registered?.commands||[]).filter(command=>command.kind!=='tab'),...themeCommands].filter(command=>foldSearchText(command.label).includes(foldSearchText(query))),[registered,query]);
@@ -81,6 +83,7 @@ export default function ComfortProvider({children}) {
       <button ref={settingsTrigger} type="button" className="secondary comfort-menu-toggle" aria-label="Tùy chọn hiển thị" title="Tùy chọn hiển thị" aria-haspopup="dialog" aria-expanded={settingsOpen} aria-controls={settingsId} popoverTarget={settingsId} onKeyDown={event=>{if(event.key==='ArrowDown'){event.preventDefault();if(!settings.current.matches(':popover-open'))settingsTrigger.current.click();settings.current.querySelector('button:not(:disabled)')?.focus();}}}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="4" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg></button>
       <div ref={settings} id={settingsId} className="comfort-menu" popover="auto" role="dialog" aria-label="Tùy chọn hiển thị" onBeforeToggle={positionSettings} onToggle={event=>{setSettingsOpen(event.newState==='open');if(event.newState!=='open'){setUpdatesOpen(false);setShortcutsOpen(false);}}} onKeyDown={moveSettingsFocus}>
         <h2>Tùy chọn hiển thị</h2>
+        <div className="comfort-menu-extra" ref={setMenuExtraHost}/>
         <button type="button" className="secondary comfort-command" disabled={blocked} onClick={show}>Lệnh nhanh<span aria-hidden="true">Ctrl/⌘ K</span></button>
         <div className="comfort-font-row"><span>Cỡ chữ</span><div className="comfort-font-options" role="group" aria-label="Cỡ chữ"><button className="secondary" type="button" aria-pressed={size==='normal'} onClick={()=>setSize('normal')}>Bình thường</button><button className="secondary" type="button" aria-pressed={size==='large'} onClick={()=>setSize('large')}>Lớn</button></div></div>
         <div className="appearance-controls"><fieldset className="theme-sample-options"><legend>Giao diện</legend>{[['light','Sáng'],['dark','Tối'],['system','Theo thiết bị']].map(([theme,label])=><label key={theme}><input type="radio" name={settingsId+'-theme'} value={theme} checked={appearance.theme===theme} onChange={()=>appearance.setPreference({theme})}/><span className="theme-sample" data-theme={theme} aria-hidden="true"><span/><span/></span><span>{label}</span></label>)}</fieldset><label>Hiệu ứng<select aria-label="Hiệu ứng" value={appearance.motion} onChange={event=>appearance.setPreference({motion:event.target.value})}><option value="full">Đầy đủ</option><option value="light">Nhẹ</option><option value="off">Tắt</option></select></label></div>
@@ -102,7 +105,7 @@ export default function ComfortProvider({children}) {
       </div>
     </div>
   </>;
-  return <Comfort.Provider value={register}><PreferencesSlot.Provider value={setDisplaySlot}>
+  return <Comfort.Provider value={register}><PreferencesSlot.Provider value={setDisplaySlot}><MenuExtra.Provider value={menuExtraHost}>
     {displaySlot?createPortal(toolbar,displaySlot):toolbar}
     {children}
     {open&&<dialog ref={dialog} className="quick-dialog" aria-labelledby="quick-title" onCancel={event=>{event.preventDefault();if(!navigating)setOpen(false);}}>
@@ -115,5 +118,5 @@ export default function ComfortProvider({children}) {
       {!commands.length&&<p role="status">Không có lệnh phù hợp.</p>}{error&&<p role="alert">{error}</p>}
       <button type="button" className="secondary" disabled={navigating} onClick={()=>setOpen(false)}>Đóng</button>
     </dialog>}
-  </PreferencesSlot.Provider></Comfort.Provider>;
+  </MenuExtra.Provider></PreferencesSlot.Provider></Comfort.Provider>;
 }

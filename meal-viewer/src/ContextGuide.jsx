@@ -1,4 +1,5 @@
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
+import {createPortal} from 'react-dom';
 import HelpDrawer from './HelpDrawer.jsx';
 
 const guides={
@@ -20,5 +21,5 @@ export default function ContextGuide({tab,disabled}){
     node.setAttribute('data-guide-target','');const frame=requestAnimationFrame(()=>node.scrollIntoView({block:'center',behavior:'instant'}));
     return()=>{cancelAnimationFrame(frame);node.removeAttribute('data-guide-target');};
   },[open,index]);
-  return <><button ref={trigger} type="button" className="secondary" disabled={disabled} onClick={show}>Hướng dẫn mục này</button>{open&&<HelpDrawer title="Hướng dẫn mục hiện tại" onClose={close} footer={<div className="actions"><button type="button" className="secondary" disabled={!index} onClick={()=>setIndex(value=>value-1)}>Trước</button><button type="button" onClick={()=>index===steps.length-1?close():setIndex(value=>value+1)}>{index===steps.length-1?'Xong':'Tiếp'}</button><button type="button" className="secondary" onClick={close}>Bỏ qua / Đóng</button></div>}><small>{index+1} / {steps.length}</small><h3>{steps[index].title}</h3><p>{steps[index].text}</p></HelpDrawer>}</>;
+  return <><button ref={trigger} type="button" className="secondary" disabled={disabled} onClick={event=>{event.currentTarget.closest('[popover]')?.hidePopover();show();}}>Hướng dẫn mục này</button>{open&&createPortal(<HelpDrawer title="Hướng dẫn mục hiện tại" onClose={close} footer={<div className="actions"><button type="button" className="secondary" disabled={!index} onClick={()=>setIndex(value=>value-1)}>Trước</button><button type="button" onClick={()=>index===steps.length-1?close():setIndex(value=>value+1)}>{index===steps.length-1?'Xong':'Tiếp'}</button><button type="button" className="secondary" onClick={close}>Bỏ qua / Đóng</button></div>}><small>{index+1} / {steps.length}</small><h3>{steps[index].title}</h3><p>{steps[index].text}</p></HelpDrawer>,document.body)}</>;
 }

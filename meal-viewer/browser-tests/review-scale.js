@@ -27,7 +27,7 @@ async page => {
  try{
   for(const width of [1280,390]){
    update=false;posts=[];stage=`${width}: account`;await p.setViewportSize({width,height:844});await p.goto('http://127.0.0.1:5176/dashboard?resetReviewFixture=1');await p.evaluate(()=>history.replaceState({},'','/dashboard'));
-   await p.locator('.dashboard-account').filter({hasText:'owner@example.com'}).waitFor({timeout:3000});
+   await p.locator('.dashboard-account').filter({hasText:'owner@example.com'}).waitFor({state:'attached',timeout:3000});
    if(!(await p.locator('.dashboard-account').innerText()).includes('Chủ sở hữu'))throw Error('Role label missing');
    await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();
    await p.waitForFunction(()=>document.querySelectorAll('[data-response-id]').length===50);

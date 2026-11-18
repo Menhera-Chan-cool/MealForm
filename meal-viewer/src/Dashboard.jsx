@@ -23,7 +23,7 @@ import OcrReviewDay from './OcrReviewDay.jsx';
 import MultiImageReview from './MultiImageReview.jsx';
 import {buildImageMerge} from './image-import.mjs';
 import './import-appearance.css';
-import {useQuickCommands,DisplayPreferencesSlot} from './ComfortProvider.jsx';
+import {useQuickCommands,DisplayPreferencesSlot,MenuExtraSlot} from './ComfortProvider.jsx';
 import {DashboardLayout,DashboardOverview,allowedDashboardSections} from './DashboardLayout.jsx';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
 import WeekNoticeEditor from './WeekNoticeEditor.jsx';
@@ -735,9 +735,11 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
       <div><h1>{activeTitle}</h1></div>
       <DisplayPreferencesSlot/>
     </header>
-    <div className="dashboard-account" aria-label="Tài khoản đang đăng nhập"><strong>{overview.email || 'Đang xác minh Gmail…'}</strong><span>{accountRoleLabel({ ...overview, permissions })}</span><small>{permissions.create ? 'OCR/tạo tuần' : 'Không tạo tuần'} · {permissions.manageResponses ? 'Xóa/khôi phục' : 'Không xóa lượt gửi'}</small></div>
+    <MenuExtraSlot>
+      <div className="dashboard-account" aria-label="Tài khoản đang đăng nhập"><strong>{overview.email || 'Đang xác minh Gmail…'}</strong><span>{accountRoleLabel({ ...overview, permissions })}</span><small>{permissions.create ? 'OCR/tạo tuần' : 'Không tạo tuần'} · {permissions.manageResponses ? 'Xóa/khôi phục' : 'Không xóa lượt gửi'}</small></div>
+      <div className="dashboard-assist-tools"><ContextGuide tab={tab} disabled={busy||Boolean(confirmation)||Boolean(regionBase)||Boolean(mergeBase)}/><SessionFeedback entries={sessionEvents} onClear={()=>setSessionEvents([])}/></div>
+    </MenuExtraSlot>
     <ConnectionNotice online={online} savedAt={cacheTime} hasData={Boolean(displayedWeek)}/>
-    <div className="dashboard-assist-tools"><ContextGuide tab={tab} disabled={busy||Boolean(confirmation)||Boolean(regionBase)||Boolean(mergeBase)}/><SessionFeedback entries={sessionEvents} onClear={()=>setSessionEvents([])}/></div>
     <VersionNotice disabled={busy || !online || signingOut || Boolean(regionBase) || Boolean(mergeBase) || Boolean(confirmation)} beforeReload={async()=>{if(!leaveDrafts())return false;viewState.save();await draft.flush();}} />
     {message && <div className={`dashboard-message ${missingScriptPermission || /không|lỗi|chưa/i.test(message) ? 'error' : ''}`} role={missingScriptPermission?'alert':'status'} aria-live="polite">{missingScriptPermission&&<strong>Thiếu quyền Apps Script. </strong>}{message}{missingScriptPermission&&(overview.role==='owner'?<button className="secondary" type="button" disabled={busy||!online} onClick={()=>void authorizeScript()}>Cấp quyền Apps Script</button>:<span> Liên hệ chủ sở hữu để cấp quyền.</span>)}{authorizationUrl && <> <ExternalLink className="action-link" href={authorizationUrl}>Mở trang cấp quyền Google</ExternalLink></>}</div>}
 

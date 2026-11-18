@@ -37,7 +37,7 @@ async page => {
  const results=[];
  try{
   for(const width of [1280,390,320]){
-   stage=`${width}: font/palette`;await p.setViewportSize({width,height:844});await p.goto('http://127.0.0.1:5176/dashboard');await p.locator('.dashboard-account').waitFor();
+   stage=`${width}: font/palette`;await p.setViewportSize({width,height:844});await p.goto('http://127.0.0.1:5176/dashboard');await p.locator('.dashboard-account').waitFor({state:'attached'});
    await chooseFont('Lớn');
    const large=await p.evaluate(()=>parseFloat(getComputedStyle(document.documentElement).fontSize));
    if(large<(width<700?21:18))throw Error('Large text did not change font');
@@ -49,7 +49,7 @@ async page => {
    await p.getByRole('button',{name:'Xem nhanh',exact:true}).click();await p.getByRole('dialog').waitFor();
    await p.keyboard.press('Control+k');if(await p.getByRole('dialog',{name:'Lệnh nhanh'}).count())throw Error('Palette opened behind modal');await p.keyboard.press('Escape');
    await openCommands();await p.keyboard.press('Escape');if(await p.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).evaluate(el=>el!==document.activeElement))throw Error('Focus did not return');
-   await p.reload();await p.locator('.dashboard-account').waitFor();if(await p.evaluate(()=>document.documentElement.dataset.textSize)!=='large')throw Error('Font preference lost');
+   await p.reload();await p.locator('.dashboard-account').waitFor({state:'attached'});if(await p.evaluate(()=>document.documentElement.dataset.textSize)!=='large')throw Error('Font preference lost');
    await chooseFont('Bình thường');
    stage=`${width}: cancellation`;await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.getByText(/^Dữ liệu đã xác minh\./).waitFor();
    await p.evaluate(data=>{window.qaLate=data;window.qaHold=true;},dataset);
@@ -84,11 +84,11 @@ async page => {
   await p.waitForTimeout(650);
   if(await p.getByRole('button',{name:'Dừng chờ dữ liệu',exact:true}).count())throw Error('A scheduled tab read restarted after stop');
   await p.evaluate(()=>{window.qaRelease();window.qaHold=false;});
-  stage='manager permissions';role='manager';await p.goto('http://127.0.0.1:5176/dashboard');await p.locator('.dashboard-account').waitFor();await openCommands();
+  stage='manager permissions';role='manager';await p.goto('http://127.0.0.1:5176/dashboard');await p.locator('.dashboard-account').waitFor({state:'attached'});await openCommands();
   if(await p.getByRole('option',{name:'Thông báo tuần',exact:true}).count()||await p.getByRole('option',{name:'Tạo tuần bằng OCR',exact:true}).count())throw Error('Private owner/create commands leaked');await p.keyboard.press('Escape');
   stage='late cancelled unauthorized';await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.getByText(/^Dữ liệu đã xác minh\./).waitFor();
   await p.evaluate(()=>{window.qaHold=true;window.qaLateStatus=401;window.qaLate={error:'expired'};});await p.getByRole('button',{name:'Tải lại dữ liệu',exact:true}).click();await p.waitForFunction(()=>typeof window.qaRelease==='function');await p.getByRole('button',{name:'Dừng chờ dữ liệu',exact:true}).click();await p.evaluate(()=>{window.qaRelease();window.qaHold=false;});await p.waitForTimeout(100);if(!await p.locator('.dashboard-account').count())throw Error('Cancelled 401 changed login state');
-  stage='cold cancelled read';await p.evaluate(()=>{Object.keys(localStorage).filter(k=>k.startsWith('meal-dashboard-cache-v1:comfort-fixture:')).forEach(k=>localStorage.removeItem(k));});await p.reload();await p.locator('.dashboard-account').waitFor();await p.evaluate(()=>{window.qaHold=true;window.qaLate={};});await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.waitForFunction(()=>typeof window.qaRelease==='function');await p.getByRole('button',{name:'Dừng chờ dữ liệu',exact:true}).click();await p.getByText('Chưa có dữ liệu đã xác minh. Hãy tải lại dữ liệu.',{exact:true}).waitFor();await p.evaluate(()=>window.qaRelease());
+  stage='cold cancelled read';await p.evaluate(()=>{Object.keys(localStorage).filter(k=>k.startsWith('meal-dashboard-cache-v1:comfort-fixture:')).forEach(k=>localStorage.removeItem(k));});await p.reload();await p.locator('.dashboard-account').waitFor({state:'attached'});await p.evaluate(()=>{window.qaHold=true;window.qaLate={};});await p.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await p.waitForFunction(()=>typeof window.qaRelease==='function');await p.getByRole('button',{name:'Dừng chờ dữ liệu',exact:true}).click();await p.getByText('Chưa có dữ liệu đã xác minh. Hãy tải lại dữ liệu.',{exact:true}).waitFor();await p.evaluate(()=>window.qaRelease());
   stage='draft-safe palette navigation';role='owner';await p.goto('http://127.0.0.1:5176/dashboard?tab=create');await p.getByRole('heading',{name:'Tạo tuần từ ảnh thực đơn',exact:true}).waitFor();
   await p.evaluate(async()=>{
    const db=await new Promise(resolve=>{const request=indexedDB.open('meal-ocr-drafts',1);request.onupgradeneeded=()=>request.result.createObjectStore('drafts',{keyPath:'accountId'});request.onsuccess=()=>resolve(request.result);});
