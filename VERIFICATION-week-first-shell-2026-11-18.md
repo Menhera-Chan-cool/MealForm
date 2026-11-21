@@ -44,3 +44,14 @@ Bộ ảnh ở `mealform-preview/review/week-first-shell/` gồm sáng/tối ở
 | Chuyển động với mức Đầy đủ khi OS yêu cầu giảm | Tôn trọng OS, vẫn kiểm tra điều hướng và Escape |
 
 Điểm dừng là kiểm chứng cục bộ giai đoạn 1. Chưa kiểm thử trên điện thoại vật lý, trình đọc màn hình hoặc Chromatic cloud. Ảnh zoom dùng chiều rộng bố cục tương đương. Worktree riêng và bản bàn giao gốc được giữ để tiếp tục sau bước duyệt.
+
+## Phát hành ngày 21/11/2026
+
+Người dùng yêu cầu kiểm tra lại và đưa lên production nếu kết quả đạt. Nguồn bản phát hành là commit `da92f1fe80b7ec6c3c267b4fdc624ceeacc6afb9` trong worktree giao diện. Gói triển khai được trích bằng `git archive` từ cây `meal-viewer` của commit đó, gồm các tệp đã commit.
+
+- Staging dùng cấu hình production của dự án `anh-tun/menutaythanh`, deployment `dpl_DPGJ3SWkfGyg17LNR93XwLy7HoiS`, build `c0daab89-fea8-48d8-bd80-d139847a11f2`. Tên miền chính vẫn trỏ bản cũ trong lúc kiểm thử staging.
+- Playwright sử dụng JS/CSS của chính deployment với API mô phỏng. 282 bài đạt ở lượt đầu. Một bài về phiên đăng nhập gặp lỗi tải trang và đạt khi Playwright thử lại. Lượt chạy riêng bài đó cùng nhóm vỏ theo tuần đạt 24/24. Đã xem ảnh PC và mobile từ bản staging.
+- Với API thật, Viewer tuần này và tuần sau trả HTTP 200. Chrome ở 390 px đọc thực đơn khách thành công và không cuộn ngang. API Dashboard và Kho tuần trả 401 khi chưa đăng nhập. Kiểm tra chỉ đọc, không thao tác dữ liệu thật.
+- Sau khi chuyển tên miền, Vercel xác nhận `menutaythanh.vercel.app` trỏ đúng deployment staging. Kiểm tra lại đúng build, Viewer khách HTTP 200, Dashboard và Kho tuần HTTP 401. Không có lỗi JavaScript hay yêu cầu ghi trong lượt Chrome kiểm tra.
+
+Bản phục hồi là `dpl_H6XCwB2pN6f3XZTFKoKDkeQ4QUQ3`, build `44f7196e-d281-40f7-b45e-0d91359a454a`. GitHub `main` vẫn ở `d012554` vì yêu cầu phát hành này áp dụng cho Vercel. Các luồng quản trị có quyền được kiểm qua dữ liệu mô phỏng.
