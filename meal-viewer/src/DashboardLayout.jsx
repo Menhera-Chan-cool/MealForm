@@ -1,53 +1,54 @@
-import {useEffect,useId,useRef,useState} from 'react';
-import {CalendarDays,LayoutDashboard,ScanLine,Users,SlidersHorizontal,Megaphone,GitCompareArrows,Palette,ShieldCheck,Mail,MoreHorizontal,PanelLeftClose,PanelLeftOpen,LogOut} from 'lucide-react';
-import ExternalLink from './ExternalLink.jsx';
-import {Button} from './components/ui/button.jsx';
-import {Card} from './components/ui/card.jsx';
-import {Badge} from './components/ui/badge.jsx';
-import {groupDashboardWeeks} from './dashboard-model.mjs';
-import useAnchoredPopover from './useAnchoredPopover.js';
-import LoadedAttention from './LoadedAttention.jsx';
+import {useId} from 'react';
+import {CalendarDays,Plus} from 'lucide-react';
+import {DisplayPreferencesSlot,MenuExtraSlot} from './ComfortProvider.jsx';
+import {shellTabs,shellSettings,canCreateWeek,isWeekScopedTab} from './dashboard-shell.mjs';
+import WeekSwitcher from './WeekSwitcher.jsx';
 
-const sections=[
-  {id:'overview',label:'Tổng quan',icon:LayoutDashboard},
-  {id:'create',label:'Tạo tuần bằng OCR',icon:ScanLine,create:true},
-  {id:'delete',label:'Lượt gửi & lịch sử',icon:Users},
-  {id:'form',label:'Điều khiển Form',icon:SlidersHorizontal,owner:true},
-  {id:'notice',label:'Thông báo tuần',icon:Megaphone,owner:true},
-  {id:'reconcile',label:'Đối soát',icon:GitCompareArrows},
-  {id:'branding',label:'Thương hiệu',icon:Palette,owner:true},
-  {id:'health',label:'Hệ thống',icon:ShieldCheck,owner:true},
-  {id:'access',label:'Quyền Gmail',icon:Mail,owner:true}
-];
-export function allowedDashboardSections(role,permissions){return sections.filter(item=>(!item.owner||role==='owner')&&(!item.create||permissions.create));}
+// The owner/create rules live in dashboard-shell.mjs; this list only adds the create page id.
+export function allowedDashboardSections(role,permissions){
+  return [...shellTabs(role,permissions),...shellSettings(role),...(canCreateWeek(role,permissions)?[{id:'create',label:'Tạo tuần'}]:[])];
+}
 
-function SidebarAction({label,compact,badge,children,...props}) {
-  const hint=useAnchoredPopover('right');
+function WarningBadge({id,label,badge}){
+  if(!badge)return null;
+  return <span id={id} className="ui-nav-warning" aria-label={`Cảnh báo ${label}`} title={`${badge.description} · Chỉ là kết quả đã tải; không tự kiểm tra lại.`}>{badge.count}<span className="sr-only"> cần kiểm tra. {badge.description}</span></span>;
+}
+
+function ShellTab({item,current,badge,disabled,onNavigate}){
   const warningId=useId();
-  useEffect(()=>{hint.hide();},[compact]);
-  function show(){if(compact&&window.matchMedia('(min-width:701px)').matches)hint.show();}
-  return <><Button {...props} ref={hint.trigger} type="button" aria-label={label} aria-describedby={badge?warningId:undefined} onClick={event=>{hint.hide();props.onClick?.(event);}} onFocus={show} onBlur={hint.hide} onPointerEnter={show} onPointerLeave={hint.scheduleHide} onKeyDown={event=>{if(event.key==='Escape')hint.hide();}}>{children}{badge&&<span id={warningId} className="ui-nav-warning" aria-label={`Cảnh báo ${label}`} title={`${badge.description} · Chỉ là kết quả đã tải; không tự kiểm tra lại.`}>{badge.count}<span className="sr-only"> cần kiểm tra. {badge.description}</span></span>}</Button><span ref={hint.panel} id={hint.id} popover="manual" role="tooltip" aria-label={label} className="ui-anchored-popover sidebar-tooltip" {...hint.events}>{label}{badge&&` · ${badge.count} cần kiểm tra · ${badge.description}`}</span></>;
+  return <button type="button" className="secondary ui-shell-tab" aria-label={item.label} aria-current={current?'page':undefined} aria-describedby={badge?warningId:undefined} disabled={disabled} onClick={()=>onNavigate(item.id)}>
+    <span className="ui-shell-tab-label" data-label={item.label}><span>{item.label}</span></span><WarningBadge id={warningId} label={item.label} badge={badge}/>
+  </button>;
 }
 
-export function DashboardLayout({tab,onNavigate,role,permissions,email,schoolName,busy,onSignOut,children,warnings={}}) {
-  const allowed=allowedDashboardSections(role,permissions);
-  const menu=useRef(null),menuId=useId();
-  const [moreOpen,setMoreOpen]=useState(false);
-  const [compact,setCompact]=useState(()=>window.matchMedia('(min-width:701px) and (max-width:1100px)').matches);
-  useEffect(()=>{const media=window.matchMedia('(min-width:701px) and (max-width:1100px)'),update=()=>setCompact(media.matches);media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
-  useEffect(()=>{menu.current?.hidePopover();},[tab]);
-  function itemButton(item,short=false){const Icon=item.icon,label=short&&item.id==='create'?'Tạo tuần':short&&item.id==='delete'?'Lượt gửi':item.label;return <SidebarAction key={item.id} label={label} badge={warnings[item.id]} compact={!short&&compact} variant="ghost" className={`ui-nav-item ${tab===item.id?'ui-selected':''}`} aria-current={tab===item.id?'page':undefined} disabled={item.id==='notice'&&busy} onClick={()=>{if(onNavigate(item.id)!==false)menu.current?.hidePopover();}}><Icon aria-hidden="true" size={20}/><span className="ui-nav-label">{label}</span></SidebarAction>;}
-  return <div className="ui-dashboard-layout meal-ui" data-sidebar-collapsed={compact}>
+function SettingsItem({item,current,badge,onNavigate}){
+  const warningId=useId();
+  return <button type="button" className="secondary comfort-command ui-shell-menu-item" aria-label={item.label} aria-current={current?'page':undefined} aria-describedby={badge?warningId:undefined} onClick={event=>{const menu=event.currentTarget.closest('[popover]');if(onNavigate(item.id)!==false)menu?.hidePopover();}}>
+    {item.label}<WarningBadge id={warningId} label={item.label} badge={badge}/>
+  </button>;
+}
+
+export function DashboardLayout({tab,onNavigate,role,permissions,email,schoolName,busy,weekDisabled=false,onSignOut,warnings={},weeks=[],weekKey='',onWeekChange,onRefreshWeeks,weekLinks,menuExtras,children}) {
+  const tabs=shellTabs(role,permissions),settings=shellSettings(role),canCreate=canCreateWeek(role,permissions);
+  return <div className="ui-dashboard-layout meal-ui">
     <a className="ui-skip-link" href="#dashboard-content">Đến nội dung chính</a>
-    <aside className="ui-sidebar"><div className="ui-sidebar-heading"><div className="ui-sidebar-brand"><CalendarDays aria-hidden="true"/><div>Quản trị thực đơn{schoolName&&<small>{schoolName}</small>}</div></div><Button type="button" variant="ghost" aria-label={compact?'Mở rộng thanh bên':'Thu gọn thanh bên'} aria-expanded={!compact} onClick={()=>setCompact(value=>!value)}>{compact?<PanelLeftOpen size={20} aria-hidden="true"/>:<PanelLeftClose size={20} aria-hidden="true"/>}</Button></div><nav aria-label="Quản trị"><p className="ui-nav-group">Thực đơn</p>{allowed.filter(item=>['overview','create','delete','form','notice'].includes(item.id)).map(item=>itemButton(item))}<p className="ui-nav-group">Quản trị</p>{allowed.filter(item=>['reconcile','branding','health','access'].includes(item.id)).map(item=>itemButton(item))}</nav><div className="ui-sidebar-account"><strong>{role==='owner'?'Chủ sở hữu':'Tài khoản quản trị'}</strong><span>{email}</span><SidebarAction label="Đăng xuất" compact={compact} variant="ghost" disabled={busy} onClick={onSignOut}><LogOut size={20} aria-hidden="true"/><span className="ui-nav-label">Đăng xuất</span></SidebarAction></div></aside>
+    <header className="ui-shell-bar">
+      <div className="ui-shell-brand"><CalendarDays aria-hidden="true" size={22}/><div><strong>Quản trị thực đơn</strong>{schoolName&&<small>{schoolName}</small>}</div></div>
+      {isWeekScopedTab(tab)&&<WeekSwitcher weeks={weeks} weekKey={weekKey} onChange={onWeekChange} onRefresh={onRefreshWeeks} canCreate={canCreate} onCreate={()=>onNavigate('create')} disabled={weekDisabled} links={weekLinks}/>}
+      <div className="ui-shell-actions">
+        {canCreate&&<button type="button" className="ui-shell-create" aria-current={tab==='create'?'page':undefined} onClick={()=>onNavigate('create')}><Plus aria-hidden="true" size={18}/>Tạo tuần</button>}
+        <DisplayPreferencesSlot variant="settings"/>
+      </div>
+    </header>
+    <nav className="ui-shell-tabs" aria-label="Khu vực quản trị">{tabs.map(item=><ShellTab key={item.id} item={item} current={tab===item.id} badge={warnings[item.id]} disabled={item.id==='notice'&&busy} onNavigate={onNavigate}/>)}</nav>
+    <MenuExtraSlot>
+      {menuExtras}
+      <div className="ui-shell-menu-links" role="group" aria-label="Quản trị và tài khoản">
+        {settings.map(item=><SettingsItem key={item.id} item={item} current={tab===item.id} badge={warnings[item.id]} onNavigate={onNavigate}/>)}
+        <a className="action-link ui-shell-menu-item" href="/newest">Mở trang xem thực đơn</a>
+        <button type="button" className="secondary comfort-command ui-shell-menu-item" disabled={busy} title={email||undefined} onClick={onSignOut}>Đăng xuất</button>
+      </div>
+    </MenuExtraSlot>
     {children}
-    <nav className="ui-mobile-nav" aria-label="Điều hướng điện thoại">{allowed.filter(item=>['overview','create','delete'].includes(item.id)).map(item=>itemButton(item,true))}<Button type="button" variant="ghost" className={`ui-nav-item ${!['overview','create','delete'].includes(tab)?'ui-selected':''}`} popoverTarget={menuId} aria-haspopup="dialog" aria-expanded={moreOpen} aria-controls={menuId}><MoreHorizontal aria-hidden="true" size={20}/><span>Thêm</span></Button></nav>
-    <div ref={menu} id={menuId} className="ui-more-menu meal-ui" popover="auto" role="dialog" aria-label="Thêm chức năng" onBeforeToggle={event=>{event.currentTarget.inert=event.newState!=='open';}} onToggle={event=>setMoreOpen(event.newState==='open')}><h2>Thêm chức năng</h2><div className="ui-more-task-grid" role="group" aria-label="Các công cụ quản trị">{allowed.filter(item=>!['overview','create','delete'].includes(item.id)).map(item=>itemButton(item))}</div><div className="ui-more-account"><strong>{email}</strong><Button variant="outline" asChild><a href="/newest">Mở trang xem</a></Button><Button type="button" variant="outline" disabled={busy} onClick={onSignOut}>Đăng xuất</Button></div></div>
   </div>;
-}
-
-export function DashboardOverview({weeks,busy,owner,canCreate=false,onTask,onView,onControl,onRefresh,attention={},attentionWeek='',attentionLoaded=false,onAttention}) {
-  const grouped=groupDashboardWeeks(weeks);
-  function weekCard(week,label){if(label===week.name)return <div role="listitem" className="week-ledger-row"><div><strong>{week.name}</strong>{week.error&&<p role="status">{week.error}</p>}</div><span>{week.formStatus==='open'?'Đang mở':week.formStatus==='closed'?'Đã đóng':'Chưa xác định'}</span><span>{week.responseCount==null?'Chưa đọc được số lượt':week.responseCount+' lượt gửi'}</span><div className="ui-week-links">{[['Form',week.formUrl],['Sheet',week.spreadsheetUrl],['Thư mục',week.folderUrl]].filter(([,url])=>/^https:\/\//i.test(url||'')).map(([label,url])=><ExternalLink key={label} href={url}>{label}</ExternalLink>)}<Button type="button" variant="outline" disabled={busy} onClick={()=>onView(week.weekKey)}>Xem lượt gửi</Button>{owner&&<Button type="button" variant="ghost" disabled={busy} onClick={()=>onControl(week.weekKey)}>Điều khiển Form</Button>}</div></div>;return <Card className="ui-week-card"><div className="ui-card-heading"><h2>{label}</h2><Badge variant="secondary">{week.formStatus==='open'?'Đang mở':week.formStatus==='closed'?'Đã đóng':'Chưa xác định'}</Badge></div>{label!==week.name&&<h3>{week.name}</h3>}<p className="ui-muted">{week.responseCount==null?'Chưa đọc được số lượt':`${week.responseCount} lượt gửi`}</p><div className="ui-week-actions"><Button type="button" disabled={busy} onClick={()=>onView(week.weekKey)}>Xem lượt gửi</Button>{owner&&<Button type="button" variant="outline" disabled={busy} onClick={()=>onControl(week.weekKey)}>Điều khiển Form</Button>}</div><div className="ui-week-links">{[['Form',week.formUrl],['Sheet',week.spreadsheetUrl],['Thư mục',week.folderUrl]].filter(([,url])=>/^https:\/\//i.test(url||'')).map(([label,url])=><Button key={label} variant="ghost" asChild><ExternalLink href={url}>{label}</ExternalLink></Button>)}</div>{week.error&&<p role="status">{week.error}</p>}</Card>;}
-  return <section className="ui-overview">{canCreate&&<section className="overview-task-group" role="region" aria-label="Chuẩn bị thực đơn"><h2>Chuẩn bị thực đơn</h2><p>Chọn ảnh hoặc dán bảng, rà soát rồi mới tạo tuần.</p><Button type="button" disabled={busy} onClick={()=>onTask?.('create')}>Mở tạo tuần</Button></section>}<section className="overview-task-group" role="region" aria-label="Theo dõi đăng ký"><h2>Theo dõi đăng ký</h2><div className="overview-task-links"><Button type="button" variant="outline" disabled={busy} onClick={()=>onTask?.('delete')}>Mở Lượt gửi</Button>{owner&&<><Button type="button" variant="outline" disabled={busy} onClick={()=>onTask?.('form')}>Mở Điều khiển Form</Button><Button type="button" variant="outline" disabled={busy} onClick={()=>onTask?.('notice')}>Mở Thông báo tuần</Button></>}</div><div className="dashboard-section-title"><h2>Sổ tuần</h2><Button type="button" variant="outline" disabled={busy} onClick={onRefresh}>Tải lại</Button></div><div className="ui-current-weeks">{grouped.current?weekCard(grouped.current,'Tuần này'):<Card className="ui-week-card"><h2>Chưa có thực đơn tuần này</h2><p className="ui-muted">Tuần sau không thay thế tuần đang diễn ra.</p></Card>}{grouped.next?weekCard(grouped.next,'Tuần sau'):<Card className="ui-week-card"><h2>Chưa có thực đơn tuần sau</h2><p className="ui-muted">Tuần mới sẽ xuất hiện sau khi được tạo và đăng ký.</p></Card>}</div>{grouped.past.length>0&&<><h2 className="ui-overview-title">Kho tuần cũ</h2><div className="ui-week-list week-ledger" role="list" aria-label="Sổ tuần cũ">{grouped.past.map(week=><div key={week.weekKey}>{weekCard(week,week.name)}</div>)}</div></>}{grouped.other.length>0&&<><h2 className="ui-overview-title">Các tuần khác</h2><div className="ui-week-list week-ledger" role="list" aria-label="Sổ tuần khác">{grouped.other.map(week=><div key={week.weekKey}>{weekCard(week,week.name)}</div>)}</div></>}</section><section className="overview-task-group" role="region" aria-label="Kiểm tra dữ liệu"><h2>Kiểm tra dữ liệu</h2><div className="overview-task-links"><Button type="button" variant="outline" disabled={busy} onClick={()=>onTask?.('reconcile')}>Mở Đối soát</Button>{owner&&<Button type="button" variant="outline" disabled={busy} onClick={()=>onTask?.('health')}>Mở Hệ thống</Button>}</div><LoadedAttention warnings={attention} weekName={attentionWeek} loaded={attentionLoaded} owner={owner} onOpen={onAttention}/></section></section>;
 }

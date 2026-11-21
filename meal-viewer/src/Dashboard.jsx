@@ -23,12 +23,12 @@ import OcrReviewDay from './OcrReviewDay.jsx';
 import MultiImageReview from './MultiImageReview.jsx';
 import {buildImageMerge} from './image-import.mjs';
 import './import-appearance.css';
-import {useQuickCommands,DisplayPreferencesSlot,MenuExtraSlot} from './ComfortProvider.jsx';
-import {DashboardLayout,DashboardOverview,allowedDashboardSections} from './DashboardLayout.jsx';
+import {useQuickCommands} from './ComfortProvider.jsx';
+import {DashboardLayout,allowedDashboardSections} from './DashboardLayout.jsx';
+import LoadedAttention from './LoadedAttention.jsx';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
 import WeekNoticeEditor from './WeekNoticeEditor.jsx';
 import WeekNotice from './WeekNotice.jsx';
-import DashboardWeekPicker from './DashboardWeekPicker.jsx';
 import ResponseMeals from './ResponseMeals.jsx';
 import ResponseQuickView from './ResponseQuickView.jsx';
 import RegistrationDeadline from './RegistrationDeadline.jsx';
@@ -68,7 +68,7 @@ import ContextualSaveBar from './ContextualSaveBar.jsx';
 import {brandFieldErrors} from './operate-accessibility.mjs';
 import CreationReceipt from './CreationReceipt.jsx';
 import useDashboardHistory from './useDashboardHistory.js';
-import {readDashboardLocation} from './dashboard-navigation.mjs';
+import {readDashboardLocation,DEFAULT_DASHBOARD_TAB} from './dashboard-navigation.mjs';
 import DraftInspection from './DraftInspection.jsx';
 import DraftTransfer from './DraftTransfer.jsx';
 import SessionFeedback from './SessionFeedback.jsx';
@@ -131,14 +131,14 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     finally{if(ticket)reads.finish(ticket);}
   };
   const [savedWeek] = useState(() => lastDashboardWeek(initialData?.accountId, (initialData?.weeks || []).map(week => week.weekKey)));
-  const initialLocation=readDashboardLocation(window.location.search,allowedDashboardSections(initialData?.role,initialData?.permissions||{create:true}).map(section=>section.id),initialData?.weeks||[],{tab:savedWeek?'delete':'overview',week:savedWeek||initialData?.weeks?.[0]?.weekKey||''});
+  const initialLocation=readDashboardLocation(window.location.search,allowedDashboardSections(initialData?.role,initialData?.permissions||{create:true}).map(section=>section.id),initialData?.weeks||[],{tab:DEFAULT_DASHBOARD_TAB,week:savedWeek||initialData?.weeks?.[0]?.weekKey||''});
   const initialWeek = initialLocation.week;
   const [overview, setOverview] = useState(initialData || { role: '', weeks: [], allowedEmails: [] });
   const [tab, setTabState] = useState(initialLocation.tab);
   const [responsePane,setResponsePane]=useState('responses');
   const attention=useAppAttention(overview.accountId,tab==='create');
   const [weekKey, setWeekKey] = useState(initialWeek);
-  const tabTitle=({overview:'Tổng quan',create:'Tạo tuần bằng OCR',delete:'Lượt gửi',form:'Điều khiển Form',notice:'Thông báo tuần',reconcile:'Đối soát',branding:'Thương hiệu',health:'Hệ thống',access:'Quyền Gmail'})[tab]||'Quản trị';
+  const tabTitle=({create:'Tạo tuần bằng OCR',delete:'Lượt gửi',form:'Điều khiển Form',notice:'Thông báo tuần',reconcile:'Đối soát',branding:'Thương hiệu',health:'Hệ thống',access:'Quyền Gmail'})[tab]||'Quản trị';
   const activeTitle=tab==='delete'&&responsePane==='history'?'Lịch sử':tabTitle;
   usePageTitle(`${activeTitle} · Dashboard`);
   const [weekData, setWeekData] = useState(() => readDashboardCache(initialData?.accountId, initialWeek)?.data || null);
@@ -439,7 +439,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   useEffect(()=>{warningRevision.current++;setHealth(null);setReconciliation(null);},[weekKey]);
   useEffect(() => { if (tab === 'health' && overview.role === 'owner') void checkHealth(); }, [tab, weekKey, overview.role]);
   useEffect(() => {
-    if ((tab === 'create' && !permissions.create) || (['health','notice'].includes(tab) && overview.role !== 'owner')) setTab('overview');
+    if ((tab === 'create' && !permissions.create) || (['health','notice'].includes(tab) && overview.role !== 'owner')) setTab(DEFAULT_DASHBOARD_TAB);
   }, [tab, permissions.create, overview.role]);
   useEffect(() => {
     const time = Date.parse(selectedWeek?.lockAt || '');
@@ -715,10 +715,6 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     } finally { setBusy(false); }
   }
 
-  function weekPicker() {
-    return <DashboardWeekPicker weeks={overview.weeks || []} value={weekKey} disabled={busy || !online || healthBusy} onChange={selectWeek} />;
-  }
-
   async function signOut(){
           if(!leaveDrafts())return;
           setSigningOut(true);
@@ -730,15 +726,16 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   }
   useEffect(()=>{if(!online){setWeekVerified(false);warningRevision.current++;setHealth(null);setReconciliation(null);}},[online]);
   const missingScriptPermission = isAppsScriptPermissionError(message);
-  return <DashboardLayout warnings={warnings} tab={tab} onNavigate={setTab} role={overview.role} permissions={permissions} email={overview.email} schoolName={branding.schoolName} busy={busy||signingOut} onSignOut={signOut}><main id="dashboard-content" className="dashboard-shell meal-ui" data-density={viewState.view.density} data-section={tab}>
+  const menuExtras=<>
+    <div className="dashboard-account" aria-label="Tài khoản đang đăng nhập"><strong>{overview.email || 'Đang xác minh Gmail…'}</strong><span>{accountRoleLabel({ ...overview, permissions })}</span><small>{permissions.create ? 'OCR/tạo tuần' : 'Không tạo tuần'} · {permissions.manageResponses ? 'Xóa/khôi phục' : 'Không xóa lượt gửi'}</small></div>
+    <div className="dashboard-assist-tools"><ContextGuide tab={tab} disabled={busy||Boolean(confirmation)||Boolean(regionBase)||Boolean(mergeBase)}/><SessionFeedback entries={sessionEvents} onClear={()=>setSessionEvents([])}/></div>
+  </>;
+  const loadedAttention=<LoadedAttention warnings={warnings} weekName={selectedWeek?.name||'Chưa chọn tuần'} loaded={Boolean(health?.uiWeekKey===weekKey||reconciliation?.weekKey===weekKey)} owner={overview.role==='owner'} onOpen={id=>navigate(id,weekKey)}/>;
+  const weeksPending=readPending>0&&overview.overviewPending&&!overview.weeks?.length;
+  return <DashboardLayout warnings={warnings} tab={tab} onNavigate={setTab} role={overview.role} permissions={permissions} email={overview.email} schoolName={branding.schoolName} busy={busy||signingOut} weekDisabled={busy||!online||healthBusy} onSignOut={signOut} weeks={overview.weeks||[]} weekKey={weekKey} onWeekChange={selectWeek} onRefreshWeeks={()=>void refreshOverview()} weekLinks={{formUrl:selectedWeek?.formUrl,spreadsheetUrl:selectedWeek?.spreadsheetUrl,folderUrl:selectedWeek?.folderUrl}} menuExtras={menuExtras}><main id="dashboard-content" className="dashboard-shell meal-ui" data-density={viewState.view.density} data-section={tab}>
     <header className="dashboard-header">
       <div><h1>{activeTitle}</h1></div>
-      <DisplayPreferencesSlot/>
     </header>
-    <MenuExtraSlot>
-      <div className="dashboard-account" aria-label="Tài khoản đang đăng nhập"><strong>{overview.email || 'Đang xác minh Gmail…'}</strong><span>{accountRoleLabel({ ...overview, permissions })}</span><small>{permissions.create ? 'OCR/tạo tuần' : 'Không tạo tuần'} · {permissions.manageResponses ? 'Xóa/khôi phục' : 'Không xóa lượt gửi'}</small></div>
-      <div className="dashboard-assist-tools"><ContextGuide tab={tab} disabled={busy||Boolean(confirmation)||Boolean(regionBase)||Boolean(mergeBase)}/><SessionFeedback entries={sessionEvents} onClear={()=>setSessionEvents([])}/></div>
-    </MenuExtraSlot>
     <ConnectionNotice online={online} savedAt={cacheTime} hasData={Boolean(displayedWeek)}/>
     <VersionNotice disabled={busy || !online || signingOut || Boolean(regionBase) || Boolean(mergeBase) || Boolean(confirmation)} beforeReload={async()=>{if(!leaveDrafts())return false;viewState.save();await draft.flush();}} />
     {message && <div className={`dashboard-message ${missingScriptPermission || /không|lỗi|chưa/i.test(message) ? 'error' : ''}`} role={missingScriptPermission?'alert':'status'} aria-live="polite">{missingScriptPermission&&<strong>Thiếu quyền Apps Script. </strong>}{message}{missingScriptPermission&&(overview.role==='owner'?<button className="secondary" type="button" disabled={busy||!online} onClick={()=>void authorizeScript()}>Cấp quyền Apps Script</button>:<span> Liên hệ chủ sở hữu để cấp quyền.</span>)}{authorizationUrl && <> <ExternalLink className="action-link" href={authorizationUrl}>Mở trang cấp quyền Google</ExternalLink></>}</div>}
@@ -746,11 +743,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     <ErrorReportButton report={failure || draft.failure} />
     {readPending>0&&<div className="read-wait">{!busy&&<ElapsedWait active label={reconciling?'Đang đối soát':healthBusy?'Đang kiểm tra hệ thống':weekLoading?'Đang tải lượt gửi':'Đang chờ dữ liệu'} requestKey={JSON.stringify([tab,weekKey,query,responseSort,auditFilters])}/>}<button type="button" className="secondary" disabled={busy||!online} onClick={stopWaiting}>Dừng chờ dữ liệu</button><small>Chỉ dừng chờ trên trình duyệt; không hủy thao tác máy chủ.</small></div>}
     <ElapsedWait active={busy} label={creationState==='creating'?'Đang tạo Form và Sheet':pendingRow?.action==='delete'?'Đang xóa lượt gửi':pendingRow?.action==='restore'?'Đang khôi phục lượt gửi':'Đang xử lý yêu cầu'} requestKey={`${weekKey}:${creationState}:${pendingRow?.id||''}`}/>
-    {tab==='notice'&&overview.role==='owner'&&<section className="dashboard-panel"><h2>Thông báo tuần</h2>{weekPicker()}<WeekNoticeEditor key={weekKey} ref={noticeEditor} onDirtyChange={setNoticeDirty} weekKey={weekKey} weekName={selectedWeek?.name} request={request} busy={busy||!online} onBusy={setBusy} onMessage={setMessage}/></section>}
-    {tab === 'overview' && (readPending>0 && overview.overviewPending && !overview.weeks?.length ? <ContentSkeleton label="Đang tải sổ tuần…"/> : <DashboardOverview canCreate={permissions.create} onTask={id=>navigate(id,weekKey)} attention={warnings} attentionWeek={selectedWeek?.name||'Chưa chọn tuần'} attentionLoaded={Boolean(health?.uiWeekKey===weekKey||reconciliation?.weekKey===weekKey)} onAttention={id=>navigate(id,weekKey)} weeks={overview.weeks||[]} busy={busy} owner={overview.role==='owner'} onRefresh={()=>void refreshOverview()} onView={key=>navigate('delete',key)} onControl={key=>navigate('form',key)}/>)}
+    {tab==='notice'&&overview.role==='owner'&&<section className="dashboard-panel"><h2>Thông báo tuần</h2><WeekNoticeEditor key={weekKey} ref={noticeEditor} onDirtyChange={setNoticeDirty} weekKey={weekKey} weekName={selectedWeek?.name} request={request} busy={busy||!online} onBusy={setBusy} onMessage={setMessage}/></section>}
 
-    {tab === 'health' && overview.role === 'owner' && <div className="settings-workspace"><PageContents label="Hệ thống" items={[["system-auth","Cấp quyền"],["system-connections","Kết nối"],["system-device","Dữ liệu thiết bị"],["system-setup","Hướng dẫn"]]}/><div className="settings-body"><section className="dashboard-panel system-authorization"><SettingsSection id="system-auth" heading="h2" title="Cấp quyền Apps Script" description="Cấp các quyền Google mà script hiện yêu cầu để đọc ảnh, tạo và quản lý Form/Sheet. Chỉ chủ sở hữu thực hiện bước này."><button className="secondary" type="button" disabled={busy||!online} onClick={()=>void authorizeScript()}>Cấp quyền Apps Script</button></SettingsSection></section><section className="dashboard-panel"><SettingsSection id="system-connections" heading="h2" title="Kiểm tra hệ thống" description="Kiểm tra quyền Google, thư mục, Sheet, Form, cấu hình OCR và lịch tự khóa.">
-      <div className="dashboard-section-title">{weekPicker()}</div>
+    {tab === 'health' && overview.role === 'owner' && <div className="settings-workspace"><PageContents label="Hệ thống" items={[["system-auth","Cấp quyền"],["system-connections","Kết nối"],["system-device","Dữ liệu thiết bị"],["system-setup","Hướng dẫn"]]}/><div className="settings-body">{loadedAttention}<section className="dashboard-panel system-authorization"><SettingsSection id="system-auth" heading="h2" title="Cấp quyền Apps Script" description="Cấp các quyền Google mà script hiện yêu cầu để đọc ảnh, tạo và quản lý Form/Sheet. Chỉ chủ sở hữu thực hiện bước này."><button className="secondary" type="button" disabled={busy||!online} onClick={()=>void authorizeScript()}>Cấp quyền Apps Script</button></SettingsSection></section><section className="dashboard-panel"><SettingsSection id="system-connections" heading="h2" title="Kiểm tra hệ thống" description="Kiểm tra quyền Google, thư mục, Sheet, Form, cấu hình OCR và lịch tự khóa.">
       <ExplainedButton label="Kiểm tra lại" className="secondary" type="button" disabled={healthBusy} reason="Đang kiểm tra hệ thống; hãy chờ kết quả hoặc dừng chờ dữ liệu." aria-busy={healthBusy} onClick={() => void checkHealth()}>{healthBusy ? 'Đang kiểm tra…' : 'Kiểm tra lại'}</ExplainedButton>
       {health?.checkedAt && <p>Đã kiểm tra lúc {formatTime(health.checkedAt)}</p>}
       <SystemReport report={health?.uiWeekKey===weekKey?health:null} busy={healthBusy}/>
@@ -807,8 +802,9 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     {tab === 'delete' && <section className="dashboard-panel response-workspace" data-pane={responsePane}>
       {mutationReceipt?.weekKey===weekKey&&<MutationReceipt receipt={mutationReceipt}/>}
       <div className="dashboard-section-title"><h2>Lượt gửi và lịch sử thao tác</h2></div>
+      {weeksPending?<ContentSkeleton label="Đang tải danh sách tuần…"/>:!overview.weeks?.length&&<div className="ui-shell-empty" role="status" aria-label="Chưa có tuần nào"><h3>Chưa có tuần nào</h3><p>Trường chưa đăng ký tuần thực đơn nào. Lượt gửi và lịch sử sẽ hiện ở đây sau khi tạo tuần đầu tiên.</p>{permissions.create&&<button type="button" disabled={busy} onClick={()=>navigate('create',weekKey)}>Tạo tuần mới</button>}</div>}
       <WeekNotice notice={displayedWeek?.week?.weekNotice} serverNow={displayedWeek?.week?.serverNow}/>
-<div className="dashboard-sticky-tools" ref={viewState.toolbarRef} data-pane={responsePane}><div role="group" aria-label="Tuần đang làm việc">{weekPicker()}</div><div role="group" aria-label="Tìm và lọc lượt gửi" hidden={responsePane!=='responses'}><label className="dashboard-search">Tìm theo họ tên<SearchInput id="dashboard-name-search" label="Tìm theo họ tên" maxLength={200} value={query} onClear={()=>setQuery('')} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label><SubmissionFilters value={viewState.view} onChange={changeResponseFilters}/></div><div role="group" aria-label="Thao tác lượt gửi"><div className="dashboard-refresh-bar"><ExplainedButton label="Tải lại dữ liệu" className="secondary" disabled={busy || !online || weekLoading || !weekKey} reason={busy?'Đang xử lý thao tác; hãy chờ hoàn tất.':weekLoading?'Đang tải lượt gửi; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký để tải lượt gửi.'} aria-busy={weekLoading} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</ExplainedButton>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div></div></div>
+<div className="dashboard-sticky-tools" ref={viewState.toolbarRef} data-pane={responsePane}><div role="group" aria-label="Tìm và lọc lượt gửi" hidden={responsePane!=='responses'}><label className="dashboard-search">Tìm theo họ tên<SearchInput id="dashboard-name-search" label="Tìm theo họ tên" maxLength={200} value={query} onClear={()=>setQuery('')} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label><SubmissionFilters value={viewState.view} onChange={changeResponseFilters}/></div><div role="group" aria-label="Thao tác lượt gửi"><div className="dashboard-refresh-bar"><ExplainedButton label="Tải lại dữ liệu" className="secondary" disabled={busy || !online || weekLoading || !weekKey} reason={busy?'Đang xử lý thao tác; hãy chờ hoàn tất.':weekLoading?'Đang tải lượt gửi; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký để tải lượt gửi.'} aria-busy={weekLoading} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</ExplainedButton>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div></div></div>
       {displayedWeek && !weekReady && <p className="dashboard-cache-status" role="status">{cacheTime ? `Bản lưu lúc ${formatTime(cacheTime)}. ` : 'Dữ liệu lần xem trước. '}{weekLoading ? 'Đang xác minh…' : 'Chưa xác minh được; chỉ xem, hãy tải lại trước khi thao tác.'}</p>}
       {displayedWeek && weekReady && <p className="dashboard-hint">Dữ liệu đã xác minh. Tự kiểm tra lượt mới mỗi phút khi tab đang mở; bảng chỉ đổi khi tải lại.</p>}
       {reloadChanges&&weekReady&&<p className="reload-changes" role="status">Thay đổi lượt Form toàn tuần so với lần xác minh trước: <strong>{reloadChanges.added} mới · {reloadChanges.missing} đã mất · {reloadChanges.changed} thay đổi</strong>. Chỉ thông báo, không tự sửa/xóa.</p>}
@@ -862,7 +858,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     </section>}
 
     {tab === 'form' && overview.role === 'owner' && <section className="dashboard-panel">
-      <div className="dashboard-section-title"><h2>Trạng thái và hạn đăng ký</h2>{weekPicker()}</div>
+      <div className="dashboard-section-title"><h2>Trạng thái và hạn đăng ký</h2></div>
       {formAttempt>0&&deadlineIssue&&<FormErrorSummary label="Lỗi cần sửa trước khi đổi hạn Form" attempt={formAttempt} errors={[{id:'dashboard-deadline',label:'Hạn mới — giờ Việt Nam',message:deadlineIssue}]}/>}
       {selectedWeek ? <><section className="form-scope-summary" role="region" aria-label="Thông tin Form đang chọn"><dl><div><dt>Tuần</dt><dd>{selectedWeek.name}</dd></div><div><dt>Trạng thái Form</dt><dd>{selectedWeek.formStatus==='open'?'Đang mở':selectedWeek.formStatus==='closed'?'Đã đóng':'Chưa xác định'}</dd></div><div><dt>Liên kết</dt><dd className="dashboard-links">{[['Form',selectedWeek.formUrl],['Sheet',selectedWeek.spreadsheetUrl]].filter(([,url])=>/^https:\/\//i.test(url||'')).map(([label,url])=><ExternalLink key={label} href={url}>{label}</ExternalLink>)}</dd></div></dl></section><p className="form-status-legacy">Form: <strong>{selectedWeek.formStatus === 'open' ? 'Đang mở' : selectedWeek.formStatus === 'closed' ? 'Đã đóng' : 'Chưa xác định'}</strong></p><RegistrationDeadline lockAt={selectedWeek.lockAt} status={selectedWeek.formStatus} serverNow={overview.serverNow}/><div className="dashboard-deadline"><div className="field-label-row"><label htmlFor="dashboard-deadline">Hạn mới — giờ Việt Nam</label><FieldHelp label="Hạn đăng ký">Đây là thời điểm Form tự đóng, theo giờ Việt Nam. Nhập một hạn tương lai rồi xác nhận Lưu hạn đăng ký; đổi ô nhập hoặc mở trợ giúp không tự đổi Form. Mở lại Form quá hạn cũng cần hạn tương lai.</FieldHelp></div><input id="dashboard-deadline" type="datetime-local" enterKeyHint="done" aria-invalid={formAttempt>0&&Boolean(deadlineIssue)} aria-describedby={'dashboard-deadline-hint'+(formAttempt>0&&deadlineIssue?' dashboard-deadline-error':'')} value={deadline} disabled={busy||!online} onChange={event => setDeadline(event.target.value)} /><small id="dashboard-deadline-hint">Chọn ngày và giờ tương lai theo giờ Việt Nam (UTC+7).</small>{formAttempt>0&&deadlineIssue&&<p id="dashboard-deadline-error" className="menu-inline-error">{deadlineIssue}</p>}</div><p className="dashboard-hint">Mở lại Form quá hạn cần chọn hạn tương lai. Lịch tự đóng dùng hạn mới; tuần chưa chỉnh vẫn khóa lúc 00:00 thứ Hai.</p><div className="actions">
         <ExplainedButton disabled={busy || !online || selectedWeek.formStatus !== 'closed'} reason={busy?'Đang cập nhật Form; hãy chờ xác nhận.':selectedWeek.formStatus==='open'?'Form đang mở, không cần mở lại.':'Chưa xác định trạng thái Form; hãy tải lại sổ tuần.'} onClick={() => void controlForm('open')}>Mở Form</ExplainedButton>
@@ -873,7 +869,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     </section>}
 
     {tab === 'reconcile' && <section className="dashboard-panel">
-      <div className="dashboard-section-title"><div className="field-label-row"><h2>Đối soát Form–Sheet</h2><FieldHelp label="Đối soát Form–Sheet">So sánh lượt Form với hàng trong Sheet của đúng tuần. Ghép duy nhất nghĩa là xác định được đúng một cặp tương ứng. Lượt lệch hoặc ghép không rõ chỉ được báo để kiểm tra, không tự xóa hay sửa.</FieldHelp></div>{weekPicker()}</div><p>Chỉ đọc: không tự sửa, ghép, khôi phục hoặc xóa dữ liệu.</p><ExplainedButton label="Đối soát tuần này" disabled={busy || !online || reconciling || !weekKey} reason={busy?'Đang xử lý thao tác khác.':reconciling?'Đang đối soát Form–Sheet; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký trước khi đối soát.'} onClick={() => void reconcileWeek()}>{reconciling ? 'Đang đối soát…' : 'Đối soát tuần này'}</ExplainedButton>
+      {loadedAttention}
+      <div className="dashboard-section-title"><div className="field-label-row"><h2>Đối soát Form–Sheet</h2><FieldHelp label="Đối soát Form–Sheet">So sánh lượt Form với hàng trong Sheet của đúng tuần. Ghép duy nhất nghĩa là xác định được đúng một cặp tương ứng. Lượt lệch hoặc ghép không rõ chỉ được báo để kiểm tra, không tự xóa hay sửa.</FieldHelp></div></div><p>Chỉ đọc: không tự sửa, ghép, khôi phục hoặc xóa dữ liệu.</p><ExplainedButton label="Đối soát tuần này" disabled={busy || !online || reconciling || !weekKey} reason={busy?'Đang xử lý thao tác khác.':reconciling?'Đang đối soát Form–Sheet; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký trước khi đối soát.'} onClick={() => void reconcileWeek()}>{reconciling ? 'Đang đối soát…' : 'Đối soát tuần này'}</ExplainedButton>
       {reconciliation && <><div className="reconciliation-counts"><p>Form <strong>{reconciliation.formCount}</strong></p><p>Sheet <strong>{reconciliation.sheetCount}</strong></p><p>Ghép duy nhất <strong>{reconciliation.matchedCount}</strong></p><p>Cần kiểm tra <strong>{reconciliation.issues.length}</strong></p></div>{reconciliation.issues.length>0&&<div className="reconciliation-unpaired"><p>Hai danh sách độc lập, không phải các cặp tương ứng. Bản ghi mơ hồ không được tự ghép.</p><div>{[['form','Google Form — chưa ghép'],['sheet','Google Sheet — chưa ghép'],...(!reconciliation.issues.every(issue=>['form','sheet'].includes(issue.source))?[['unknown','Chưa rõ nguồn']]:[])].map(([source,label])=><section key={source} aria-label={label}><h3>{label}</h3><ul className="reconciliation-issues">{reconciliation.issues.filter(issue=>source==='unknown'?!['form','sheet'].includes(issue.source):issue.source===source).map((issue, index) => <li key={`${weekKey}-${index}`}><strong>{({ 'form-only': 'Chỉ có trong Form', 'sheet-only': 'Chỉ có trong Sheet', ambiguous: 'Ghép không duy nhất' })[issue.kind]}</strong><p>{issue.name || '(Thiếu tên)'} · {formatTime(issue.timestamp)} · {issue.source === 'sheet' ? 'Sheet' : 'Form'}{issue.rows?.length ? ` · hàng ${issue.rows.join(', ')}` : ''}</p><p>{issue.meals.join(' · ')}</p><SheetRowButton weekKey={weekKey} source={issue.source} response={issue} request={request} disabled={busy||!online} /></li>)}</ul></section>)}</div></div>}<ReconciliationComparison report={reconciliation} busy={busy||!online||reconciling} onPage={offset=>void reconcileWeek(offset)}/>{!reconciliation.issues.length && <p role="status">Form và Sheet đang khớp duy nhất.</p>}</>}
     </section>}
 

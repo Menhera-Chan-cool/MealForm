@@ -1,5 +1,6 @@
 import {createContext,useContext,useEffect,useId,useMemo,useRef,useState,useCallback} from 'react';
 import {createPortal} from 'react-dom';
+import {Settings} from 'lucide-react';
 import {readTextSize,writeTextSize} from './dashboard-model.mjs';
 import {foldSearchText} from './viewer-model.mjs';
 import './comfort.css';
@@ -12,7 +13,7 @@ import SessionManager from './SessionManager.jsx';
 
 const Comfort=createContext(()=>()=>{});
 const PreferencesSlot=createContext(()=>{});
-export function DisplayPreferencesSlot(){const setSlot=useContext(PreferencesSlot);return <div className="ui-preferences-slot" ref={setSlot}/>;}
+export function DisplayPreferencesSlot({variant}){const setSlot=useContext(PreferencesSlot);return <div className="ui-preferences-slot" data-variant={variant} ref={setSlot}/>;}
 const MenuExtra=createContext(null);
 export function MenuExtraSlot({children}){const host=useContext(MenuExtra);return host?createPortal(children,host):null;}
 const pages=[['/newest','Tuần này'],['/next','Tuần sau'],['/history','Kho tuần cũ'],['/dashboard','Dashboard'],['/setup','Cài đặt']].map(([href,label])=>({id:href,kind:'page',href,label}));
@@ -53,7 +54,11 @@ export default function ComfortProvider({children}) {
   }
   useEffect(()=>{
     if(!settingsOpen)return;
-    const close=()=>settings.current?.hidePopover();
+    const {scrollX,scrollY}=window;
+    const close=event=>{
+      if(event.type==='scroll'&&window.scrollX===scrollX&&window.scrollY===scrollY)return;
+      settings.current?.hidePopover();
+    };
     window.addEventListener('resize',close);window.addEventListener('scroll',close,{passive:true});
     return()=>{window.removeEventListener('resize',close);window.removeEventListener('scroll',close);};
   },[settingsOpen]);
@@ -80,7 +85,7 @@ export default function ComfortProvider({children}) {
   }
   const toolbar=<>
     <div className="comfort-toolbar" aria-label="Điều hướng và cỡ chữ">
-      <button ref={settingsTrigger} type="button" className="secondary comfort-menu-toggle" aria-label="Tùy chọn hiển thị" title="Tùy chọn hiển thị" aria-haspopup="dialog" aria-expanded={settingsOpen} aria-controls={settingsId} popoverTarget={settingsId} onKeyDown={event=>{if(event.key==='ArrowDown'){event.preventDefault();if(!settings.current.matches(':popover-open'))settingsTrigger.current.click();settings.current.querySelector('button:not(:disabled)')?.focus();}}}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="4" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg></button>
+      <button ref={settingsTrigger} type="button" className="secondary comfort-menu-toggle" aria-label="Tùy chọn hiển thị" title="Tùy chọn hiển thị" aria-haspopup="dialog" aria-expanded={settingsOpen} aria-controls={settingsId} popoverTarget={settingsId} onKeyDown={event=>{if(event.key==='ArrowDown'){event.preventDefault();if(!settings.current.matches(':popover-open'))settingsTrigger.current.click();settings.current.querySelector('button:not(:disabled)')?.focus();}}}>{displaySlot?.dataset.variant==='settings'?<Settings aria-hidden="true" size={20}/>:<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="4" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg>}</button>
       <div ref={settings} id={settingsId} className="comfort-menu" popover="auto" role="dialog" aria-label="Tùy chọn hiển thị" onBeforeToggle={positionSettings} onToggle={event=>{setSettingsOpen(event.newState==='open');if(event.newState!=='open'){setUpdatesOpen(false);setShortcutsOpen(false);}}} onKeyDown={moveSettingsFocus}>
         <h2>Tùy chọn hiển thị</h2>
         <div className="comfort-menu-extra" ref={setMenuExtraHost}/>

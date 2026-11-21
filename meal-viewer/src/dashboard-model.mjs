@@ -209,7 +209,7 @@ export function writeTextSize(value,storage) {
 export function dashboardCommands(account) {
   if (!['owner','manager'].includes(account?.role) || account.permissions?.view === false) return [];
   const permissions=account.permissions || {create:true,manageResponses:true};
-  const tabs=[['overview','Tổng quan'],['delete','Lượt gửi và lịch sử'],['reconcile','Đối soát']];
+  const tabs=[['delete','Lượt gửi và lịch sử'],['reconcile','Đối soát']];
   if(permissions.create)tabs.push(['create','Tạo tuần bằng OCR']);
   if(account.role==='owner')tabs.push(['form','Điều khiển Form'],['notice','Thông báo tuần'],['branding','Thương hiệu'],['health','Hệ thống'],['access','Quyền Gmail']);
   return [...tabs.map(([tab,label])=>({id:`tab-${tab}`,kind:'tab',tab,label})),...(account.weeks||[]).map(week=>({id:`week-${week.weekKey}`,kind:'week',weekKey:week.weekKey,label:`Mở ${week.name||week.weekKey}`}))];

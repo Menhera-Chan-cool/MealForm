@@ -30,8 +30,8 @@ test.describe('reading-layouts',()=>{
   test('old weeks are compact rows with truthful counts and scoped navigation',async({page})=>{
     const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');
     await page.screenshot({path:'review/reading-layouts/ledger-current.png'});
-    const rows=page.getByRole('list',{name:'Sổ tuần cũ',exact:true});await expect(rows).toBeVisible();await expect(rows.getByRole('listitem')).toHaveCount(2);await expect(rows).toContainText('2 lượt gửi');
-    await rows.getByRole('button',{name:'Xem lượt gửi',exact:true}).first().click();await expect(page.getByRole('combobox',{name:'Tìm tuần',exact:true})).toHaveValue(weeks[0].name);expect(writes).toEqual([]);
+    await weekSwitcher(page).click();const rows=page.getByRole('listbox');await expect(rows).toBeVisible();await expect(rows.getByRole('option')).toHaveCount(2);await expect(rows).toContainText('2 lượt');
+    await rows.getByRole('option').first().click();await expect(weekSwitcher(page)).toContainText(weeks[0].name);await expect(sectionNav(page).getByRole('button',{name:'Lượt gửi & lịch sử',exact:true})).toHaveAttribute('aria-current','page');expect(writes).toEqual([]);
   });
   test('header groups track hidden columns and mobile full-week responses expand without losing single-day access',async({page})=>{
     await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/newest');await expect(page.locator('.detail-wrap thead [scope=colgroup]')).toHaveText(['Thông tin lượt gửi','Thực đơn']);
@@ -61,9 +61,12 @@ test.describe('reading-layouts',()=>{
 });
 async function openAudit(page:import('@playwright/test').Page){const tab=page.getByRole('tab',{name:'Lịch sử',exact:true});if(await tab.getAttribute('aria-selected')!=='true')await tab.click();}
 async function openResponses(page:import('@playwright/test').Page){const tab=page.getByRole('tab',{name:'Lượt gửi',exact:true});if(await tab.getAttribute('aria-selected')!=='true')await tab.click();}
-async function openSection(page:import('@playwright/test').Page,label:string):Promise<void>{await page.locator('.ui-sidebar').getByRole('button',{name:label,exact:true}).click();}
-async function openDisplayMenu(page:import('@playwright/test').Page):Promise<void>{const menu=page.locator('.comfort-menu');if(await menu.evaluate(node=>node.matches(':popover-open')))return;await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();await expect(menu).toBeVisible();}
-function sectionNav(page:import('@playwright/test').Page):import('@playwright/test').Locator{return page.locator('.ui-sidebar');}
+async function openSection(page:import('@playwright/test').Page,label:string):Promise<void>{if(['Thương hiệu','Hệ thống','Quyền Gmail'].includes(label)){await openDisplayMenu(page);await page.locator('.comfort-menu').getByRole('button',{name:label,exact:true}).click();return;}if(label==='Tạo tuần bằng OCR'||label==='Tạo tuần'){await page.getByRole('button',{name:'Tạo tuần',exact:true}).click();return;}await sectionNav(page).getByRole('button',{name:label,exact:true}).click();}
+async function openDisplayMenu(page:import('@playwright/test').Page):Promise<void>{await expect(page.locator('#dashboard-content h1')).toBeVisible();const menu=page.locator('.comfort-menu');if(await menu.evaluate(node=>node.matches(':popover-open')))return;const toggle=page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true});await toggle.scrollIntoViewIfNeeded();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await toggle.click();await expect(menu).toBeVisible();}
+function sectionNav(page:import('@playwright/test').Page):import('@playwright/test').Locator{return page.getByRole('navigation',{name:'Khu vực quản trị',exact:true});}
+function shellMenu(page:import('@playwright/test').Page):import('@playwright/test').Locator{return page.locator('.comfort-menu .ui-shell-menu-links');}
+function weekSwitcher(page:import('@playwright/test').Page):import('@playwright/test').Locator{return page.locator('.ui-shell-week-trigger');}
+async function chooseWeek(page:import('@playwright/test').Page,name:string):Promise<void>{await weekSwitcher(page).click();await page.getByRole('listbox').getByRole('option',{name,exact:true}).click();}
 async function selectSource(page:import('@playwright/test').Page,index:number){const photo=page.getByRole('tab',{name:'Ảnh',exact:true});if(await photo.count()&&await photo.getAttribute('aria-selected')!=='true')await photo.click();await page.locator('[data-image-choice]').nth(index).click();}
 
 
@@ -78,7 +81,7 @@ test.describe('reconciliation-read',()=>{
   test('a late comparison page cannot cross week scope and offline disables additional reads',async({page})=>{
     const writes:object[]=[],offsets:number[]=[];let release=()=>{};const held=new Promise<void>(resolve=>release=resolve);await interceptMealServices(page,'owner','#357185',writes);
     await page.route('**/api/dashboard?reconcile=**',async route=>{const offset=Number(new URL(route.request().url()).searchParams.get('comparisonOffset'));offsets.push(offset);if(offset)await held;await route.fulfill({json:comparisonFixture(offset)});});
-    await page.goto('http://127.0.0.1:5175/dashboard?tab=reconcile');await page.getByRole('button',{name:'Đối soát tuần này',exact:true}).click();await expect(page.locator('.comparison-pair')).toHaveCount(50);await page.context().setOffline(true);await expect(page.getByRole('button',{name:'Đối soát tuần này',exact:true})).toBeDisabled();await expect(page.locator('.comparison-pair')).toHaveCount(0);expect(offsets).toEqual([0]);await page.context().setOffline(false);expect(offsets).toEqual([0]);await page.getByRole('button',{name:'Đối soát tuần này',exact:true}).click();await expect(page.locator('.comparison-pair')).toHaveCount(50);await page.getByRole('button',{name:'Trang cặp tiếp',exact:true}).click();await expect.poll(()=>offsets.length).toBe(3);await page.getByRole('combobox',{name:'Tìm tuần',exact:true}).click();await page.getByRole('option',{name:weeks[1].name,exact:true}).click();release();await expect(page.getByRole('combobox',{name:'Tìm tuần',exact:true})).toHaveValue(weeks[1].name);await expect(page.locator('.comparison-pair')).toHaveCount(0);expect(offsets).toEqual([0,0,50]);expect(writes).toEqual([]);
+    await page.goto('http://127.0.0.1:5175/dashboard?tab=reconcile');await page.getByRole('button',{name:'Đối soát tuần này',exact:true}).click();await expect(page.locator('.comparison-pair')).toHaveCount(50);await page.context().setOffline(true);await expect(page.getByRole('button',{name:'Đối soát tuần này',exact:true})).toBeDisabled();await expect(page.locator('.comparison-pair')).toHaveCount(0);expect(offsets).toEqual([0]);await page.context().setOffline(false);expect(offsets).toEqual([0]);await page.getByRole('button',{name:'Đối soát tuần này',exact:true}).click();await expect(page.locator('.comparison-pair')).toHaveCount(50);await page.getByRole('button',{name:'Trang cặp tiếp',exact:true}).click();await expect.poll(()=>offsets.length).toBe(3);await chooseWeek(page,weeks[1].name);release();await expect(weekSwitcher(page)).toContainText(weeks[1].name);await expect(page.locator('.comparison-pair')).toHaveCount(0);expect(offsets).toEqual([0,0,50]);expect(writes).toEqual([]);
   });
   test('unpaired sources stay separate, truncated pairs warn and an expired session removes private comparison',async({page})=>{
     const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);let expired=false;
@@ -98,7 +101,7 @@ test('task-workspaces: bounded PC tablet mobile and short-screen render review',
   await page.route('**/api/dashboard?**',route=>{const q=new URL(route.request().url()).searchParams;if(!q.has('week')||q.has('reconcile'))return route.fallback();return route.fulfill({json:{week:{...weeks[0],dayLabels:days.map(day=>day.day)},responses:[{responseId:'sample-a',name:'Trường An',timestamp:1791467940000,meals:days.map(()=> 'CƠM GÀ')}],history:[{id:'event-a',action:'form-closed',name:'Form',at:1791467940000,actor:'admin@example.com',note:'Ghi chú kiểm tra đúng tuần; không tự thay đổi dữ liệu.'}]}});});for(const [width,height,theme,size,forced] of [[1440,900,'light','normal',false],[900,900,'dark','normal',false],[390,844,'dark','normal',false],[320,400,'light','large',true],[844,390,'dark','large',false]] as const){
     await page.setViewportSize({width,height});await page.emulateMedia({forcedColors:forced?'active':'none'});await page.addInitScript(({theme,size})=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme,motion:'off'}));localStorage.setItem('meal-text-size',size);},{theme,size});
     async function capture(name:string){await page.evaluate(()=>document.fonts.ready);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:'review/task-workspaces/'+name+'-'+width+'.png'});}
-    await page.goto('http://127.0.0.1:5175/dashboard');await expect(page.getByRole('region',{name:'Theo dõi đăng ký',exact:true})).toBeVisible();await capture('overview');
+    await page.goto('http://127.0.0.1:5175/dashboard');await expect(page.locator('#dashboard-content h1')).toHaveText('Lượt gửi');await capture('dashboard-default');
     await page.goto('http://127.0.0.1:5175/dashboard?tab=delete');await openAudit(page);await expect(page.locator('.audit-timeline')).toBeVisible();await capture('audit');
     await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page,2);await selectSource(page,1);await page.getByRole('region',{name:'Ảnh nguồn đang chọn',exact:true}).scrollIntoViewIfNeeded();await capture('sources');
     await navigationImages(page);await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await expect(page.locator('#ocr-title')).toHaveValue('Tuần thử');await page.locator('#ocr-title').scrollIntoViewIfNeeded();await capture('editor');
@@ -146,14 +149,19 @@ test.describe('workspace-shell',()=>{
   test('authenticated heading names the active section and keeps account context without the generic introduction',async({page})=>{
     const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=branding');await expect(page.locator('#dashboard-content h1')).toHaveText('Thương hiệu');await openDisplayMenu(page);await expect(page.locator('.comfort-menu-extra .dashboard-account')).toContainText('admin@example.com');await expect(page.locator('.dashboard-header .sub')).toHaveCount(0);await openSection(page,'Lượt gửi & lịch sử');await expect(page.locator('#dashboard-content h1')).toHaveText('Lượt gửi');expect(writes).toEqual([]);
   });
-  test('tablet starts compact, manual expansion survives navigation and desktop uses the normal sidebar',async({page})=>{
-    await interceptMealServices(page);await page.setViewportSize({width:900,height:900});await page.goto('http://127.0.0.1:5175/dashboard');await expect(page.locator('.ui-dashboard-layout')).toHaveAttribute('data-sidebar-collapsed','true');const nav=page.locator('.ui-sidebar');await nav.getByRole('button',{name:'Thương hiệu',exact:true}).focus();await expect(page.getByRole('tooltip',{name:'Thương hiệu',exact:true})).toBeVisible();await page.keyboard.press('Escape');await nav.getByRole('button',{name:'Mở rộng thanh bên',exact:true}).click();await nav.getByRole('button',{name:'Thương hiệu',exact:true}).click();await expect(page.locator('.ui-dashboard-layout')).toHaveAttribute('data-sidebar-collapsed','false');await page.setViewportSize({width:1440,height:900});await expect(page.locator('.ui-dashboard-layout')).toHaveAttribute('data-sidebar-collapsed','false');
+  test('the week bar keeps a very long week name inside the viewport at 1024px with an ellipsis and the full name in title',async({page})=>{
+    const long='Tuần 12/10/2026 - 16/10/2026 (bản đã chỉnh lại sau cuộc họp phụ huynh đầu năm học và bổ sung món chay cho cả khối)';
+    await interceptMealServices(page,'owner','#357185',[],{weeks:[{...weeks[0],name:long},weeks[1]]});await page.setViewportSize({width:1024,height:768});await page.goto('http://127.0.0.1:5175/dashboard');
+    const trigger=weekSwitcher(page),name=trigger.locator('.ui-shell-week-name');await expect(name).toHaveText(long);await expect(trigger).toHaveAttribute('title',long);
+    expect(await name.evaluate(node=>getComputedStyle(node).textOverflow)).toBe('ellipsis');expect(await name.evaluate(node=>node.scrollWidth>node.clientWidth)).toBe(true);
+    const box=(await trigger.boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(1024);for(const tab of await sectionNav(page).getByRole('button').all())await expect(tab).toBeInViewport();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   });
-  test('mobile More groups authorized tasks into two columns and large text uses one column',async({page})=>{
-    await page.addInitScript(()=>localStorage.setItem('meal-appearance',JSON.stringify({theme:'light',motion:'off'})));const writes:object[]=[];await page.setViewportSize({width:390,height:844});await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();const grid=page.getByRole('group',{name:'Các công cụ quản trị',exact:true});const a=(await grid.getByRole('button',{name:'Điều khiển Form',exact:true}).boundingBox())!,b=(await grid.getByRole('button',{name:'Thông báo tuần',exact:true}).boundingBox())!;expect(Math.abs(a.y-b.y)).toBeLessThan(2);expect(b.x).toBeGreaterThan(a.x);await page.keyboard.press('Escape');await page.addInitScript(()=>localStorage.setItem('meal-text-size','large'));await page.reload();await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();const c=(await grid.getByRole('button',{name:'Điều khiển Form',exact:true}).boundingBox())!,d=(await grid.getByRole('button',{name:'Thông báo tuần',exact:true}).boundingBox())!;expect(d.y).toBeGreaterThanOrEqual(c.y+c.height);expect(writes).toEqual([]);
+  test('mobile settings menu lists owner tools one per row and large text keeps them inside the screen',async({page})=>{
+    await page.addInitScript(()=>localStorage.setItem('meal-appearance',JSON.stringify({theme:'light',motion:'off'})));const writes:object[]=[];await page.setViewportSize({width:390,height:844});await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await openDisplayMenu(page);const grid=shellMenu(page);const a=(await grid.getByRole('button',{name:'Thương hiệu',exact:true}).boundingBox())!,b=(await grid.getByRole('button',{name:'Hệ thống',exact:true}).boundingBox())!;expect(b.y).toBeGreaterThanOrEqual(a.y+a.height);expect(a.x+a.width).toBeLessThanOrEqual(390);await page.keyboard.press('Escape');await page.addInitScript(()=>localStorage.setItem('meal-text-size','large'));await page.reload();await openDisplayMenu(page);const c=(await grid.getByRole('button',{name:'Thương hiệu',exact:true}).boundingBox())!,d=(await grid.getByRole('button',{name:'Hệ thống',exact:true}).boundingBox())!;expect(d.y).toBeGreaterThanOrEqual(c.y+c.height);expect(c.x+c.width).toBeLessThanOrEqual(390);expect(writes).toEqual([]);
   });
-  test('overview task groups only expose permitted navigation and do not invent readiness',async({page})=>{
-    const writes:object[]=[];await interceptMealServices(page,'viewer','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await expect(page.getByRole('region',{name:'Theo dõi đăng ký',exact:true})).toBeVisible();await expect(page.getByRole('region',{name:'Kiểm tra dữ liệu',exact:true})).toBeVisible();await expect(page.getByRole('region',{name:'Chuẩn bị thực đơn',exact:true})).toHaveCount(0);await expect(page.getByRole('region',{name:'Cần xử lý',exact:true})).toContainText('Chưa có kết quả kiểm tra');expect(writes).toEqual([]);
+  test('the shell only exposes permitted navigation and the attention block does not invent readiness',async({page})=>{
+    const writes:object[]=[];await interceptMealServices(page,'viewer','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await expect(sectionNav(page).getByRole('button')).toHaveText(['Lượt gửi & lịch sử','Đối soát']);await expect(page.getByRole('button',{name:'Tạo tuần',exact:true})).toHaveCount(0);await openSection(page,'Đối soát');await expect(page.getByRole('region',{name:'Cần xử lý',exact:true})).toContainText('Chưa có kết quả kiểm tra');expect(writes).toEqual([]);
   });
 });
 
@@ -197,7 +205,7 @@ test.describe('task-layouts',()=>{
     await page.setViewportSize({width:390,height:844});await contents.getByText('Đến mục',{exact:true}).click();await contents.getByRole('link',{name:'Tên trường',exact:true}).click();await expect(page.locator('#brand-identity')).toBeFocused();const smallIntro=await page.locator('#brand-identity .settings-explanation').boundingBox(),smallInput=await page.getByLabel('Tên trường',{exact:true}).boundingBox();expect(smallInput!.y).toBeGreaterThan(smallIntro!.y+smallIntro!.height);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(writes).toEqual([]);
   });
   test('task width is wider for response tables and Gmail controls read in one column',async({page})=>{
-    const writes:object[]=[];await discoveryFixture(page,writes);await page.setViewportSize({width:1800,height:1000});await page.goto('http://127.0.0.1:5175/dashboard?tab=notice');await expect(page.getByRole('combobox',{name:'Tìm tuần',exact:true})).toBeVisible();const narrow=(await page.locator('#dashboard-content').boundingBox())!.width;
+    const writes:object[]=[];await discoveryFixture(page,writes);await page.setViewportSize({width:1800,height:1000});await page.goto('http://127.0.0.1:5175/dashboard?tab=notice');await expect(weekSwitcher(page)).toBeVisible();const narrow=(await page.locator('#dashboard-content').boundingBox())!.width;
     await openSection(page,'Lượt gửi & lịch sử');await expect(page.locator('[data-response-id=sample-a]')).toBeVisible();expect((await page.locator('#dashboard-content').boundingBox())!.width).toBeGreaterThan(narrow+100);
     await openSection(page,'Quyền Gmail');const search=await page.getByRole('textbox',{name:'Tìm Gmail đã cấp quyền',exact:true}).boundingBox(),filter=await page.getByRole('combobox',{name:'Lọc theo quyền',exact:true}).boundingBox();expect(filter!.y).toBeGreaterThan(search!.y+search!.height);
     const row=page.locator('.dashboard-email-list li').filter({hasText:'ocr@example.com'});await row.getByRole('checkbox',{name:'Xóa / khôi phục',exact:true}).check();await expect(row).toContainText('Sắp thêm Xóa / khôi phục');expect(writes).toEqual([]);
@@ -205,7 +213,7 @@ test.describe('task-layouts',()=>{
   test('responses toolbar reads context then filters then actions and wraps whole groups',async({page})=>{
     const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=delete');
     for(const width of [1440,900,390,320]){
-      await page.setViewportSize({width,height:844});const tools=page.locator('.dashboard-sticky-tools');await expect(tools.getByRole('combobox',{name:'Tìm tuần',exact:true})).toBeVisible();const groups=tools.locator(':scope > [role=group]');await expect(groups).toHaveCount(3);const names=await groups.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label')));expect(names).toEqual(['Tuần đang làm việc','Tìm và lọc lượt gửi','Thao tác lượt gửi']);if(width<=700){const a=(await groups.nth(0).boundingBox())!,b=(await groups.nth(1).boundingBox())!,c=(await groups.nth(2).boundingBox())!;expect(b.y).toBeGreaterThanOrEqual(a.y+a.height);expect(c.y).toBeGreaterThanOrEqual(b.y+b.height);}expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      await page.setViewportSize({width,height:844});const tools=page.locator('.dashboard-sticky-tools');await expect(weekSwitcher(page)).toBeVisible();const groups=tools.locator(':scope > [role=group]');await expect(groups).toHaveCount(2);const names=await groups.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label')));expect(names).toEqual(['Tìm và lọc lượt gửi','Thao tác lượt gửi']);{const week=(await weekSwitcher(page).boundingBox())!,first=(await groups.nth(0).boundingBox())!;expect(first.y).toBeGreaterThanOrEqual(week.y+week.height);}if(width<=700){const b=(await groups.nth(0).boundingBox())!,c=(await groups.nth(1).boundingBox())!;expect(c.y).toBeGreaterThanOrEqual(b.y+b.height);}expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     }await page.getByRole('textbox',{name:'Tìm theo họ tên',exact:true}).fill('Trường');await expect(page.locator('[data-response-id=sample-a]')).toBeVisible();await expect(page.locator('[data-response-id=sample-b]')).toHaveCount(0);expect(writes).toEqual([]);
   });
   test('archive PC shows selected viewer beside list while mobile hides list and returns to its filter',async({page})=>{
@@ -252,8 +260,8 @@ test.describe('attention-popover',()=>{
   });
   test('mobile uses the More-style bottom panel without blocking its close button or losing preferences',async({page})=>{
     await page.setViewportSize({width:390,height:844});await page.addInitScript(()=>localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'off'})));const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);
-    await page.goto('http://127.0.0.1:5175/dashboard?tab=create');const trigger=page.getByRole('button',{name:'Thông báo và dấu chấm',exact:true}),panel=page.getByRole('dialog',{name:'Thông báo và dấu chấm ứng dụng',exact:true});await trigger.click();await expect(panel).toBeVisible();const box=(await panel.boundingBox())!,nav=(await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(12);expect(box.x+box.width).toBeLessThanOrEqual(378);expect(box.y+box.height).toBeLessThanOrEqual(nav.y);await expect(panel.getByRole('button',{name:'Đóng thông báo',exact:true})).toBeInViewport();
-    await panel.getByRole('checkbox').uncheck();await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();await expect(panel).toBeHidden();await expect(page.getByRole('dialog',{name:'Thêm chức năng',exact:true})).toBeVisible();await page.keyboard.press('Escape');await trigger.click();await expect(panel.getByRole('checkbox')).not.toBeChecked();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(writes).toEqual([]);
+    await page.goto('http://127.0.0.1:5175/dashboard?tab=create');const trigger=page.getByRole('button',{name:'Thông báo và dấu chấm',exact:true}),panel=page.getByRole('dialog',{name:'Thông báo và dấu chấm ứng dụng',exact:true});await trigger.click();await expect(panel).toBeVisible();const box=(await panel.boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(12);expect(box.x+box.width).toBeLessThanOrEqual(378);expect(box.y+box.height).toBeLessThanOrEqual(844);await expect(panel.getByRole('button',{name:'Đóng thông báo',exact:true})).toBeInViewport();
+    await panel.getByRole('checkbox').uncheck();await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).focus();await page.keyboard.press('Enter');await expect(panel).toBeHidden();await expect(page.getByRole('dialog',{name:'Tùy chọn hiển thị',exact:true})).toBeVisible();await page.keyboard.press('Escape');await trigger.click();await expect(panel.getByRole('checkbox')).not.toBeChecked();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(writes).toEqual([]);
   });
 });
 
@@ -348,8 +356,8 @@ test.describe('dashboard-nine',()=>{
     const writes:object[]=[];await discoveryFixture(page,writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=access');
     const row=page.locator('.dashboard-email-list li').filter({hasText:'ocr@example.com'});await row.getByRole('checkbox',{name:'OCR / tạo tuần',exact:true}).uncheck();await expect(row).toContainText('Sắp gỡ OCR');
     await page.getByRole('textbox',{name:'Tìm Gmail đã cấp quyền',exact:true}).fill('delete');await expect(page.getByText(/Có 1 tài khoản còn thay đổi chưa lưu/)).toBeVisible();await page.getByRole('button',{name:'Xóa tìm kiếm Tìm Gmail đã cấp quyền',exact:true}).click();await expect(row).toContainText('Sắp gỡ OCR');
-    page.once('dialog',dialog=>dialog.dismiss());await openSection(page,'Tổng quan');await expect(row).toBeVisible();
-    page.once('dialog',dialog=>dialog.accept());await openSection(page,'Tổng quan');await openSection(page,'Quyền Gmail');await expect(row.getByRole('checkbox',{name:'OCR / tạo tuần',exact:true})).toBeChecked();expect(writes).toEqual([]);
+    page.once('dialog',dialog=>dialog.dismiss());await openSection(page,'Đối soát');await expect(row).toBeVisible();
+    page.once('dialog',dialog=>dialog.accept());await openSection(page,'Đối soát');await openSection(page,'Quyền Gmail');await expect(row.getByRole('checkbox',{name:'OCR / tạo tuần',exact:true})).toBeChecked();expect(writes).toEqual([]);
   });
   test('bounded responsive review covers filters, source status, device data and permission drafts',async({page})=>{
     test.setTimeout(90000);const errors:string[]=[],writes:object[]=[];page.on('pageerror',error=>errors.push(error.message));await discoveryFixture(page,writes);await page.route('**/api/dashboard',route=>route.request().method()==='POST'&&route.request().postDataJSON().action==='ocr'?route.fulfill({json:navigationMenu}):route.fallback());
@@ -539,8 +547,8 @@ test.describe('draft-tools-context',()=>{
   test('responsive review keeps simulated Form, editor, guides and side panel readable',async({page})=>{
     test.setTimeout(90000);const errors:string[]=[],writes:object[]=[];page.on('pageerror',error=>errors.push(error.message));await navigationOcr(page,writes);for(const [width,height,theme,forced]of [[1440,900,'light',false],[900,700,'dark',false],[390,844,'light',false],[320,256,'dark',false],[844,390,'dark',false],[390,700,'dark',true]] as const){await page.setViewportSize({width,height});await page.emulateMedia({forcedColors:forced?'active':'none'});await page.addInitScript(({theme})=>{localStorage.setItem('meal-appearance',JSON.stringify({theme,motion:'off'}));localStorage.setItem('meal-text-size','large');},{theme});await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page);await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await page.locator('#ocr-title').fill('Thực đơn kiểm thử với tên dài và nhiều nội dung để đối chiếu trên điện thoại');await page.getByRole('button',{name:'Xem thử Form',exact:true}).click();await page.addStyleTag({content:'*{line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important}p{margin-bottom:2em!important}'});const simulation=page.getByRole('dialog',{name:'Form mô phỏng',exact:true});await expect(simulation).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`review/draft-tools-context/simulation-${width}-${height}-${theme}-${forced}.png`});await simulation.getByRole('button',{name:'Đóng mô phỏng',exact:true}).click();await page.goto('http://127.0.0.1:5175/dashboard?tab=delete');await page.locator('[data-response-id=sample-a]').getByRole('button',{name:'Xem nhanh',exact:true}).click();await expect(page.getByRole('dialog',{name:'Chi tiết lượt gửi',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`review/draft-tools-context/panel-${width}-${height}-${theme}-${forced}.png`});await page.getByRole('dialog',{name:'Chi tiết lượt gửi',exact:true}).getByRole('button',{name:'Đóng',exact:true}).click();await openDisplayMenu(page);await page.getByRole('button',{name:'Hướng dẫn mục này',exact:true}).click();const guide=page.getByRole('dialog',{name:'Hướng dẫn mục hiện tại',exact:true});await expect(guide).toBeVisible();const box=(await guide.boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);if(forced)await page.screenshot({path:'review/draft-tools-context/guide-forced.png'});await page.keyboard.press('Escape');}expect(errors).toEqual([]);expect(writes).toEqual(Array.from({length:6},()=>({action:'ocr'})));
   });
-  test('Overview guide has real visible steps and never starts by itself',async({page})=>{
-    const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await openDisplayMenu(page);await page.getByRole('button',{name:'Hướng dẫn mục này',exact:true}).click();const guide=page.getByRole('dialog',{name:'Hướng dẫn mục hiện tại',exact:true});await expect(guide).toBeVisible();await expect(guide).toContainText('1 / 3');await guide.getByRole('button',{name:'Tiếp',exact:true}).click();await expect(page.locator('[data-guide-target]')).toHaveCount(1);await guide.getByRole('button',{name:'Bỏ qua / Đóng',exact:true}).click();await expect(guide).toHaveCount(0);expect(writes).toEqual([]);
+  test('default Lượt gửi guide has real visible steps and never starts by itself',async({page})=>{
+    const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await expect(page.locator('[data-response-id]').first()).toBeVisible();await openDisplayMenu(page);await page.getByRole('button',{name:'Hướng dẫn mục này',exact:true}).click();const guide=page.getByRole('dialog',{name:'Hướng dẫn mục hiện tại',exact:true});await expect(guide).toBeVisible();await expect(guide).toContainText('1 / 4');await guide.getByRole('button',{name:'Tiếp',exact:true}).click();await expect(page.locator('[data-guide-target]')).toHaveCount(1);await guide.getByRole('button',{name:'Bỏ qua / Đóng',exact:true}).click();await expect(guide).toHaveCount(0);expect(writes).toEqual([]);
   });
   test('viewer offline preserves loaded rows, shows the true last-read time and does not refetch on a disabled connection',async({page,context})=>{
     const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/newest');await expect(page.locator('.detail-wrap tbody tr')).toHaveCount(2);await context.setOffline(true);const notice=page.getByRole('status',{name:'Trạng thái kết nối',exact:true});await expect(notice).toContainText('Đang xem bản lưu lúc');await page.getByRole('button',{name:'Tải lại dữ liệu',exact:true}).click();await expect(page.locator('.detail-wrap tbody tr')).toHaveCount(2);await context.setOffline(false);await expect(notice).toHaveCount(0);expect(writes).toEqual([]);
@@ -564,7 +572,7 @@ test.describe('draft-tools-context',()=>{
     const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.setViewportSize({width:1440,height:900});await page.goto('http://127.0.0.1:5175/dashboard?tab=delete');const opener=page.locator('[data-response-id=sample-a]').getByRole('button',{name:'Xem nhanh',exact:true});await opener.click();const panel=page.getByRole('dialog',{name:'Chi tiết lượt gửi',exact:true});await expect(panel).toBeVisible();expect(await panel.evaluate(node=>node.matches(':modal'))).toBe(false);const p=(await panel.boundingBox())!,t=(await page.locator('[data-response-id=sample-a]').boundingBox())!;expect(t.x+t.width).toBeLessThanOrEqual(p.x);await page.setViewportSize({width:390,height:844});expect(await panel.evaluate(node=>node.matches(':modal'))).toBe(true);await page.keyboard.press('Escape');await expect(panel).toHaveCount(0);await expect(opener).toBeFocused();expect(writes).toEqual([]);
   });
   test('week option descriptions distinguish real zero from unknown without changing committed labels',async({page})=>{
-    await interceptMealServices(page);await page.route('**/api/dashboard?access=1',route=>route.fulfill({json:{accountId:'synthetic-owner',email:'admin@example.com',role:'owner',permissions:{view:true,create:true,manageResponses:true},weeks:[{...weeks[0],responseCount:0},{...weeks[1],responseCount:null,formStatus:'unknown'}]}}));await page.goto('http://127.0.0.1:5175/dashboard?tab=notice');const picker=page.getByRole('combobox',{name:'Tìm tuần',exact:true});await picker.click();const first=page.getByRole('option',{name:weeks[0].name,exact:true}),second=page.getByRole('option',{name:weeks[1].name,exact:true});await expect(first).toContainText('0 lượt · Form đã đóng');await expect(second).toContainText('Chưa đọc được số lượt');await second.click();await expect(picker).toHaveValue(weeks[1].name);
+    await interceptMealServices(page);await page.route('**/api/dashboard?access=1',route=>route.fulfill({json:{accountId:'synthetic-owner',email:'admin@example.com',role:'owner',permissions:{view:true,create:true,manageResponses:true},weeks:[{...weeks[0],responseCount:0},{...weeks[1],responseCount:null,formStatus:'unknown'}]}}));await page.goto('http://127.0.0.1:5175/dashboard?tab=notice');const picker=weekSwitcher(page);await picker.click();const first=page.getByRole('option',{name:weeks[0].name,exact:true}),second=page.getByRole('option',{name:weeks[1].name,exact:true});await expect(first).toContainText('0 lượt · Form đã đóng');await expect(second).toContainText('Chưa đọc được số lượt');await second.click();await expect(picker).toContainText(weeks[1].name);
   });
   test('dismissed feedback stays in a bounded session-only list and clearing never writes',async({page})=>{
     const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=delete');await page.getByRole('button',{name:'Tải lại dữ liệu',exact:true}).click();await expect(page.locator('.action-toast')).toBeVisible();await page.getByRole('button',{name:'Đóng thông báo',exact:true}).click();await openDisplayMenu(page);await page.getByRole('button',{name:/Thông báo phiên này/}).click();const list=page.getByRole('region',{name:'Thông báo phiên này',exact:true});await expect(list).toContainText('Không thay thế lịch sử quản trị');await expect(list.locator('li')).not.toHaveCount(0);await list.getByRole('button',{name:'Xóa thông báo phiên',exact:true}).click();await expect(list.locator('li')).toHaveCount(0);expect(writes).toEqual([]);
@@ -580,7 +588,7 @@ test.describe('draft-tools-context',()=>{
 test.describe('operate-accessibility',()=>{
   test.setTimeout(20000);
   test('Back restores each entry filter even after visiting the same week with another filter',async({page})=>{
-    const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');const query=page.getByRole('textbox',{name:'Tìm theo họ tên',exact:true});await openSection(page,'Lượt gửi & lịch sử');await query.fill('truong');await openSection(page,'Thương hiệu');await openSection(page,'Lượt gửi & lịch sử');await query.fill('minh');await openSection(page,'Tổng quan');await page.goBack();await expect(query).toHaveValue('minh');await page.goBack();await expect(page.getByLabel('Tên trường',{exact:true})).toBeVisible();await page.goBack();await expect(query).toHaveValue('truong');await expect(query).not.toBeFocused();expect(new URL(page.url()).search).not.toMatch(/truong|minh/);expect(writes).toEqual([]);
+    const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');const query=page.getByRole('textbox',{name:'Tìm theo họ tên',exact:true});await openSection(page,'Lượt gửi & lịch sử');await query.fill('truong');await openSection(page,'Thương hiệu');await openSection(page,'Lượt gửi & lịch sử');await query.fill('minh');await openSection(page,'Đối soát');await page.goBack();await expect(query).toHaveValue('minh');await page.goBack();await expect(page.getByLabel('Tên trường',{exact:true})).toBeVisible();await page.goBack();await expect(query).toHaveValue('truong');await expect(query).not.toBeFocused();expect(new URL(page.url()).search).not.toMatch(/truong|minh/);expect(writes).toEqual([]);
   });
   for(const scope of ['branding','notice'])test('malformed success cannot clear the '+scope+' draft or dirty save bar',async({page})=>{
     await interceptMealServices(page);await page.route('**/api/dashboard',route=>route.request().method()==='POST'?route.fulfill({json:{ok:true}}):route.fallback());await page.goto('http://127.0.0.1:5175/dashboard?tab='+scope);
@@ -618,8 +626,8 @@ test.describe('operate-accessibility',()=>{
     await page.addInitScript(()=>{const viewport=Object.assign(new EventTarget(),{height:844,width:390,offsetTop:0,offsetLeft:0,scale:1});Object.defineProperty(window,'visualViewport',{value:viewport});});await interceptMealServices(page);await page.setViewportSize({width:390,height:844});await page.goto('http://127.0.0.1:5175/dashboard?tab=branding');const field=page.getByLabel('URL ảnh logo HTTPS',{exact:true});await field.fill('https://example.test/logo.png');await field.focus();
     await page.evaluate(()=>{Object.assign(window.visualViewport!,{height:280});window.visualViewport!.dispatchEvent(new Event('resize'));});await expect.poll(async()=>{const box=(await field.boundingBox())!;return box.y>=0&&box.y+Math.min(box.height,200)<=280;}).toBe(true);await expect(field).toBeFocused();await expect(field).toHaveValue('https://example.test/logo.png');
   });
-  test('compact sidebar tooltip remains readable under pointer and Escape dismisses it',async({page})=>{
-    await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');await page.getByRole('button',{name:'Thu gọn thanh bên',exact:true}).click();const trigger=page.locator('.ui-sidebar').getByRole('button',{name:'Thông báo tuần',exact:true});await trigger.hover();const tooltip=page.getByRole('tooltip',{name:'Thông báo tuần',exact:true});await expect(tooltip).toBeVisible();await tooltip.hover();await expect(tooltip).toBeVisible();await page.keyboard.press('Escape');await expect(tooltip).toBeHidden();
+  test('week links popover remains readable under pointer and Escape dismisses it back to its button',async({page})=>{
+    await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');const trigger=page.getByRole('button',{name:'Liên kết của tuần',exact:true});await trigger.click();const links=page.getByRole('dialog',{name:'Liên kết của tuần',exact:true});await expect(links).toBeVisible();await links.hover();await expect(links).toBeVisible();await page.keyboard.press('Escape');await expect(links).toBeHidden();await expect(trigger).toBeFocused();
   });
   test('Gmail permission labels are touch-sized and filtering announces only loaded counts without moving input focus',async({page})=>{
     const writes:object[]=[];await discoveryFixture(page,writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=access');const hit=page.locator('.member-permissions label').first();expect((await hit.boundingBox())!.height).toBeGreaterThanOrEqual(44);const search=page.getByRole('textbox',{name:'Tìm Gmail đã cấp quyền',exact:true});await search.fill('ocr');await expect(search).toBeFocused();const status=page.getByRole('status',{name:'Kết quả lọc quyền Gmail',exact:true});await expect(status).toContainText('1/3');await expect(status).not.toContainText('ocr@example.com');expect(writes).toEqual([]);
@@ -711,12 +719,12 @@ test.describe('ime-access-labels',()=>{
   });
   test('selected week option query stays stable during composition and clear cancels pending text',async({page})=>{
     await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');await openSection(page,'Thông báo tuần');
-    const search=page.getByRole('combobox',{name:'Tìm tuần',exact:true});await search.focus();const menu=page.locator('#'+await search.getAttribute('aria-controls'));
+    await weekSwitcher(page).click();const search=page.getByRole('textbox',{name:'Tìm tuần',exact:true});await search.focus();const menu=page.getByRole('listbox');
     await expect(menu.getByRole('option')).toHaveCount(2);await search.dispatchEvent('compositionstart');await search.fill('không khớp');
-    await expect(menu.getByRole('option')).toHaveCount(2);await search.dispatchEvent('keydown',{key:'Escape',isComposing:true,keyCode:229});await expect(search).toHaveAttribute('aria-expanded','true');
+    await expect(menu.getByRole('option')).toHaveCount(2);await search.dispatchEvent('keydown',{key:'Escape',isComposing:true,keyCode:229});await expect(weekSwitcher(page)).toHaveAttribute('aria-expanded','true');
     await page.getByRole('button',{name:'Xóa tìm kiếm Tìm tuần',exact:true}).click();await expect(search).toHaveValue('');await expect(menu.getByRole('option')).toHaveCount(2);
     await search.dispatchEvent('compositionstart');await search.fill('05/10');await search.dispatchEvent('compositionend');await expect(menu.getByRole('option')).toHaveCount(1);
-    await menu.getByRole('option').click();await expect(search).toHaveValue('Tuần 05/10/2026 - 09/10/2026');
+    await menu.getByRole('option').click();await expect(weekSwitcher(page)).toContainText('Tuần 05/10/2026 - 09/10/2026');
   });
   test('shared OCR search never jumps focus on composing Enter and commits on blur',async({page})=>{
     const writes:object[]=[];await navigationOcr(page,writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page);await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();
@@ -766,7 +774,7 @@ test.describe('ime-access-labels',()=>{
   });
   test('empty member scope is honest and non-owners never gain permission discovery controls',async({page})=>{
     await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');await openSection(page,'Quyền Gmail');await expect(page.getByRole('status',{name:'Kết quả lọc quyền Gmail'})).toContainText('0/0');await expect(page.getByText('Chưa có Gmail được cấp quyền.',{exact:true})).toBeVisible();
-    await interceptMealServices(page,'viewer');await page.goto('http://127.0.0.1:5175/dashboard');await expect(sectionNav(page).getByRole('button',{name:'Quyền Gmail',exact:true})).toHaveCount(0);await expect(page.getByRole('search',{name:'Tìm và lọc quyền Gmail'})).toHaveCount(0);
+    await interceptMealServices(page,'viewer');await page.goto('http://127.0.0.1:5175/dashboard');await openDisplayMenu(page);await expect(shellMenu(page).getByRole('button',{name:'Quyền Gmail',exact:true})).toHaveCount(0);await expect(page.getByRole('search',{name:'Tìm và lọc quyền Gmail'})).toHaveCount(0);
   });
   test('responsive batch keeps secondary labels and Gmail discovery readable in light/dark large text',async({page})=>{
     test.setTimeout(90000);const writes:object[]=[],errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));await discoveryFixture(page,writes);
@@ -775,7 +783,7 @@ test.describe('ime-access-labels',()=>{
       await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page,2);await page.getByRole('textbox',{name:'Nhãn phụ ảnh 1',exact:true}).fill('Phần đầu tuần · đối chiếu ngày và món');await selectSource(page,1);await page.getByRole('textbox',{name:'Nhãn phụ ảnh 2',exact:true}).fill('Phần cuối tuần');
       const capture=async(label:string)=>{await page.evaluate(()=>document.fonts.ready);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`review/ime-access-labels/${label}-${width}-${theme}.png`});};
       await page.locator('.image-source-list').scrollIntoViewIfNeeded();await capture('labels');
-      if(width>700)await openSection(page,'Quyền Gmail');else{await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();await page.getByRole('dialog',{name:'Thêm chức năng',exact:true}).getByRole('button',{name:'Quyền Gmail',exact:true}).click();}
+      await openSection(page,'Quyền Gmail');
       await page.getByLabel('Lọc theo quyền',{exact:true}).selectOption('create');await page.getByRole('search',{name:'Tìm và lọc quyền Gmail'}).scrollIntoViewIfNeeded();await capture('members');await expect(page.locator('.dashboard-email-list li')).toHaveCount(1);
     }expect(errors).toEqual([]);expect(writes).toEqual([]);
   });
@@ -787,7 +795,7 @@ test.describe('ocr-navigation',()=>{
     const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.setViewportSize({width:390,height:844});await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page,2);const transfer=await page.evaluateHandle(()=>{const data=new DataTransfer();data.setData('application/x-mealform-image-index','0');return data;});await page.locator('.image-source').nth(1).dispatchEvent('drop',{dataTransfer:transfer});await expect(page.locator('.image-source [data-image-choice]')).toHaveText(['Ảnh 1: 1.png','Ảnh 2: 2.png']);const handle=page.getByRole('button',{name:'Kéo để đổi vị trí ảnh 1',exact:true});await handle.dispatchEvent('dragstart',{dataTransfer:transfer});await handle.dispatchEvent('dragend',{dataTransfer:transfer});await page.locator('.image-source').nth(1).dispatchEvent('drop',{dataTransfer:transfer});await expect(page.locator('.image-source [data-image-choice]')).toHaveText(['Ảnh 1: 1.png','Ảnh 2: 2.png']);await expect(page.getByRole('button',{name:'Di chuyển ảnh 1 lên',exact:true})).toBeDisabled();await selectSource(page,1);await expect(page.getByRole('button',{name:'Di chuyển ảnh 2 xuống',exact:true})).toBeDisabled();await selectSource(page,0);await page.getByRole('button',{name:'Di chuyển ảnh 1 xuống',exact:true}).click();await expect(page.locator('.image-source [data-image-choice]')).toHaveText(['Ảnh 1: 2.png','Ảnh 2: 1.png']);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(writes).toEqual([]);
   });
   test('clean loaded results are not presented as unchecked or as verified overall health, and roles stay scoped',async({page})=>{
-    await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');const region=page.getByRole('region',{name:'Cần xử lý',exact:true});await expect(region).toContainText('Chưa có kết quả kiểm tra');await openSection(page,'Hệ thống');await expect(page.getByRole('status',{name:'Tóm tắt hệ thống'})).toContainText('1 ổn');await openSection(page,'Tổng quan');await expect(region).toContainText('Trong các kết quả đã tải chưa có mục cần xử lý');await expect(region.getByRole('button')).toHaveCount(0);await interceptMealServices(page,'viewer');await page.goto('http://127.0.0.1:5175/dashboard');await expect(sectionNav(page).getByRole('button',{name:'Hệ thống',exact:true})).toHaveCount(0);await expect(region.getByRole('button',{name:'Mở Hệ thống',exact:true})).toHaveCount(0);
+    await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard?tab=reconcile');const region=page.getByRole('region',{name:'Cần xử lý',exact:true});await expect(region).toContainText('Chưa có kết quả kiểm tra');await openSection(page,'Hệ thống');await expect(page.getByRole('status',{name:'Tóm tắt hệ thống'})).toContainText('1 ổn');await openSection(page,'Đối soát');await expect(region).toContainText('Trong các kết quả đã tải chưa có mục cần xử lý');await expect(region.getByRole('button')).toHaveCount(0);await interceptMealServices(page,'viewer');await page.goto('http://127.0.0.1:5175/dashboard?tab=reconcile');await expect(region).toBeVisible();await openDisplayMenu(page);await expect(shellMenu(page).getByRole('button',{name:'Hệ thống',exact:true})).toHaveCount(0);await page.keyboard.press('Escape');await expect(region.getByRole('button',{name:'Mở Hệ thống',exact:true})).toHaveCount(0);
   });
   test('empty OCR find and clearing never change contents/history; new sources reset the query',async({page})=>{
     const writes:object[]=[];await navigationOcr(page,writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page);await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await expect(page.locator('#ocr-title')).toHaveValue('Tuần thử');const search=page.getByRole('textbox',{name:'Tìm trong bản OCR',exact:true}),find=page.getByRole('search',{name:'Tìm trong bản OCR',exact:true}),undo=page.getByRole('button',{name:'Hoàn tác',exact:true});await expect(undo).toBeDisabled();await search.fill('không có từ này');await expect(find).toContainText('0 ô khớp');await expect(find.getByRole('button',{name:'Kết quả sau',exact:true})).toBeDisabled();await search.press('Enter');await search.fill('COM');await expect(find).toContainText('8 ô khớp');await find.getByRole('button',{name:'Xóa tìm kiếm Tìm trong bản OCR',exact:true}).click();await expect(undo).toBeDisabled();await expect(page.locator('#ocr-title')).toHaveValue('Tuần thử');await search.fill('COM');await navigationImages(page);await expect(page.locator('.menu-review')).toHaveCount(0);await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await expect(search).toHaveValue('');expect(writes).toEqual([{action:'ocr'},{action:'ocr'}]);
@@ -797,8 +805,8 @@ test.describe('ocr-navigation',()=>{
     for(const width of [360,900,1440])for(const theme of ['light','dark']){
       await page.setViewportSize({width,height:800});await page.addInitScript(({theme})=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme,motion:'off'}));localStorage.setItem('meal-text-size','large');},{theme});
       const capture=async(label:string)=>{await page.evaluate(()=>document.fonts.ready);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`review/ocr-navigation/${label}-${width}-${theme}.png`});};
-      await page.goto('http://127.0.0.1:5175/dashboard?tab=health');await expect(page.getByRole('status',{name:'Tóm tắt hệ thống'})).toContainText('1 cần chú ý');if(width>700)await openSection(page,'Tổng quan');else await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Tổng quan',exact:true}).click();await page.getByRole('region',{name:'Cần xử lý',exact:true}).scrollIntoViewIfNeeded();await capture('attention');
-      if(width>700)await openSection(page,'Tạo tuần bằng OCR');else await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Tạo tuần',exact:true}).click();await page.locator('button.image-upload-target:not(:disabled)').waitFor();if(await page.locator('.image-source').count()){page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Xóa nháp',exact:true}).click();await expect(page.locator('.image-source')).toHaveCount(0);}await navigationImages(page,2);await selectSource(page,1);await page.getByRole('button',{name:'Di chuyển ảnh 2 lên',exact:true}).click();await page.locator('.image-source-list').scrollIntoViewIfNeeded();await capture('image-order');await navigationImages(page);await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await expect(page.locator('#ocr-title')).toHaveValue('Tuần thử');await page.getByRole('textbox',{name:'Tìm trong bản OCR',exact:true}).fill('com');await page.getByRole('button',{name:'Kết quả sau',exact:true}).click();await expect(page.locator('#ocr-meal-0-0')).toBeFocused();await page.getByRole('search',{name:'Tìm trong bản OCR',exact:true}).scrollIntoViewIfNeeded();await capture('find');await page.locator('#ocr-meal-0-0').scrollIntoViewIfNeeded();await capture('match');
+      await page.goto('http://127.0.0.1:5175/dashboard?tab=health');await expect(page.getByRole('status',{name:'Tóm tắt hệ thống'})).toContainText('1 cần chú ý');await page.getByRole('region',{name:'Cần xử lý',exact:true}).scrollIntoViewIfNeeded();await capture('attention');
+      await openSection(page,'Tạo tuần bằng OCR');await page.locator('button.image-upload-target:not(:disabled)').waitFor();if(await page.locator('.image-source').count()){page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Xóa nháp',exact:true}).click();await expect(page.locator('.image-source')).toHaveCount(0);}await navigationImages(page,2);await selectSource(page,1);await page.getByRole('button',{name:'Di chuyển ảnh 2 lên',exact:true}).click();await page.locator('.image-source-list').scrollIntoViewIfNeeded();await capture('image-order');await navigationImages(page);await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await expect(page.locator('#ocr-title')).toHaveValue('Tuần thử');await page.getByRole('textbox',{name:'Tìm trong bản OCR',exact:true}).fill('com');await page.getByRole('button',{name:'Kết quả sau',exact:true}).click();await expect(page.locator('#ocr-meal-0-0')).toBeFocused();await page.getByRole('search',{name:'Tìm trong bản OCR',exact:true}).scrollIntoViewIfNeeded();await capture('find');await page.locator('#ocr-meal-0-0').scrollIntoViewIfNeeded();await capture('match');
     }expect(errors).toEqual([]);expect(writes).toEqual(Array.from({length:6},()=>({action:'ocr'})));
   });
   test('image buttons and native drag preserve preview, budget and restored draft; explicit OCR uses displayed order',async({page})=>{
@@ -808,7 +816,7 @@ test.describe('ocr-navigation',()=>{
     const writes:object[]=[];await navigationOcr(page,writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page);await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await expect(page.locator('#ocr-meal-0-0')).toHaveValue('CƠM GÀ');const undoWasDisabled=await page.getByRole('button',{name:'Hoàn tác',exact:true}).isDisabled(),png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=8;c.height=8;return c.toDataURL('image/png').split(',')[1];});const choosing=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Thêm ảnh',exact:true}).click();await (await choosing).setFiles({name:'extra.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});await expect(page.getByRole('status',{name:'Dung lượng bộ ảnh'})).toContainText('2/5 ảnh');await selectSource(page,1);await expect(page.getByRole('button',{name:'Di chuyển ảnh 2 lên',exact:true})).toBeDisabled();await selectSource(page,0);await expect(page.getByRole('button',{name:'Kéo để đổi vị trí ảnh 1',exact:true})).toHaveAttribute('draggable','false');await expect(page.locator('#ocr-meal-0-0')).toHaveValue('CƠM GÀ');expect(await page.getByRole('button',{name:'Hoàn tác',exact:true}).isDisabled()).toBe(undoWasDisabled);expect(writes).toEqual([{action:'ocr'}]);
   });
   test('Overview combines only already loaded current-week issues and links to existing sections without background checks',async({page})=>{
-    await interceptMealServices(page);let healthReads=0,reconcileReads=0;await page.route('**/api/dashboard?**',route=>{const q=new URL(route.request().url()).searchParams;if(q.has('health')){healthReads++;return route.fulfill({json:{checkedAt:Date.now(),checks:[{id:'ocr',label:'OCR',status:'warning',message:'Chưa đọc ảnh thử'}]}});}if(q.has('reconcile')){reconcileReads++;return route.fulfill({json:{formCount:2,sheetCount:0,matchedCount:0,issues:[{kind:'form-only',name:'A',timestamp:1791467000000,meals:['A']},{kind:'form-only',name:'B',timestamp:1791467000000,meals:['B']}]}});}return route.fallback();});await page.goto('http://127.0.0.1:5175/dashboard');const attention=page.getByRole('region',{name:'Cần xử lý',exact:true});await expect(attention).toContainText('Chưa có kết quả kiểm tra');expect([healthReads,reconcileReads]).toEqual([0,0]);await openSection(page,'Hệ thống');await expect(page.getByRole('status',{name:'Tóm tắt hệ thống'})).toContainText('1 cần chú ý');await openSection(page,'Đối soát');await page.getByRole('button',{name:'Đối soát tuần này',exact:true}).click();await expect(page.locator('.reconciliation-issues li')).toHaveCount(2);await openSection(page,'Tổng quan');await expect(attention.getByRole('button',{name:'Mở Hệ thống',exact:true})).toBeVisible();await expect(attention.getByRole('button',{name:'Mở Đối soát',exact:true})).toBeVisible();await expect(attention).toContainText('Đã tải');await expect(attention).toContainText(weeks[0].name);expect([healthReads,reconcileReads]).toEqual([1,1]);await attention.getByRole('button',{name:'Mở Đối soát',exact:true}).click();await expect(page.getByRole('heading',{name:'Đối soát Form–Sheet',exact:true})).toBeVisible();expect(reconcileReads).toBe(1);await page.getByRole('combobox',{name:'Tìm tuần',exact:true}).click();await page.getByRole('option',{name:weeks[1].name,exact:true}).click();await openSection(page,'Tổng quan');await expect(attention).toContainText(weeks[1].name);await expect(attention.getByRole('button',{name:'Mở Đối soát',exact:true})).toHaveCount(0);await expect(attention).toContainText('Chưa có kết quả kiểm tra');expect([healthReads,reconcileReads]).toEqual([1,1]);
+    await interceptMealServices(page);let healthReads=0,reconcileReads=0;await page.route('**/api/dashboard?**',route=>{const q=new URL(route.request().url()).searchParams;if(q.has('health')){healthReads++;return route.fulfill({json:{checkedAt:Date.now(),checks:[{id:'ocr',label:'OCR',status:'warning',message:'Chưa đọc ảnh thử'}]}});}if(q.has('reconcile')){reconcileReads++;return route.fulfill({json:{formCount:2,sheetCount:0,matchedCount:0,issues:[{kind:'form-only',name:'A',timestamp:1791467000000,meals:['A']},{kind:'form-only',name:'B',timestamp:1791467000000,meals:['B']}]}});}return route.fallback();});await page.goto('http://127.0.0.1:5175/dashboard?tab=reconcile');const attention=page.getByRole('region',{name:'Cần xử lý',exact:true});await expect(attention).toContainText('Chưa có kết quả kiểm tra');expect([healthReads,reconcileReads]).toEqual([0,0]);await openSection(page,'Hệ thống');await expect(page.getByRole('status',{name:'Tóm tắt hệ thống'})).toContainText('1 cần chú ý');await openSection(page,'Đối soát');await page.getByRole('button',{name:'Đối soát tuần này',exact:true}).click();await expect(page.locator('.reconciliation-issues li')).toHaveCount(2);await expect(attention.getByRole('button',{name:'Mở Hệ thống',exact:true})).toBeVisible();await expect(attention.getByRole('button',{name:'Mở Đối soát',exact:true})).toBeVisible();await expect(attention).toContainText('Đã tải');await expect(attention).toContainText(weeks[0].name);expect([healthReads,reconcileReads]).toEqual([1,1]);await attention.getByRole('button',{name:'Mở Đối soát',exact:true}).click();await expect(page.getByRole('heading',{name:'Đối soát Form–Sheet',exact:true})).toBeVisible();expect(reconcileReads).toBe(1);await chooseWeek(page,weeks[1].name);await expect(attention).toContainText(weeks[1].name);await expect(attention.getByRole('button',{name:'Mở Đối soát',exact:true})).toHaveCount(0);await expect(attention).toContainText('Chưa có kết quả kiểm tra');expect([healthReads,reconcileReads]).toEqual([1,1]);
   });
   test('OCR find keeps actual fields visible, folds accents and follows edits/Undo without submitting',async({page})=>{
     const writes:object[]=[];await navigationOcr(page,writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await navigationImages(page);await page.getByRole('button',{name:'Đọc thực đơn',exact:true}).click();await expect(page.locator('#ocr-meal-0-0')).toHaveValue('CƠM GÀ');const original=await page.locator('#ocr-title,[id^=ocr-date-],[id^=ocr-meal-]').evaluateAll(nodes=>nodes.map(n=>(n as HTMLInputElement).value));const search=page.getByRole('textbox',{name:'Tìm trong bản OCR',exact:true}),find=page.getByRole('search',{name:'Tìm trong bản OCR',exact:true});await search.fill('COM');await expect(find).toContainText('8 ô khớp');await expect(search).toBeFocused();await search.press('Enter');await expect(page.locator('#ocr-meal-0-0')).toBeFocused();await expect(page.locator('#ocr-meal-0-0')).toBeVisible();await find.getByRole('button',{name:'Kết quả sau',exact:true}).click();await expect(page.locator('#ocr-meal-0-1')).toBeFocused();expect(await page.locator('#ocr-title,[id^=ocr-date-],[id^=ocr-meal-]').evaluateAll(nodes=>nodes.map(n=>(n as HTMLInputElement).value))).toEqual(original);await page.locator('#ocr-meal-0-1').fill('Bún mới');await expect(find).toContainText('7 ô khớp');await page.locator('#ocr-meal-0-1').press('Control+z');await expect(find).toContainText('8 ô khớp');await find.getByRole('button',{name:'Xóa tìm kiếm Tìm trong bản OCR',exact:true}).click();await expect(page.locator('.ocr-search-hit')).toHaveCount(0);await search.fill('20/10');await search.press('Enter');await expect(page.locator('#ocr-date-1')).toBeFocused();await search.fill('tuan');await search.press('Enter');await expect(page.locator('#ocr-title')).toBeFocused();expect(writes).toEqual([{action:'ocr'}]);
@@ -818,7 +826,7 @@ test.describe('ocr-navigation',()=>{
 test.describe('operating-feedback',()=>{
   test.setTimeout(15000);
   test('older same-week health response cannot replace a newer explicit check',async({page})=>{
-    await interceptMealServices(page);let release:()=>void=()=>{},calls=0;const held=new Promise<void>(resolve=>release=resolve);await page.route('**/api/dashboard?**',async route=>{if(!new URL(route.request().url()).searchParams.has('health'))return route.fallback();const first=++calls===1;if(first)await held;await route.fulfill({json:{checkedAt:Date.now(),checks:[{id:'health',label:'Google',status:first?'warning':'ok',message:first?'Kết quả cũ':'Kết quả mới'}]}});});await page.goto('http://127.0.0.1:5175/dashboard');const nav=sectionNav(page);await openSection(page,'Hệ thống');await expect.poll(()=>calls).toBe(1);await openSection(page,'Tổng quan');await openSection(page,'Hệ thống');await expect(page.getByRole('status',{name:'Tóm tắt hệ thống'})).toContainText('1 ổn · 0 cần chú ý');const oldResponse=page.waitForResponse(response=>response.url().includes('health=1'));release();await oldResponse;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await expect(page.getByRole('status',{name:'Tóm tắt hệ thống'})).toContainText('1 ổn · 0 cần chú ý');await expect(nav.getByLabel('Cảnh báo Hệ thống',{exact:true})).toHaveCount(0);
+    await interceptMealServices(page);let release:()=>void=()=>{},calls=0;const held=new Promise<void>(resolve=>release=resolve);await page.route('**/api/dashboard?**',async route=>{if(!new URL(route.request().url()).searchParams.has('health'))return route.fallback();const first=++calls===1;if(first)await held;await route.fulfill({json:{checkedAt:Date.now(),checks:[{id:'health',label:'Google',status:first?'warning':'ok',message:first?'Kết quả cũ':'Kết quả mới'}]}});});await page.goto('http://127.0.0.1:5175/dashboard');const nav=shellMenu(page);await openSection(page,'Hệ thống');await expect.poll(()=>calls).toBe(1);await openSection(page,'Đối soát');await openSection(page,'Hệ thống');await expect(page.getByRole('status',{name:'Tóm tắt hệ thống'})).toContainText('1 ổn · 0 cần chú ý');const oldResponse=page.waitForResponse(response=>response.url().includes('health=1'));release();await oldResponse;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await expect(page.getByRole('status',{name:'Tóm tắt hệ thống'})).toContainText('1 ổn · 0 cần chú ý');await expect(nav.getByLabel('Cảnh báo Hệ thống',{exact:true})).toHaveCount(0);
   });
   test('responsive batch covers loaded warnings, System details, budgets, crosshair and image pan',async({page})=>{
     test.setTimeout(90000);const errors:string[]=[],writes:object[]=[];page.on('pageerror',error=>errors.push(error.message));await interceptMealServices(page,'owner','#357185',writes);await page.route('**/api/dashboard?**',route=>new URL(route.request().url()).searchParams.has('health')?route.fulfill({json:{checkedAt:Date.now(),checks:[{id:'ok',label:'Google',status:'ok',message:'Kết nối minh họa'},{id:'ocr',label:'OCR',status:'warning',message:'Chưa đọc ảnh thử; không tự chạy OCR.'}]}}):route.fallback());
@@ -827,17 +835,17 @@ test.describe('operating-feedback',()=>{
       const capture=async(label:string)=>{await page.evaluate(()=>document.fonts.ready);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`review/operating-feedback/${label}-${width}-${theme}.png`});};
       await page.goto('http://127.0.0.1:5175/newest');if(width<700)await page.getByRole('tab',{name:'Chi tiết',exact:true}).click();await expandMobileRows(page);await page.locator('.detail-wrap').scrollIntoViewIfNeeded();if(width>700){const cell=page.locator('.detail-wrap tbody tr').first().locator('td').nth(3),before=await cell.evaluate(n=>getComputedStyle(n).backgroundColor);await cell.hover();await expect(cell).toHaveAttribute('data-reading-column','true');expect(await cell.evaluate(n=>getComputedStyle(n).backgroundColor)).not.toBe(before);}await capture('table');
       await page.goto('http://127.0.0.1:5175/dashboard?tab=health');await expect(page.getByRole('status',{name:'Tóm tắt hệ thống'})).toContainText('1 cần chú ý');await page.locator('.system-report').scrollIntoViewIfNeeded();await capture('system');await page.locator('summary').filter({hasText:'Chi tiết kiểm tra'}).click();await expect(page.getByText('Chưa đọc ảnh thử; không tự chạy OCR.',{exact:true})).toBeVisible();
-      async function navigate(label:string){if(width>700)await openSection(page,label);else{await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();await expect(page.getByRole('dialog',{name:'Thêm chức năng'}).getByLabel('Cảnh báo Hệ thống',{exact:true})).toBeVisible();await page.getByRole('dialog',{name:'Thêm chức năng'}).getByRole('button',{name:label,exact:true}).click();}}
+      async function navigate(label:string){if(width<=700&&['Thương hiệu','Hệ thống','Quyền Gmail'].includes(label)){await openDisplayMenu(page);await expect(shellMenu(page).getByLabel('Cảnh báo Hệ thống',{exact:true})).toBeVisible();}await openSection(page,label);}
       await navigate('Thương hiệu');await page.getByLabel('Tên trường',{exact:true}).fill('Trường minh họa '+'.'.repeat(81));await expect(page.getByLabel('Ký tự còn lại của Tên trường',{exact:true})).toHaveAttribute('data-warning','true');await page.locator('.branding-field-row').first().scrollIntoViewIfNeeded();await capture('counter');
       page.once('dialog',dialog=>dialog.accept());await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await page.locator('button.image-upload-target:not(:disabled)').waitFor();const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=1200;c.height=2400;const ctx=c.getContext('2d')!;ctx.fillStyle='#357185';ctx.fillRect(0,0,1200,1200);ctx.fillStyle='#c99342';ctx.fillRect(0,1200,1200,1200);return c.toDataURL('image/png').split(',')[1];});await page.locator('input[type=file]').first().setInputFiles([1,2].map(i=>({name:i+'.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')})));await expect(page.getByRole('status',{name:'Dung lượng bộ ảnh'})).toContainText('2/5 ảnh');await page.locator('.image-budget').scrollIntoViewIfNeeded();await capture('image-budget');
       for(let i=0;i<4;i++)await page.getByRole('button',{name:'Phóng to ảnh',exact:true}).first().click();await page.getByRole('button',{name:'Mở ảnh lớn',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Ảnh gốc thực đơn'}),viewport=dialog.locator('.menu-image-viewport'),box=(await viewport.boundingBox())!;await page.mouse.move(box.x+box.width/2,box.y+Math.min(100,box.height/2));await page.mouse.down();await page.mouse.move(box.x+box.width/2-40,box.y+20);await expect(viewport).toHaveAttribute('data-panning','true');await expect.poll(()=>viewport.evaluate(n=>n.scrollTop)).toBeGreaterThan(0);await page.keyboard.press('Escape');await page.mouse.up();await expect(viewport).toHaveAttribute('data-panning','false');await expect(dialog.getByRole('button',{name:'Di chuyển vùng xem ảnh'})).toBeVisible();await capture('image-pan');await expect(dialog.getByRole('button',{name:'Đóng ảnh',exact:true})).toBeInViewport();await page.keyboard.press('Escape');await expect(dialog).toBeHidden();
     }expect(errors).toEqual([]);expect(writes).toEqual([]);
   });
   test('late reconciliation results cannot attach a warning to another week',async({page})=>{
-    await interceptMealServices(page);let release:()=>void=()=>{},started=false;const held=new Promise<void>(resolve=>release=resolve);await page.route('**/api/dashboard?**',async route=>{if(!new URL(route.request().url()).searchParams.has('reconcile'))return route.fallback();started=true;await held;await route.fulfill({json:{formCount:1,sheetCount:0,matchedCount:0,issues:[{kind:'form-only',name:'A',timestamp:1791467000000,meals:['A']}]}});});await page.goto('http://127.0.0.1:5175/dashboard');await openSection(page,'Đối soát');await page.getByRole('button',{name:'Đối soát tuần này',exact:true}).click();await expect.poll(()=>started).toBe(true);await page.getByRole('combobox',{name:'Tìm tuần',exact:true}).click();await page.getByRole('option',{name:weeks[1].name,exact:true}).click();release();await expect(page.getByRole('combobox',{name:'Tìm tuần',exact:true})).toHaveValue(weeks[1].name);await expect(page.getByLabel('Cảnh báo Đối soát',{exact:true})).toHaveCount(0);await expect(page.locator('.reconciliation-issues')).toHaveCount(0);
+    await interceptMealServices(page);let release:()=>void=()=>{},started=false;const held=new Promise<void>(resolve=>release=resolve);await page.route('**/api/dashboard?**',async route=>{if(!new URL(route.request().url()).searchParams.has('reconcile'))return route.fallback();started=true;await held;await route.fulfill({json:{formCount:1,sheetCount:0,matchedCount:0,issues:[{kind:'form-only',name:'A',timestamp:1791467000000,meals:['A']}]}});});await page.goto('http://127.0.0.1:5175/dashboard');await openSection(page,'Đối soát');await page.getByRole('button',{name:'Đối soát tuần này',exact:true}).click();await expect.poll(()=>started).toBe(true);await chooseWeek(page,weeks[1].name);release();await expect(weekSwitcher(page)).toContainText(weeks[1].name);await expect(page.getByLabel('Cảnh báo Đối soát',{exact:true})).toHaveCount(0);await expect(page.locator('.reconciliation-issues')).toHaveCount(0);
   });
   test('loaded health warning survives navigation but a confirmed mutation invalidates it',async({page})=>{
-    const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.route('**/api/dashboard?**',route=>new URL(route.request().url()).searchParams.has('health')?route.fulfill({json:{checkedAt:Date.now(),checks:[{id:'warning',label:'OCR',status:'warning',message:'Chưa thử đọc ảnh'}]}}):route.fallback());await page.goto('http://127.0.0.1:5175/dashboard?tab=health');const nav=sectionNav(page),badge=nav.getByLabel('Cảnh báo Hệ thống',{exact:true});await expect(badge).toContainText('1');await openSection(page,'Thương hiệu');await expect(badge).toBeVisible();await page.getByLabel('Tên trường',{exact:true}).fill('Tên mới minh họa');await page.getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác'}).getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();await expect(badge).toHaveCount(0);expect(writes).toHaveLength(1);
+    const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.route('**/api/dashboard?**',route=>new URL(route.request().url()).searchParams.has('health')?route.fulfill({json:{checkedAt:Date.now(),checks:[{id:'warning',label:'OCR',status:'warning',message:'Chưa thử đọc ảnh'}]}}):route.fallback());await page.goto('http://127.0.0.1:5175/dashboard?tab=health');const nav=shellMenu(page),badge=nav.getByLabel('Cảnh báo Hệ thống',{exact:true});await expect(badge).toContainText('1');await openSection(page,'Thương hiệu');await openDisplayMenu(page);await expect(badge).toBeVisible();await page.keyboard.press('Escape');await page.getByLabel('Tên trường',{exact:true}).fill('Tên mới minh họa');await page.getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác'}).getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();await expect(badge).toHaveCount(0);expect(writes).toHaveLength(1);
   });
   test('image budget follows accepted, removed and rejected files without OCR',async({page})=>{
     const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await expect(page.getByRole('status',{name:'Dung lượng bộ ảnh'})).toContainText('0/5 ảnh');const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=10;c.height=10;return c.toDataURL('image/png').split(',')[1];});await page.locator('input[type=file]').first().setInputFiles([1,2,3].map(i=>({name:i+'.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')})));await expect(page.getByRole('status',{name:'Dung lượng bộ ảnh'})).toContainText('3/5 ảnh');await selectSource(page,1);await page.getByRole('button',{name:'Bỏ ảnh 2',exact:true}).click();await expect(page.getByRole('status',{name:'Dung lượng bộ ảnh'})).toContainText('2/5 ảnh');await page.locator('input[type=file]').first().setInputFiles({name:'broken.png',mimeType:'image/png',buffer:Buffer.from('broken')});await expect(page.locator('.dashboard-message')).toContainText('Ảnh bị lỗi');await expect(page.getByRole('status',{name:'Dung lượng bộ ảnh'})).toContainText('2/5 ảnh');expect(writes).toEqual([]);
@@ -855,7 +863,7 @@ test.describe('operating-feedback',()=>{
     await interceptMealServices(page);let reads=0;await page.route('**/api/dashboard?**',route=>{if(!new URL(route.request().url()).searchParams.has('health'))return route.fallback();reads++;return route.fulfill({json:{checkedAt:Date.now(),checks:[{id:'one',label:'Kết nối',status:'ok',message:'Chi tiết kết nối minh họa'},{id:'two',label:'OCR',status:'warning',message:'Chưa thử đọc ảnh'},{id:'three',label:'Cấu hình',status:'error',message:'Cần kiểm tra cấu hình'}]}});});await page.goto('http://127.0.0.1:5175/dashboard?tab=health');const summary=page.getByRole('status',{name:'Tóm tắt hệ thống'});await expect(summary).toContainText('1 ổn');await expect(summary).toContainText('1 cần chú ý');await expect(summary).toContainText('1 lỗi');const before=reads;await expect(page.getByText('Chi tiết kết nối minh họa',{exact:true})).toBeHidden();await page.locator('summary').filter({hasText:'Chi tiết kiểm tra'}).click();await expect(page.getByText('Chi tiết kết nối minh họa',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Hướng dẫn cài đặt (7 bước)',exact:true}).click();await expect(page.locator('.setup-steps li')).toHaveCount(7);await expect(page.getByRole('dialog',{name:'Hướng dẫn cài đặt',exact:true}).getByRole('heading',{name:'Hướng dẫn cài đặt',exact:true})).toHaveCount(1);expect(reads).toBe(before);await expect(page.locator('.system-authorization')).toBeVisible();
   });
   test('loaded navigation warnings remain scoped to the chosen week and never fetch on their own',async({page})=>{
-    await interceptMealServices(page);let reads=0;await page.route('**/api/dashboard?**',route=>{if(!new URL(route.request().url()).searchParams.has('reconcile'))return route.fallback();reads++;return route.fulfill({json:{formCount:2,sheetCount:0,matchedCount:0,issues:[{kind:'form-only',name:'A',timestamp:1791467000000,meals:['A']},{kind:'form-only',name:'B',timestamp:1791467000000,meals:['B']}]}});});await page.goto('http://127.0.0.1:5175/dashboard');const nav=sectionNav(page);await expect(page.getByLabel('Cảnh báo Đối soát',{exact:true})).toHaveCount(0);await openSection(page,'Đối soát');expect(reads).toBe(0);await page.getByRole('button',{name:'Đối soát tuần này',exact:true}).click();const badge=nav.getByLabel('Cảnh báo Đối soát',{exact:true});await expect(badge).toContainText('2');await expect(badge).toHaveAttribute('title',/Đã tải/);await openSection(page,'Tổng quan');await expect(badge).toBeVisible();await openSection(page,'Đối soát');await page.getByRole('combobox',{name:'Tìm tuần',exact:true}).click();await page.getByRole('option',{name:weeks[1].name,exact:true}).click();await expect(page.getByLabel('Cảnh báo Đối soát',{exact:true})).toHaveCount(0);expect(reads).toBe(1);
+    await interceptMealServices(page);let reads=0;await page.route('**/api/dashboard?**',route=>{if(!new URL(route.request().url()).searchParams.has('reconcile'))return route.fallback();reads++;return route.fulfill({json:{formCount:2,sheetCount:0,matchedCount:0,issues:[{kind:'form-only',name:'A',timestamp:1791467000000,meals:['A']},{kind:'form-only',name:'B',timestamp:1791467000000,meals:['B']}]}});});await page.goto('http://127.0.0.1:5175/dashboard');const nav=sectionNav(page);await expect(page.getByLabel('Cảnh báo Đối soát',{exact:true})).toHaveCount(0);await openSection(page,'Đối soát');expect(reads).toBe(0);await page.getByRole('button',{name:'Đối soát tuần này',exact:true}).click();const badge=nav.getByLabel('Cảnh báo Đối soát',{exact:true});await expect(badge).toContainText('2');await expect(badge).toHaveAttribute('title',/Đã tải/);await openSection(page,'Lượt gửi & lịch sử');await expect(badge).toBeVisible();await openSection(page,'Đối soát');await chooseWeek(page,weeks[1].name);await expect(page.getByLabel('Cảnh báo Đối soát',{exact:true})).toHaveCount(0);expect(reads).toBe(1);
   });
   test('submission time uses Vietnam days, expands exact values and rolls over at midnight',async({page})=>{
     await page.clock.install({time:new Date('2026-10-16T10:36:00+07:00')});await interceptMealServices(page);await page.route('**/api/viewer**',route=>route.fulfill({json:{headers:['Timestamp','Họ tên',days[0].day],rows:[['16/10/2026 10:35:22','A','Cơm'],['15/10/2026 23:59:01','B','Bún'],['không rõ','C','Phở']],days:[days[0]],formStatus:'closed'}}));await page.goto('http://127.0.0.1:5175/newest');await expect(page.locator('.detail-wrap')).toContainText('Hôm nay · 10:35');await expect(page.locator('.detail-wrap')).toContainText('Hôm qua · 23:59');const time=page.locator('.detail-wrap').getByRole('button',{name:'Hôm nay · 10:35',exact:true});await expect(time).toHaveAttribute('title','16/10/2026 10:35:22');await time.click();await expect(page.locator('.detail-wrap')).toContainText('16/10/2026 10:35:22');await page.locator('.detail-wrap').getByRole('button',{name:'16/10/2026 10:35:22',exact:true}).click();await page.clock.fastForward(48241000);await expect(page.locator('.detail-wrap')).toContainText('Hôm qua · 10:35');await expect(page.locator('.detail-wrap')).toContainText('15/10/2026 23:59:01');await expect(page.locator('.detail-wrap')).toContainText('không rõ');
@@ -877,7 +885,7 @@ test('reading-polish: responsive visual batch covers comparison, holidays, empty
     await page.setViewportSize({width,height:800});await page.addInitScript(({theme})=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme,motion:'off'}));localStorage.setItem('meal-text-size','large');},{theme});
     const capture=async(label:string)=>{await page.evaluate(()=>document.fonts.ready);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`review/reading-polish/${label}-${width}-${theme}.png`,fullPage:false});};
     await page.goto('http://127.0.0.1:5175/newest');if(width<700)await page.getByRole('button',{name:'Bộ lọc',exact:true}).click();await page.getByRole('combobox',{name:'Ngày',exact:true}).click();await expect(page.getByRole('option',{name:days[2].day+' · Nghỉ',exact:true})).toBeDisabled();await capture('holiday');await page.keyboard.press('Escape');if(width<700)await page.getByRole('button',{name:'Đóng bộ lọc',exact:true}).click();if(width<700)await page.getByRole('tab',{name:'Chi tiết',exact:true}).click();await expandMobileRows(page);await page.locator('.detail-wrap').scrollIntoViewIfNeeded();await expect(page.locator('.detail-wrap')).toContainText('Chưa đọc được');await capture('empty');
-    await page.goto('http://127.0.0.1:5175/dashboard');if(width>700)await openSection(page,'Thương hiệu');else{await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();await page.getByRole('dialog',{name:'Thêm chức năng'}).getByRole('button',{name:'Thương hiệu',exact:true}).click();}
+    await page.goto('http://127.0.0.1:5175/dashboard');if(width>700)await openSection(page,'Thương hiệu');else{await openSection(page,'Thương hiệu');}
     await page.getByLabel('Tên trường',{exact:true}).fill('Trường đang sửa · đối chiếu với bản đã lưu');await page.getByLabel('Màu chủ đạo',{exact:true}).fill('#8c3c83');await page.getByRole('combobox',{name:'Thiết bị minh họa',exact:true}).selectOption(width>700?'pc':'phone');await page.getByRole('combobox',{name:'Giao diện minh họa',exact:true}).selectOption(theme);await page.locator('.branding-comparison').scrollIntoViewIfNeeded();await capture('brand-draft');if(width<700){await page.getByRole('button',{name:'Xem bản đã lưu',exact:true}).click();await capture('brand-saved');}else{const saved=(await page.getByRole('region',{name:'Thương hiệu đã lưu',exact:true}).boundingBox())!,draft=(await page.getByRole('region',{name:'Thương hiệu đang sửa',exact:true}).boundingBox())!;expect(saved.x+saved.width).toBeLessThanOrEqual(draft.x);}
     page.once('dialog',d=>d.accept());await page.goto('http://127.0.0.1:5175/dashboard?tab=create');await expect(page.locator('button.image-upload-target')).toBeEnabled();const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=1200;c.height=2400;const ctx=c.getContext('2d')!;ctx.fillStyle='#357185';ctx.fillRect(0,0,1200,1200);ctx.fillStyle='#c99342';ctx.fillRect(0,1200,1200,1200);return c.toDataURL('image/png').split(',')[1];});await page.locator('input[type=file]').first().setInputFiles({name:'map.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});await page.getByRole('button',{name:'Phóng to ảnh',exact:true}).first().click();await page.getByRole('button',{name:'Mở ảnh lớn',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Ảnh gốc thực đơn',exact:true}),map=dialog.getByRole('button',{name:'Di chuyển vùng xem ảnh',exact:true});await expect(map).toBeVisible();await map.focus();await page.keyboard.press('End');await expect.poll(()=>dialog.locator('.menu-image-viewport').evaluate(n=>n.scrollTop)).toBeGreaterThan(0);await capture('minimap');await expect(dialog.getByRole('button',{name:'Đóng ảnh',exact:true})).toBeInViewport();await page.keyboard.press('Escape');
   }
@@ -910,7 +918,7 @@ test('reading-context: expanded viewer keeps applied week/filter visible while s
 });
 
 test('reading-context: expanded responses and the history tab show their own week and active filters',async({page})=>{
-  const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await openSection(page,'Lượt gửi & lịch sử');await page.getByRole('textbox',{name:'Tìm theo họ tên',exact:true}).fill('truong');await page.getByRole('button',{name:'Phóng rộng bảng lượt gửi',exact:true}).click();const responses=page.getByRole('dialog',{name:'Bảng lượt gửi',exact:true});await expect(responses.getByRole('group',{name:'Ngữ cảnh bảng'})).toContainText(weeks[0].name);await expect(responses.getByRole('group',{name:'Ngữ cảnh bảng'})).toContainText('Họ tên: truong');await page.keyboard.press('Escape');await openAudit(page);await page.getByRole('textbox',{name:'Người quản trị',exact:true}).fill('owner@example.com');const audit=page.getByRole('tabpanel',{name:'Lịch sử',exact:true});await expect(page.getByRole('combobox',{name:'Tìm tuần',exact:true})).toHaveValue(weeks[0].name);await expect(audit.getByRole('textbox',{name:'Người quản trị',exact:true})).toHaveValue('owner@example.com');await expect(audit).not.toContainText('Họ tên: truong');expect(writes).toEqual([]);
+  const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await openSection(page,'Lượt gửi & lịch sử');await page.getByRole('textbox',{name:'Tìm theo họ tên',exact:true}).fill('truong');await page.getByRole('button',{name:'Phóng rộng bảng lượt gửi',exact:true}).click();const responses=page.getByRole('dialog',{name:'Bảng lượt gửi',exact:true});await expect(responses.getByRole('group',{name:'Ngữ cảnh bảng'})).toContainText(weeks[0].name);await expect(responses.getByRole('group',{name:'Ngữ cảnh bảng'})).toContainText('Họ tên: truong');await page.keyboard.press('Escape');await openAudit(page);await page.getByRole('textbox',{name:'Người quản trị',exact:true}).fill('owner@example.com');const audit=page.getByRole('tabpanel',{name:'Lịch sử',exact:true});await expect(weekSwitcher(page)).toContainText(weeks[0].name);await expect(audit.getByRole('textbox',{name:'Người quản trị',exact:true})).toHaveValue('owner@example.com');await expect(audit).not.toContainText('Họ tên: truong');expect(writes).toEqual([]);
 });
 
 test('reading-context: actual deadlines stay separate for current/next and tick using server time, never auto-close',async({page})=>{
@@ -933,7 +941,7 @@ test('reading-context: responsive visual batch keeps context, deadline and pinne
     const capture=async(label:string)=>{await page.evaluate(()=>document.fonts.ready);await page.screenshot({path:`review/reading-context/${label}-${width}-${theme}.png`,fullPage:false});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);};
     await page.goto('http://127.0.0.1:5175/newest');await expect(page.locator('.registration-deadline').nth(1)).toContainText('Còn');await page.locator('.registration-contexts').scrollIntoViewIfNeeded();await capture('deadline');
     if(width>700){await page.getByRole('combobox',{name:'Họ tên',exact:true}).fill('minh');await page.getByRole('heading',{name:'Thực đơn tuần này',exact:true}).click();await page.getByRole('button',{name:'Phóng rộng bảng chi tiết',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Bảng chi tiết',exact:true});await dialog.locator('.workspace-body').evaluate(node=>node.scrollTop=node.scrollHeight);await expect(dialog.getByRole('group',{name:'Ngữ cảnh bảng'})).toBeInViewport();await capture('expanded');await page.keyboard.press('Escape');}
-    await page.goto('http://127.0.0.1:5175/dashboard');if(width>700)await openSection(page,'Lượt gửi & lịch sử');else await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Lượt gửi',exact:true}).click();await page.locator('[data-response-id=sample-a]').getByRole('button',{name:'Xem nhanh',exact:true}).click();await page.locator('.response-quick-body').evaluate(node=>node.scrollTop=node.scrollHeight);await expect(page.getByRole('dialog',{name:'Chi tiết lượt gửi'}).getByRole('button',{name:'Đóng',exact:true})).toBeInViewport();await capture('quick-view');await page.keyboard.press('Escape');
+    await page.goto('http://127.0.0.1:5175/dashboard');if(width>700)await openSection(page,'Lượt gửi & lịch sử');else await openSection(page,'Lượt gửi & lịch sử');await page.locator('[data-response-id=sample-a]').getByRole('button',{name:'Xem nhanh',exact:true}).click();await page.locator('.response-quick-body').evaluate(node=>node.scrollTop=node.scrollHeight);await expect(page.getByRole('dialog',{name:'Chi tiết lượt gửi'}).getByRole('button',{name:'Đóng',exact:true})).toBeInViewport();await capture('quick-view');await page.keyboard.press('Escape');
   }expect(errors).toEqual([]);
 });
 
@@ -944,7 +952,7 @@ test('reading-context: deadline has its own readable line below registration con
 test('reading-context: quick-view close/navigation remain reachable after long content scroll on PC/mobile',async({page})=>{
   const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.route('**/api/dashboard?**',route=>new URL(route.request().url()).searchParams.has('week')?route.fulfill({json:{week:{...weeks[0],dayLabels:days.map(day=>day.day)},responses:[{responseId:'long-a',timestamp:1791467000000,name:'A',meals:days.map(()=>('Món dài '.repeat(100)))},{responseId:'long-b',timestamp:1791466990000,name:'B',meals:['Món kế tiếp']}],history:[]}}):route.fallback());
   for(const width of [1280,360]){
-    await page.setViewportSize({width,height:700});await page.goto('http://127.0.0.1:5175/dashboard');if(width>700)await openSection(page,'Lượt gửi & lịch sử');else await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Lượt gửi',exact:true}).click();const opener=page.locator('[data-response-id=long-a]').getByRole('button',{name:'Xem nhanh',exact:true});await opener.click();const dialog=page.getByRole('dialog',{name:'Chi tiết lượt gửi',exact:true}),body=dialog.locator('.response-quick-body');await body.evaluate(node=>node.scrollTop=node.scrollHeight);await expect.poll(()=>body.evaluate(node=>node.scrollTop)).toBeGreaterThan(0);await expect(dialog.getByRole('button',{name:'Đóng',exact:true})).toBeInViewport();await expect(dialog.getByRole('button',{name:'Lượt sau',exact:true})).toBeInViewport();await dialog.getByRole('button',{name:'Lượt sau',exact:true}).click();await expect(dialog.getByRole('heading',{name:'B',exact:true})).toBeVisible();await expect.poll(()=>body.evaluate(node=>node.scrollTop)).toBe(0);await page.keyboard.press('Escape');await expect(opener).toBeFocused();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.setViewportSize({width,height:700});await page.goto('http://127.0.0.1:5175/dashboard');if(width>700)await openSection(page,'Lượt gửi & lịch sử');else await openSection(page,'Lượt gửi & lịch sử');const opener=page.locator('[data-response-id=long-a]').getByRole('button',{name:'Xem nhanh',exact:true});await opener.click();const dialog=page.getByRole('dialog',{name:'Chi tiết lượt gửi',exact:true}),body=dialog.locator('.response-quick-body');await body.evaluate(node=>node.scrollTop=node.scrollHeight);await expect.poll(()=>body.evaluate(node=>node.scrollTop)).toBeGreaterThan(0);await expect(dialog.getByRole('button',{name:'Đóng',exact:true})).toBeInViewport();await expect(dialog.getByRole('button',{name:'Lượt sau',exact:true})).toBeInViewport();await dialog.getByRole('button',{name:'Lượt sau',exact:true}).click();await expect(dialog.getByRole('heading',{name:'B',exact:true})).toBeVisible();await expect.poll(()=>body.evaluate(node=>node.scrollTop)).toBe(0);await page.keyboard.press('Escape');await expect(opener).toBeFocused();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }expect(writes).toEqual([]);
 });
 
@@ -952,7 +960,7 @@ const key = '2026-10-12_2026-10-13_2026-10-14_2026-10-15_2026-10-16';
 const days = ['12','13','14','15','16'].map((day, i) => ({ day: `Thứ ${i+2} (${day}/10/2026)`, meals: ['CƠM GÀ', 'BÚN BÒ'] }));
 const weeks = [key, '2026-10-05_2026-10-06_2026-10-07_2026-10-08_2026-10-09'].map((weekKey, i) => ({weekKey,name:i?'Tuần 05/10/2026 - 09/10/2026':'Tuần 12/10/2026 - 16/10/2026',responseCount:2,formStatus:'closed',formUrl:'https://docs.google.com/forms/d/e/synthetic/viewform',spreadsheetUrl:'https://docs.google.com/spreadsheets/d/synthetic/edit',lockAt:'2026-10-12T00:00:00+07:00'}));
 
-export async function interceptMealServices(page: import('@playwright/test').Page, role = 'owner', primaryColor = '#357185', writes: object[] = []) {
+export async function interceptMealServices(page: import('@playwright/test').Page, role = 'owner', primaryColor = '#357185', writes: object[] = [], overrides: {weeks?: object[]} = {}) {
   await page.route('https://accounts.google.com/**', route => route.abort());
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
@@ -967,7 +975,7 @@ export async function interceptMealServices(page: import('@playwright/test').Pag
       else if(url.searchParams.has('health')) data={checkedAt:Date.now(),checks:[{id:'google',label:'Kết nối Google',status:'ok',message:'Kết quả minh họa'}]};
       else if(url.searchParams.has('reconcile')) data={formCount:2,sheetCount:2,matchedCount:2,issues:[]};
       else if(url.searchParams.has('week')) data={week:{...weeks[0],weekKey:url.searchParams.get('week'),dayLabels:days.map(day=>day.day)},responseCount:2,responseIds:['sample-a','sample-b'],responses:[{responseId:'sample-a',name:'Trường An',timestamp:1791467940000,meals:days.map(()=> 'CƠM GÀ'),deletable:true,deleteToken:'synthetic-token',rowNumber:2},{responseId:'sample-b',name:'Minh Anh',timestamp:1791467880000,meals:days.map(()=> 'BÚN BÒ'),deletable:false,rowNumber:3}],history:[]};
-      else data={accountId:'synthetic-owner',email:'admin@example.com',role,permissions:{view:true,create:role==='owner',manageResponses:role==='owner'},weeks,allowedEmails:[],members:[]};
+      else data={accountId:'synthetic-owner',email:'admin@example.com',role,permissions:{view:true,create:role==='owner',manageResponses:role==='owner'},weeks:overrides.weeks??weeks,allowedEmails:[],members:[]};
     }
     await route.fulfill({status:200,json:data});
   });
@@ -1021,7 +1029,7 @@ test('reading-tools: responsive review keeps grouped audit, readonly navigation,
   const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));await page.route('**/api/dashboard?**',route=>new URL(route.request().url()).searchParams.has('week')?route.fulfill({json:{week:{...weeks[0],dayLabels:days.map(day=>day.day)},responses:[{responseId:'sample-a',name:'Trường An',timestamp:1791467940000,meals:days.map(()=> 'CƠM GÀ')},{responseId:'sample-b',name:'Minh Anh',timestamp:1791467880000,meals:days.map(()=> 'BÚN BÒ')}],history:[{id:'event-a',at:1791467940000,action:'delete-review',actor:'admin@example.com',name:'Trường An'},{id:'event-b',at:1791381540000,action:'deleted',actor:'admin@example.com',name:'Minh Anh'}]}}):route.fallback());
   for(const width of [360,900,1440])for(const theme of ['light','dark']){
     await page.setViewportSize({width,height:800});await page.goto('http://127.0.0.1:5175/dashboard');await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();const display=page.getByRole('dialog',{name:'Tùy chọn hiển thị',exact:true});await display.getByRole('radio',{name:theme==='light'?'Sáng':theme==='dark'?'Tối':'Theo thiết bị',exact:true}).check();await display.getByRole('combobox',{name:'Hiệu ứng',exact:true}).selectOption('off');await display.getByRole('button',{name:'Lớn',exact:true}).click();await page.keyboard.press('Escape');
-    async function navigate(label:string){if(width>700)await openSection(page,label);else if(label==='Lượt gửi & lịch sử')await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Lượt gửi',exact:true}).click();else{await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();await page.getByRole('dialog',{name:'Thêm chức năng'}).getByRole('button',{name:label,exact:true}).click();}}
+    async function navigate(label:string){if(width>700)await openSection(page,label);else if(label==='Lượt gửi & lịch sử')await openSection(page,'Lượt gửi & lịch sử');else{await openSection(page,label);}}
     await navigate('Lượt gửi & lịch sử');await openAudit(page);const history=page.getByRole('tabpanel',{name:'Lịch sử',exact:true});await expect(history.locator('.audit-day-heading')).toHaveCount(2);await history.screenshot({path:`review/reading-tools/audit-${width}-${theme}.png`});await openResponses(page);await page.locator('[data-response-id=sample-a]').getByRole('button',{name:'Xem nhanh',exact:true}).click();const quick=page.getByRole('dialog',{name:'Chi tiết lượt gửi',exact:true});await quick.getByRole('button',{name:'Lượt sau',exact:true}).click();if(width<=700)expect((await quick.getByRole('button',{name:'Lượt sau',exact:true}).boundingBox())!.height).toBeLessThan(100);await quick.screenshot({path:`review/reading-tools/quick-${width}-${theme}.png`});const bounds=(await quick.boundingBox())!;expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(width);await quick.getByRole('button',{name:'Đóng',exact:true}).click();await navigate('Thương hiệu');await page.getByLabel('URL ảnh logo HTTPS',{exact:true}).fill('http://assets.example.test/logo.png');await expect(page.getByRole('status',{name:'Tình trạng logo'})).toContainText('HTTPS');await page.getByRole('status',{name:'Tình trạng logo',exact:true}).screenshot({path:`review/reading-tools/logo-${width}-${theme}.png`});page.once('dialog',dialog=>dialog.accept());await page.goto('http://127.0.0.1:5175/history?month=2026-10&status=unknown');await expect(page.getByRole('combobox',{name:'Trạng thái Form'})).toHaveValue('Chưa xác định');await page.locator('.archive-panel').screenshot({path:`review/reading-tools/archive-${width}-${theme}.png`});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }expect(errors).toEqual([]);expect(writes).toEqual([]);
 });
@@ -1141,24 +1149,21 @@ test('clarity-controls: compact review and shortcut reference fit mobile light a
   for(const theme of ['light','dark']){
     await page.setViewportSize({width:360,height:640});await page.goto('http://127.0.0.1:5175/dashboard?tab=branding');
     await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();const display=page.getByRole('dialog',{name:'Tùy chọn hiển thị',exact:true});await display.getByRole('radio',{name:theme==='light'?'Sáng':theme==='dark'?'Tối':'Theo thiết bị',exact:true}).check();await display.getByRole('button',{name:'Lớn',exact:true}).click();await display.getByRole('button',{name:'Phím tắt',exact:true}).click();await expect(page.getByRole('region',{name:'Hướng dẫn phím tắt',exact:true})).toBeVisible();await display.screenshot({path:`review/clarity-controls/shortcuts-${theme}-360.png`});const bounds=(await display.boundingBox())!;expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(360);await page.keyboard.press('Escape');
-    await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();await page.getByRole('dialog',{name:'Thêm chức năng'}).getByRole('button',{name:'Thương hiệu',exact:true}).click();await page.getByLabel('Tên trường',{exact:true}).fill('Tên trường kiểm thử rất dài '.repeat(3));await page.getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();const review=page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true});await review.screenshot({path:`review/clarity-controls/confirmation-${theme}-360.png`});const cancel=review.getByRole('button',{name:'Hủy',exact:true}),box=(await cancel.boundingBox())!;expect(box.y).toBeGreaterThanOrEqual(0);expect(box.y+box.height).toBeLessThanOrEqual(640);await cancel.click();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await openSection(page,'Thương hiệu');await page.getByLabel('Tên trường',{exact:true}).fill('Tên trường kiểm thử rất dài '.repeat(3));await page.getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();const review=page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true});await review.screenshot({path:`review/clarity-controls/confirmation-${theme}-360.png`});const cancel=review.getByRole('button',{name:'Hủy',exact:true}),box=(await cancel.boundingBox())!;expect(box.y).toBeGreaterThanOrEqual(0);expect(box.y+box.height).toBeLessThanOrEqual(640);await cancel.click();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }expect(errors).toEqual([]);expect(writes).toEqual([]);
 });
 
-test('operate: PC sidebar collapse frees width and keeps named keyboard navigation and mobile tools',async({page})=>{
-  const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);
+test('operate: the week bar gives the content the full width and keeps named keyboard navigation and phone tools',async({page})=>{
+  const long='Tuần 12/10/2026 - 16/10/2026 (bản đã chỉnh lại sau cuộc họp phụ huynh đầu năm học và bổ sung món chay cho cả khối)';
+  const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes,{weeks:[{...weeks[0],name:long},weeks[1]]});
   await page.setViewportSize({width:1440,height:960});await page.goto('http://127.0.0.1:5175/dashboard');
-  const sidebar=page.locator('.ui-sidebar'),content=page.locator('#dashboard-content');
-  const before=(await content.boundingBox())!.width;
-  await sidebar.getByRole('button',{name:'Thu gọn thanh bên',exact:true}).click();
-  expect((await content.boundingBox())!.width).toBeGreaterThan(before+100);
-  const notices=sidebar.getByRole('button',{name:'Thông báo tuần',exact:true});await notices.focus();
-  await expect(page.getByRole('tooltip',{name:'Thông báo tuần',exact:true})).toBeVisible();
-  await page.keyboard.press('Enter');await expect(page.getByRole('heading',{name:'Thông báo tuần',exact:true,level:1})).toBeVisible();
-  await sidebar.getByRole('button',{name:'Mở rộng thanh bên',exact:true}).click();
-  await expect(sidebar.getByRole('button',{name:'Thông báo tuần',exact:true}).locator('.ui-nav-label')).toBeVisible();
-  await page.setViewportSize({width:390,height:960});await expect(sidebar).toBeHidden();
-  await expect(page.getByRole('navigation',{name:'Điều hướng điện thoại'})).toBeVisible();expect(writes).toEqual([]);
+  const nav=sectionNav(page),content=page.locator('#dashboard-content');
+  expect((await content.boundingBox())!.width).toBeGreaterThan(1440-100);
+  const name=weekSwitcher(page).locator('.ui-shell-week-name');expect(await name.evaluate(node=>node.scrollWidth>node.clientWidth)).toBe(true);await expect(weekSwitcher(page)).toHaveAttribute('title',long);
+  const notices=nav.getByRole('button',{name:'Thông báo tuần',exact:true});await notices.focus();
+  await page.keyboard.press('Enter');await expect(page.getByRole('heading',{name:'Thông báo tuần',exact:true,level:1})).toBeVisible();await expect(notices).toHaveAttribute('aria-current','page');
+  await page.setViewportSize({width:390,height:960});await expect(nav).toBeVisible();await expect(weekSwitcher(page)).toBeInViewport();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(writes).toEqual([]);
 });
 
 test('operate: viewer column choices preserve identity, filters, expansion and complete mobile cards',async({page})=>{
@@ -1264,8 +1269,8 @@ test('operate: PC and mobile light-dark states stay readable with independent dr
   await page.addInitScript(()=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme:'light',motion:'off'}));});
   for(const width of [1440,768,360])for(const theme of ['light','dark']){
     await page.setViewportSize({width,height:800});await page.goto('http://127.0.0.1:5175/dashboard');await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();const display=page.getByRole('dialog',{name:'Tùy chọn hiển thị',exact:true});await display.getByRole('radio',{name:theme==='light'?'Sáng':theme==='dark'?'Tối':'Theo thiết bị',exact:true}).check();await display.getByRole('button',{name:'Lớn',exact:true}).click();await page.keyboard.press('Escape');
-    async function navigate(label:string){if(width>700)await openSection(page,label);else{await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();await page.getByRole('dialog',{name:'Thêm chức năng'}).getByRole('button',{name:label,exact:true}).click();}}
-    if(width>700){const collapse=page.locator('.ui-sidebar').getByRole('button',{name:'Thu gọn thanh bên',exact:true});if(await collapse.count())await collapse.click();await page.screenshot({path:`review/operate/sidebar-${width}-${theme}.png`});}
+    async function navigate(label:string){await openSection(page,label);}
+    if(width>700){await expect(sectionNav(page)).toBeVisible();await page.screenshot({path:`review/operate/shell-${width}-${theme}.png`});}
     await navigate('Thông báo tuần');await page.getByRole('textbox',{name:'Nội dung thông báo',exact:true}).fill(('Thứ Tư nghỉ. Đã điều chỉnh thực đơn.\n').repeat(6));await page.getByLabel('Hiển thị hết ngày',{exact:true}).fill(new Date(Date.now()+7*86400000).toISOString().slice(0,10));if(await page.getByRole('tab',{name:'Bản hiển thị',exact:true}).isVisible())await page.getByRole('tab',{name:'Bản hiển thị',exact:true}).click();
     const preview=page.getByRole('region',{name:'Xem trước thông báo',exact:true}),canvas=preview.locator('.notice-preview-canvas');for(const scheme of ['light','dark']){await preview.getByRole('combobox',{name:'Giao diện xem trước',exact:true}).selectOption(scheme);await expect(page.locator('html')).toHaveAttribute('data-color-scheme',theme);await expect(canvas).toHaveCSS('background-color',scheme==='dark'?'rgb(13, 21, 23)':'rgb(245, 248, 249)');await canvas.screenshot({path:`review/operate/notice-${width}-${theme}-${scheme}.png`});}
     if(await page.getByRole('tab',{name:'Nội dung',exact:true}).isVisible())await page.getByRole('tab',{name:'Nội dung',exact:true}).click();const help=page.getByRole('button',{name:'Giải thích Ngày hết hạn thông báo',exact:true});await help.click();const note=page.getByRole('note',{name:'Ngày hết hạn thông báo',exact:true});await expect(note).toBeVisible();await note.screenshot({path:`review/operate/help-${width}-${theme}.png`});await page.keyboard.press('Escape');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -1360,7 +1365,7 @@ test('mobile Dashboard holiday details and quick view preserve actual dates and 
     return route.fulfill({json:{week:{...weeks[0],dayLabels:['Thứ 4 (14/10/2026)','Thứ 6 (16/10/2026)'],closedDays:['Thứ 2 (12/10/2026)']},responseCount:1,responseIds:['sample-a'],responses:[{responseId:'sample-a',name:'Trường An',timestamp:1791467940000,meals:['CƠM GÀ','BÚN BÒ'],deletable:true,deleteToken:'synthetic-token',rowNumber:2}],history:[]}});
   });
   await page.goto('http://127.0.0.1:5175/dashboard');
-  await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Lượt gửi',exact:true}).click();
+  await openSection(page,'Lượt gửi & lịch sử');
   const row=page.locator('[data-response-id="sample-a"]');
   const firstDay=row.locator('.response-meals>div').filter({has:page.getByRole('button',{name:/Thứ 4/})});
   await expect(firstDay.getByRole('button',{name:/Thứ 4/})).toHaveText('T4 · 14/10');
@@ -1402,17 +1407,19 @@ test('new viewer contexts and manual release notes fit large-text light and dark
   }
 });
 
-test('real Dashboard has grouped desktop navigation with all nine authorized tools', async ({page}) => {
+test('real Dashboard reaches all eight authorized tools from the tabs, Tạo tuần and the settings menu', async ({page}) => {
   await interceptMealServices(page);
   await page.goto('http://127.0.0.1:5175/dashboard');
-  const nav=page.locator('aside').getByRole('navigation',{name:'Quản trị',exact:true});
+  const nav=sectionNav(page);
   await expect(nav).toBeVisible();
-  await expect(page.getByRole('list',{name:'Sổ tuần cũ',exact:true}).getByText('Tuần 05/10/2026 - 09/10/2026',{exact:true})).toHaveCount(1);
-  for(const name of ['Tổng quan','Tạo tuần bằng OCR','Lượt gửi & lịch sử','Điều khiển Form','Thông báo tuần','Đối soát','Thương hiệu','Hệ thống','Quyền Gmail']) await expect(nav.getByRole('button',{name,exact:true})).toBeVisible();
-  await nav.getByRole('button',{name:'Thương hiệu',exact:true}).click();
-  await expect(nav.getByRole('button',{name:'Thương hiệu',exact:true})).toHaveCSS('background-color','rgb(53, 113, 133)');
+  await weekSwitcher(page).click();await expect(page.getByRole('listbox').getByRole('option',{name:'Tuần 05/10/2026 - 09/10/2026',exact:true})).toHaveCount(1);await page.keyboard.press('Escape');
+  for(const name of ['Lượt gửi & lịch sử','Điều khiển Form','Thông báo tuần','Đối soát']) await expect(nav.getByRole('button',{name,exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Tạo tuần',exact:true})).toBeVisible();
+  await openDisplayMenu(page);for(const name of ['Thương hiệu','Hệ thống','Quyền Gmail']) await expect(shellMenu(page).getByRole('button',{name,exact:true})).toBeVisible();
+  await shellMenu(page).getByRole('button',{name:'Thương hiệu',exact:true}).click();
+  await openDisplayMenu(page);await expect(shellMenu(page).getByRole('button',{name:'Thương hiệu',exact:true})).toHaveAttribute('aria-current','page');await page.keyboard.press('Escape');
   await expect(page.getByLabel('Tên trường',{exact:true})).toHaveValue('Trường minh họa');
-  await nav.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();
+  await nav.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true}).click();await expect(nav.getByRole('button',{name:'Lượt gửi & lịch sử',exact:true})).toHaveCSS('border-bottom-color','rgb(53, 113, 133)');
   await expect(page.getByRole('heading',{name:'Lượt gửi và lịch sử thao tác'})).toBeVisible();
 });
 
@@ -1445,8 +1452,8 @@ test('production visual matrix: both surfaces, all owner panels and brand themes
     for(const path of ['/dashboard','/newest','/history']){
       await page.goto('http://127.0.0.1:5175'+path);
       await expect(page.locator('main h1')).toBeVisible();
-      if(path==='/dashboard')await expect(page.locator('.ui-overview')).toBeVisible();
-      if(path==='/dashboard'&&width===768){const heading=page.locator('.week-ledger-row>div>strong').first();const size=await heading.evaluate(el=>({height:el.getBoundingClientRect().height,line:parseFloat(getComputedStyle(el).lineHeight)}));expect(size.height).toBeLessThanOrEqual(size.line*3);}
+      if(path==='/dashboard')await expect(sectionNav(page)).toBeVisible();
+      if(path==='/dashboard'&&width===768){const heading=weekSwitcher(page).locator('.ui-shell-week-name');const size=await heading.evaluate(el=>({height:el.getBoundingClientRect().height,line:parseFloat(getComputedStyle(el).lineHeight)}));expect(size.height).toBeLessThanOrEqual(size.line*3);}
       if(path==='/newest')await expect(page.locator('.ui-day-card').first()).toBeVisible();
       if(path==='/history')await expect(page.locator('.archive-weeks li')).toHaveCount(1);
       await page.evaluate(()=>document.fonts.ready);
@@ -1477,18 +1484,18 @@ test('production visual matrix: both surfaces, all owner panels and brand themes
   expect(errors).toEqual([]);
 });
 
-test('real mobile Dashboard More exposes only permitted tools and retains account context',async({page})=>{
+test('real mobile Dashboard shell exposes only permitted tools and retains account context',async({page})=>{
   await page.setViewportSize({width:390,height:960});
   await interceptMealServices(page,'viewer');
   await page.goto('http://127.0.0.1:5175/dashboard');
-  const nav=page.getByRole('navigation',{name:'Điều hướng điện thoại'});
+  const nav=sectionNav(page);
   await expect(nav).toBeVisible();
-  await expect(nav.getByRole('button',{name:'Tạo tuần',exact:true})).toHaveCount(0);
-  await nav.getByRole('button',{name:'Thêm',exact:true}).click();
-  const more=page.getByRole('dialog',{name:'Thêm chức năng'});
+  await expect(page.getByRole('button',{name:'Tạo tuần',exact:true})).toHaveCount(0);
+  await openDisplayMenu(page);
+  const more=page.getByRole('dialog',{name:'Tùy chọn hiển thị'});
   await expect(more).toContainText('admin@example.com');
   await expect(more.getByRole('button',{name:'Quyền Gmail',exact:true})).toHaveCount(0);
-  await more.getByRole('button',{name:'Đối soát',exact:true}).click();
+  await page.keyboard.press('Escape');await nav.getByRole('button',{name:'Đối soát',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Đối soát Form–Sheet'})).toBeVisible();
 });
 
@@ -1560,37 +1567,32 @@ test('Dashboard week searches display the committed week in every shared picker'
   const previous='Tuần 05/10/2026 - 09/10/2026';
   for(const tab of ['Thông báo tuần','Lượt gửi & lịch sử','Điều khiển Form','Đối soát','Hệ thống']) {
     await openSection(page,tab);
-    const picker=page.getByRole('combobox',{name:'Tìm tuần',exact:true});
-    await expect.soft(picker,'the selected week belongs in the input, not an extra line').toHaveValue(current);
+    const picker=weekSwitcher(page),search=page.getByRole('textbox',{name:'Tìm tuần',exact:true});
+    await expect.soft(picker,'the selected week belongs in the week button, not an extra line').toContainText(current);
     await picker.click();
     await expect(page.getByRole('option',{name:previous,exact:true})).toBeVisible();
-    await picker.fill('05/10');
+    await search.fill('05/10');
     await page.getByRole('option',{name:previous,exact:true}).click();
-    await expect.soft(picker).toHaveValue(previous);
+    await expect.soft(picker).toContainText(previous);
     await expect(page.locator('.selected-week-name')).toHaveCount(0);
     await picker.click();
-    await picker.fill('không có tuần này');
+    await search.fill('không có tuần này');
     await page.keyboard.press('Escape');
-    await expect(picker,'canceling a search must restore the committed selection').toHaveValue(previous);
+    await expect(picker,'canceling a search must restore the committed selection').toContainText(previous);
     await picker.click();
     await page.getByRole('option',{name:current,exact:true}).click();
   }
-  const selectionFits=()=>page.getByRole('combobox',{name:'Tìm tuần',exact:true}).evaluate(input=>{
-    const element=input as HTMLInputElement,style=getComputedStyle(element),canvas=document.createElement('canvas'),context=canvas.getContext('2d')!;
-    context.font=style.font;
-    return context.measureText(element.value).width<=element.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
-  });
+  const selectionFits=()=>weekSwitcher(page).locator('.ui-shell-week-name').evaluate(node=>node.scrollWidth<=node.clientWidth);
   expect(await selectionFits(),'the chosen date range must not be clipped by a narrow desktop picker').toBe(true);
   await page.locator('.dashboard-week-picker').screenshot({path:'review/production/week-picker-desktop.png'});
   await page.setViewportSize({width:390,height:960});
   await page.evaluate(()=>localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'off'})));
   await page.reload();
-  await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();
-  await page.getByRole('dialog',{name:'Thêm chức năng'}).getByRole('button',{name:'Thông báo tuần',exact:true}).click();
-  const picker=page.getByRole('combobox',{name:'Tìm tuần',exact:true});
+  await openSection(page,'Thông báo tuần');
+  const picker=weekSwitcher(page);
   await picker.click();
   await page.getByRole('option',{name:previous,exact:true}).click();
-  await expect(picker).toHaveValue(previous);
+  await expect(picker).toContainText(previous);
   expect(await selectionFits(),'the mobile picker must show the full selected week').toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await expect(page.getByRole('textbox',{name:'Nội dung thông báo'})).toBeEnabled();
@@ -1627,13 +1629,13 @@ test('large text, next-week empty, anonymous and retry states preserve real view
 test('Dashboard removes duplicate chrome and consolidates owner setup and authorization in System',async({page})=>{
   await interceptMealServices(page);
   await page.goto('http://127.0.0.1:5175/dashboard');
-  await expect(page.locator('.ui-overview')).toBeVisible();
+  await expect(sectionNav(page)).toBeVisible();
   await expect(page.locator('.school-brand')).toHaveCount(0);
   const header=page.locator('.dashboard-header');
   await expect(header.getByRole('button',{name:'Đăng xuất',exact:true})).toHaveCount(0);
   await expect(header.getByRole('link')).toHaveCount(0);
   await expect(header.getByRole('button',{name:'Cấp quyền Apps Script',exact:true})).toHaveCount(0);
-  await expect(sectionNav(page).getByRole('button',{name:'Đăng xuất',exact:true})).toBeVisible();
+  await openDisplayMenu(page);await expect(shellMenu(page).getByRole('button',{name:'Đăng xuất',exact:true})).toBeVisible();await page.keyboard.press('Escape');
   await openSection(page,'Hệ thống');
   await expect(page.locator('.dashboard-panel').first().getByRole('button',{name:'Cấp quyền Apps Script',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Hướng dẫn cài đặt (7 bước)',exact:true}).click();await expect(page.locator('.setup-steps li')).toHaveCount(7);
@@ -1724,9 +1726,9 @@ test('mobile submissions and audit share the panel palette without alternating n
       ],history:[{id:'audit-a',action:'form-closed',at:1791467940000,actor:'admin@example.com',note:'Đã chốt đăng ký'},{id:'audit-b',action:'form-deadline-updated',at:1791467880000,actor:'admin@example.com',note:'Đã đổi hạn đăng ký'}]
     }}));
     await page.goto('http://127.0.0.1:5175/dashboard');
-    await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Lượt gửi',exact:true}).click();
+    await openSection(page,'Lượt gửi & lịch sử');
     await expect(page.locator('.audit-timeline [data-audit-event]')).toHaveCount(2);
-    const weekFits=await page.getByRole('combobox',{name:'Tìm tuần',exact:true}).evaluate(input=>{const element=input as HTMLInputElement,style=getComputedStyle(element),context=document.createElement('canvas').getContext('2d')!;context.font=style.font;return context.measureText(element.value).width<=element.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);});
+    const weekFits=await weekSwitcher(page).locator('.ui-shell-week-name').evaluate(node=>node.scrollWidth<=node.clientWidth);
     expect.soft(weekFits,'the submissions toolbar must not truncate the committed week').toBe(true);
     const colors=await page.evaluate(()=>{
       const panel=document.querySelector('.dashboard-panel')!,toolbar=document.querySelector('.dashboard-sticky-tools')!;
@@ -1824,20 +1826,20 @@ test('confirmation motion never delays cancel and busy animation follows the rea
   expect(writes).toEqual([]);
 });
 
-test('mobile More motion preserves tool navigation, inert exit and an explicit full-motion override',async({page})=>{
+test('mobile settings menu motion preserves tool navigation, inert exit and an explicit full-motion override',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.addInitScript(()=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'full'}));});
   await interceptMealServices(page);
   await page.goto('http://127.0.0.1:5175/dashboard');
-  const more=page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true});
+  await expect(page.locator('#dashboard-content h1')).toBeVisible();const more=page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true});
   await more.focus();await page.keyboard.press('Enter');
-  const menu=page.locator('.ui-more-menu');
+  const menu=page.locator('.comfort-menu');
   expect(await menu.evaluate(el=>el.getAnimations().length)).toBeGreaterThan(0);
   await menu.evaluate(el=>el.getAnimations().forEach(animation=>{animation.pause();animation.currentTime=100;}));
   await page.screenshot({path:'review/motion/mobile-more-100ms.png'});
-  await menu.getByRole('button',{name:'Đối soát',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Đối soát Form–Sheet'})).toBeVisible();
+  await menu.getByRole('button',{name:'Hệ thống',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Hệ thống',exact:true,level:1})).toBeVisible();
   await expect(menu).toHaveAttribute('inert','');
   expect(await menu.evaluate(el=>el.matches(':popover-open'))).toBe(false);
   await more.click();await page.keyboard.press('Escape');await more.click();
@@ -1894,11 +1896,11 @@ test('grouped week searches preserve exact selection and archive calendar includ
   await interceptMealServices(page);
   await page.goto('http://127.0.0.1:5175/dashboard');
   await openSection(page,'Thông báo tuần');
-  const picker=page.getByRole('combobox',{name:'Tìm tuần',exact:true});
+  const picker=weekSwitcher(page);
   await picker.click();
-  await expect(page.locator('.combo-group').getByText('Tuần đã qua',{exact:true})).toBeVisible();
+  await expect(page.locator('.ui-shell-week-group').getByText('Tuần đã qua',{exact:true})).toBeVisible();
   await page.getByRole('option',{name:weeks[1].name,exact:true}).click();
-  await expect(picker).toHaveValue(weeks[1].name);
+  await expect(picker).toContainText(weeks[1].name);
   await page.route('**/api/history',route=>route.fulfill({status:200,json:{weeks:[{weekKey:'2026-09-28_2026-10-02',name:'Tuần 28/09/2026 - 02/10/2026',startDate:'2026-09-28',endDate:'2026-10-02'},{...weeks[1],startDate:'2026-10-05',endDate:'2026-10-09'}]}}));
   await page.goto('http://127.0.0.1:5175/history');
   await page.getByRole('button',{name:'Lịch tháng',exact:true}).click();
@@ -2053,9 +2055,7 @@ test('ten-UI responsive review covers cards, calendars, progress, popovers and b
     await page.goto('http://127.0.0.1:5175/dashboard?tab=create');
     await expect(page.getByRole('list',{name:'Tiến trình tạo tuần'})).toBeVisible();await capture('ocr');
     async function navigate(label:string,short=label){
-      if(width===1440)await openSection(page,label);
-      else if(short==='Lượt gửi')await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:short,exact:true}).click();
-      else{await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Thêm',exact:true}).click();await page.getByRole('dialog',{name:'Thêm chức năng'}).getByRole('button',{name:label,exact:true}).click();}
+      await openSection(page,label);
     }
     await navigate('Lượt gửi & lịch sử','Lượt gửi');
     await page.locator('[data-response-id="sample-a"]').getByRole('button',{name:'Thao tác lượt gửi',exact:true}).click();
@@ -2089,13 +2089,13 @@ test('clarity: accent highlights and clear buttons preserve data and independent
   const query=page.getByRole('textbox',{name:'Tìm theo họ tên',exact:true});await query.fill('truong');
   await expect(page.locator('[data-response-id="sample-a"] mark')).toHaveText('Trường');
   await page.getByRole('button',{name:'Xóa tìm kiếm Tìm theo họ tên',exact:true}).click();await expect(query).toHaveValue('');
-  const picker=page.getByRole('combobox',{name:'Tìm tuần',exact:true});const saved=await picker.inputValue();await picker.fill('05/10');
-  await page.getByRole('button',{name:'Xóa tìm kiếm Tìm tuần',exact:true}).click();await page.keyboard.press('Escape');await expect(picker).toHaveValue(saved);
+  const picker=weekSwitcher(page);const saved=(await picker.textContent())!;await picker.click();await page.getByRole('textbox',{name:'Tìm tuần',exact:true}).fill('05/10');
+  await page.getByRole('button',{name:'Xóa tìm kiếm Tìm tuần',exact:true}).click();await page.keyboard.press('Escape');await expect(picker).toHaveText(saved);
 });
 
 test('clarity: external links explain new tabs without changing destinations',async({page})=>{
   await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');
-  const link=page.locator('.ui-week-links').first().getByRole('link',{name:'Form',exact:true});
+  await page.getByRole('button',{name:'Liên kết của tuần',exact:true}).click();const link=page.getByRole('dialog',{name:'Liên kết của tuần',exact:true}).getByRole('link',{name:'Mở Form',exact:true});
   await expect(link.locator('.external-link-icon')).toHaveCount(1);await expect(link).toHaveAttribute('target','_blank');await expect(link).toHaveAttribute('href',weeks[0].formUrl);
   await expect(link).toHaveAttribute('title','Mở tab mới');await expect(link).toHaveAttribute('rel',/noopener/);
 });
@@ -2160,7 +2160,7 @@ test('clarity: expanded PC workspace retains the same controls, table and scroll
 
 test('clarity: confirmation footer remains visible in a keyboard-height viewport',async({page})=>{
   const writes:object[]=[];await page.setViewportSize({width:390,height:844});await interceptMealServices(page,'owner','#357185',writes);
-  await page.goto('http://127.0.0.1:5175/dashboard');await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Lượt gửi',exact:true}).click();
+  await page.goto('http://127.0.0.1:5175/dashboard');await openSection(page,'Lượt gửi & lịch sử');
   await page.locator('[data-response-id="sample-a"]').getByRole('button',{name:'Thao tác lượt gửi',exact:true}).click();await page.getByRole('dialog',{name:'Thao tác lượt gửi',exact:true}).getByRole('button',{name:'Xóa lượt này',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true});await page.setViewportSize({width:390,height:340});await dialog.getByRole('textbox',{name:'Lý do (tùy chọn)',exact:true}).fill('Lý do '.repeat(70));
   const footer=dialog.locator('.confirmation-actions');await expect(footer).toBeVisible();
@@ -2177,16 +2177,16 @@ test('clarity: unsaved branding cancels navigation/logout and survives failed sa
       return route.fulfill({status:200,json:{...body.branding,updatedAt:2}});
     }return route.fallback();
   });
-  await page.goto('http://127.0.0.1:5175/dashboard');const nav=sectionNav(page);await openSection(page,'Thương hiệu');
+  await page.goto('http://127.0.0.1:5175/dashboard');const nav=shellMenu(page);await openSection(page,'Thương hiệu');
   const field=page.getByLabel('Tên trường',{exact:true});await field.fill('Tên đang sửa');
   const dirty=page.getByRole('status',{name:'Chưa lưu thương hiệu',exact:true});await expect(dirty).toBeVisible();
   expect(await page.evaluate(()=>{const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;})).toBe(true);
-  page.once('dialog',dialog=>dialog.dismiss());await openSection(page,'Tổng quan');await expect(field).toHaveValue('Tên đang sửa');
-  page.once('dialog',dialog=>dialog.dismiss());await nav.getByRole('button',{name:'Đăng xuất',exact:true}).click();await expect(field).toHaveValue('Tên đang sửa');expect(writes).toEqual([]);
+  page.once('dialog',dialog=>dialog.dismiss());await openSection(page,'Đối soát');await expect(field).toHaveValue('Tên đang sửa');
+  page.once('dialog',dialog=>dialog.dismiss());await openDisplayMenu(page);await nav.getByRole('button',{name:'Đăng xuất',exact:true}).click();await expect(field).toHaveValue('Tên đang sửa');expect(writes).toEqual([]);
   await page.getByRole('region',{name:'Thay đổi thương hiệu chưa lưu',exact:true}).getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();
   await expect(page.locator('.dashboard-message')).toContainText('Lỗi lưu thử');await expect(dirty).toBeVisible();await expect(field).toHaveValue('Tên đang sửa');
   await page.getByRole('region',{name:'Thay đổi thương hiệu chưa lưu',exact:true}).getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Lưu thương hiệu',exact:true}).click();await expect(dirty).toHaveCount(0);
-  await field.fill('Bản bỏ đi');page.once('dialog',dialog=>dialog.accept());await openSection(page,'Tổng quan');await openSection(page,'Thương hiệu');await expect(field).toHaveValue('Tên đang sửa');
+  await field.fill('Bản bỏ đi');page.once('dialog',dialog=>dialog.accept());await openSection(page,'Đối soát');await openSection(page,'Thương hiệu');await expect(field).toHaveValue('Tên đang sửa');
 });
 
 test('clarity: unsaved notices keep text on week cancel and save error, then retry exact revision',async({page})=>{
@@ -2201,8 +2201,8 @@ test('clarity: unsaved notices keep text on week cancel and save error, then ret
   await page.goto('http://127.0.0.1:5175/dashboard');await openSection(page,'Thông báo tuần');
   const text=page.getByRole('textbox',{name:'Nội dung thông báo',exact:true});await expect(text).toBeEnabled();await text.fill('Nháp thông báo');
   const dirty=page.getByRole('status',{name:'Chưa lưu thông báo',exact:true});await expect(dirty).toBeVisible();
-  const picker=page.getByRole('combobox',{name:'Tìm tuần',exact:true});const selected=await picker.inputValue();await picker.fill('05/10');
-  page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('option',{name:weeks[1].name,exact:true}).click();await expect(picker).toHaveValue(selected);await expect(text).toHaveValue('Nháp thông báo');
+  const picker=weekSwitcher(page);const selected=(await picker.textContent())!;await picker.click();await page.getByRole('textbox',{name:'Tìm tuần',exact:true}).fill('05/10');
+  page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('option',{name:weeks[1].name,exact:true}).click();await expect(picker).toHaveText(selected);await expect(text).toHaveValue('Nháp thông báo');
   await page.getByRole('region',{name:'Thay đổi thông báo chưa lưu',exact:true}).getByRole('button',{name:'Lưu thông báo',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Lưu thông báo',exact:true}).click();await expect(page.locator('.dashboard-message')).toContainText('Chưa lưu được thử');await expect(text).toBeEnabled();await expect(dirty).toBeVisible();
   await page.getByRole('region',{name:'Thay đổi thông báo chưa lưu',exact:true}).getByRole('button',{name:'Lưu thông báo',exact:true}).click();await page.getByRole('dialog',{name:'Xác nhận thao tác',exact:true}).getByRole('button',{name:'Lưu thông báo',exact:true}).click();await expect(dirty).toHaveCount(0);
   expect(writes.map(body=>({weekKey:body.weekKey,expectedUpdatedAt:body.expectedUpdatedAt,text:body.text}))).toEqual([{weekKey:key,expectedUpdatedAt:1,text:'Nháp thông báo'},{weekKey:key,expectedUpdatedAt:1,text:'Nháp thông báo'}]);
@@ -2225,10 +2225,10 @@ test('clarity: command and version navigation honor dirty cancellation without d
   await page.goto('http://127.0.0.1:5175/dashboard');await openSection(page,'Thương hiệu');
   const field=page.getByLabel('Tên trường',{exact:true});await field.fill('Nháp chưa lưu');
   await page.keyboard.press('Control+k');const commands=page.getByRole('dialog',{name:'Lệnh nhanh',exact:true});
-  await commands.getByRole('combobox',{name:'Tìm lệnh hoặc tuần',exact:true}).fill('Tổng quan');
+  await commands.getByRole('combobox',{name:'Tìm lệnh hoặc tuần',exact:true}).fill('Đối soát');
   await commands.getByRole('button',{name:'Xóa tìm kiếm Tìm lệnh hoặc tuần',exact:true}).click();
-  await commands.getByRole('combobox',{name:'Tìm lệnh hoặc tuần',exact:true}).fill('Tổng quan');
-  page.once('dialog',dialog=>dialog.dismiss());await commands.getByRole('option',{name:/Tổng quan/}).click();await expect(commands).toBeVisible();
+  await commands.getByRole('combobox',{name:'Tìm lệnh hoặc tuần',exact:true}).fill('Đối soát');
+  page.once('dialog',dialog=>dialog.dismiss());await commands.getByRole('option',{name:/Đối soát/}).click();await expect(commands).toBeVisible();
   await expect(commands.getByRole('alert')).toHaveCount(0);await page.keyboard.press('Escape');await expect(field).toHaveValue('Nháp chưa lưu');
   page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'Cập nhật trang',exact:true}).click();await expect(page.getByRole('button',{name:'Cập nhật trang',exact:true})).toBeEnabled();await expect(field).toHaveValue('Nháp chưa lưu');expect(writes).toEqual([]);
 });
@@ -2261,7 +2261,7 @@ test('clarity: responsive review of new states stays readable across viewport an
     else{await page.getByRole('button',{name:'Phóng rộng bảng chi tiết',exact:true}).click();await capture('expanded-viewer',false);await page.keyboard.press('Escape');}
     await page.goto('http://127.0.0.1:5175/history');await page.getByRole('button',{name:'Lịch tháng',exact:true}).click();await capture('archive');
     await page.goto('http://127.0.0.1:5175/dashboard');
-    if(width===360)await page.getByRole('navigation',{name:'Điều hướng điện thoại'}).getByRole('button',{name:'Lượt gửi',exact:true}).click();else await openSection(page,'Lượt gửi & lịch sử');
+    if(width===360)await openSection(page,'Lượt gửi & lịch sử');else await openSection(page,'Lượt gửi & lịch sử');
     await page.locator('[data-response-id="sample-a"]').waitFor();
     if(width>700){await page.getByRole('button',{name:'Phóng rộng bảng lượt gửi',exact:true}).click();await capture('expanded-dashboard',false);await page.keyboard.press('Escape');}
     await page.locator('[data-response-id="sample-a"]').getByRole('button',{name:'Thao tác lượt gửi',exact:true}).click();await page.getByRole('dialog',{name:'Thao tác lượt gửi',exact:true}).getByRole('button',{name:'Xóa lượt này',exact:true}).click();
@@ -2283,12 +2283,13 @@ test.describe('week-first-shell',()=>{
     const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);await page.setViewportSize({width:1440,height:900});await page.goto('http://127.0.0.1:5175/dashboard');
     const toggle=page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}),menu=page.locator('.comfort-menu'),guide=page.getByRole('dialog',{name:'Hướng dẫn mục hiện tại',exact:true});
     await expect(page.locator('#dashboard-content h1')).toBeVisible();await expect(page.locator('.dashboard-account')).toBeHidden();await expect(page.locator('.dashboard-assist-tools')).toBeHidden();
+    await expect(page.locator('[data-response-id]').first()).toBeVisible();
     await openDisplayMenu(page);await menu.getByRole('button',{name:'Hướng dẫn mục này',exact:true}).click();
     await expect(guide).toBeVisible();expect(await guide.evaluate(node=>node.closest('.comfort-menu'))).toBeNull();
-    await expect(menu).toBeHidden();await expect(guide).toContainText('1 / 3');
-    await guide.getByRole('button',{name:'Tiếp',exact:true}).click();await expect(guide).toContainText('2 / 3');
-    await openDisplayMenu(page);await expect(guide).toBeVisible();await page.keyboard.press('Escape');await expect(menu).toBeHidden();await expect(guide).toBeVisible();await expect(guide).toContainText('2 / 3');
-    await openDisplayMenu(page);await guide.getByRole('button',{name:'Trước',exact:true}).click();await expect(menu).toBeHidden();await expect(guide).toBeVisible();await expect(guide).toContainText('1 / 3');
+    await expect(menu).toBeHidden();await expect(guide).toContainText('1 / 4');
+    await guide.getByRole('button',{name:'Tiếp',exact:true}).click();await expect(guide).toContainText('2 / 4');
+    await openDisplayMenu(page);await expect(guide).toBeVisible();await page.keyboard.press('Escape');await expect(menu).toBeHidden();await expect(guide).toBeVisible();await expect(guide).toContainText('2 / 4');
+    await openDisplayMenu(page);await guide.getByRole('button',{name:'Trước',exact:true}).click();await expect(menu).toBeHidden();await expect(guide).toBeVisible();await expect(guide).toContainText('1 / 4');
     await guide.getByRole('button',{name:'Bỏ qua / Đóng',exact:true}).click();await expect(guide).toHaveCount(0);await expect(toggle).toBeFocused();
     await expect(page.locator('#dashboard-content h1')).toBeVisible();await openDisplayMenu(page);await expect(menu.getByRole('button',{name:'Hướng dẫn mục này',exact:true})).toBeEnabled();expect(writes).toEqual([]);
   });
@@ -2304,9 +2305,88 @@ test.describe('week-first-shell',()=>{
     await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');await expect(page.locator('#dashboard-content h1')).toBeVisible();
     const toggle=page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}),guide=page.getByRole('button',{name:'Hướng dẫn mục này',exact:true}),notices=page.getByRole('button',{name:/^Thông báo phiên này/}),quick=page.getByRole('button',{name:'Lệnh nhanh',exact:true});
     await toggle.focus();await page.keyboard.press('ArrowDown');await expect(guide).toBeFocused();
-    await page.keyboard.press('ArrowDown');await expect(notices).toBeFocused();await page.keyboard.press('ArrowDown');await expect(quick).toBeFocused();
+    await page.keyboard.press('ArrowDown');await expect(notices).toBeFocused();for(const name of ['Thương hiệu','Hệ thống','Quyền Gmail','Đăng xuất']){await page.keyboard.press('ArrowDown');await expect(page.locator('.comfort-menu-extra').getByRole('button',{name,exact:true})).toBeFocused();}await page.keyboard.press('ArrowDown');await expect(quick).toBeFocused();
+    for(const name of ['Đăng xuất','Quyền Gmail','Hệ thống','Thương hiệu']){await page.keyboard.press('ArrowUp');await expect(page.locator('.comfort-menu-extra').getByRole('button',{name,exact:true})).toBeFocused();}
     await page.keyboard.press('ArrowUp');await expect(notices).toBeFocused();await page.keyboard.press('ArrowUp');await expect(guide).toBeFocused();await page.keyboard.press('ArrowUp');await expect(page.getByRole('button',{name:'Có gì mới?',exact:true})).toBeFocused();
     await page.goto('http://127.0.0.1:5175/newest');await toggle.focus();await page.keyboard.press('ArrowDown');await expect(quick).toBeFocused();
     await expect(page.locator('.comfort-menu-extra')).toBeHidden();await expect(page.locator('.comfort-menu-extra')).toBeEmpty();await expect(guide).toHaveCount(0);
+  });
+  test('owner sees four tabs and the settings; manager sees two tabs and no owner settings',async({page})=>{
+    await interceptMealServices(page,'owner');await page.goto('http://127.0.0.1:5175/dashboard');
+    const nav=page.getByRole('navigation',{name:'Khu vực quản trị',exact:true});
+    await expect(nav.getByRole('button')).toHaveText(['Lượt gửi & lịch sử','Điều khiển Form','Thông báo tuần','Đối soát']);
+    await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();
+    for(const name of ['Thương hiệu','Hệ thống','Quyền Gmail'])await expect(page.locator('.comfort-menu').getByRole('button',{name,exact:true})).toBeVisible();
+  });
+  test('a manager sees two tabs and cannot reach owner tabs through the URL',async({page})=>{
+    await interceptMealServices(page,'manager');await page.goto('http://127.0.0.1:5175/dashboard?tab=branding');
+    const nav=page.getByRole('navigation',{name:'Khu vực quản trị',exact:true});
+    await expect(nav.getByRole('button')).toHaveText(['Lượt gửi & lịch sử','Đối soát']);
+    await expect(nav.getByRole('button',{name:'Lượt gửi & lịch sử'})).toHaveAttribute('aria-current','page');
+    await expect(page.getByLabel('Tên trường',{exact:true})).toHaveCount(0);await openDisplayMenu(page);
+    for(const name of ['Thương hiệu','Hệ thống','Quyền Gmail'])await expect(page.locator('.comfort-menu').getByRole('button',{name,exact:true})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'Tạo tuần',exact:true})).toHaveCount(0);
+  });
+  test('/dashboard and the legacy ?tab=overview open Lượt gửi & lịch sử',async({page})=>{
+    await interceptMealServices(page);
+    for(const url of ['/dashboard','/dashboard?tab=overview']){
+      await page.goto('http://127.0.0.1:5175'+url);
+      await expect(page.getByRole('navigation',{name:'Khu vực quản trị',exact:true}).getByRole('button',{name:'Lượt gửi & lịch sử'})).toHaveAttribute('aria-current','page');
+      await expect(page).toHaveURL(/tab=delete/);
+    }
+    const length=await page.evaluate(()=>history.length);await page.goto('http://127.0.0.1:5175/dashboard?tab=overview');await expect(page).toHaveURL(/tab=delete/);expect(await page.evaluate(()=>history.length)).toBe(length+1);
+  });
+  test('changing the week keeps the tab and Back returns to the previous week',async({page})=>{
+    await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard?tab=reconcile');
+    await expect(page).toHaveURL(/week=/);
+    const first=new URL(page.url()).searchParams.get('week');
+    await page.getByRole('button',{name:/^Tuần /}).first().click();
+    await page.getByRole('option').nth(1).click();
+    expect(new URL(page.url()).searchParams.get('week')).not.toBe(first);
+    await expect(page.getByRole('navigation',{name:'Khu vực quản trị',exact:true}).getByRole('button',{name:'Đối soát'})).toHaveAttribute('aria-current','page');
+    await page.goBack();expect(new URL(page.url()).searchParams.get('week')).toBe(first);
+  });
+  test('unsaved notice text asks before changing the week and Cancel keeps it',async({page})=>{
+    await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard?tab=notice');
+    await page.getByLabel('Nội dung thông báo',{exact:true}).fill('Nháp chưa lưu');
+    const before=page.url();
+    page.once('dialog',d=>d.dismiss());
+    await page.getByRole('button',{name:/^Tuần /}).first().click();await page.getByRole('option').nth(1).click();
+    expect(page.url()).toBe(before);
+    await expect(page.getByLabel('Nội dung thông báo',{exact:true})).toHaveValue('Nháp chưa lưu');
+  });
+  test('a school with no weeks still gets a usable week bar; Tạo tuần appears only with permission',async({page})=>{
+    await interceptMealServices(page,'owner','#357185',[],{weeks:[]});await page.goto('http://127.0.0.1:5175/dashboard');
+    await page.getByRole('button',{name:/^Tuần /}).first().click();
+    await expect(page.getByText('Chưa có thực đơn')).toHaveCount(2);
+    await expect(page.getByRole('button',{name:'Tạo tuần',exact:true})).toBeVisible();
+    await page.keyboard.press('Escape');await expect(page.getByRole('status',{name:'Chưa có tuần nào',exact:true})).toBeVisible();
+    await interceptMealServices(page,'manager','#357185',[],{weeks:[]});await page.goto('http://127.0.0.1:5175/dashboard');
+    await page.getByRole('button',{name:/^Tuần /}).first().click();await expect(page.getByText('Chưa có thực đơn')).toHaveCount(2);
+    await expect(page.getByRole('button',{name:'Tạo tuần',exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:/^Tạo/})).toHaveCount(0);
+  });
+  test('week rows are grouped this week, next week and older with status and count',async({page})=>{
+    await page.clock.install({time:new Date('2026-10-13T03:00:00Z')});await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');
+    const trigger=page.getByRole('button',{name:/^Tuần /}).first();await expect(trigger).toContainText(weeks[0].name);await expect(trigger).toContainText('Đã đóng');
+    await trigger.click();const list=page.getByRole('listbox');
+    await expect(list.getByRole('group',{name:'Tuần này',exact:true}).getByRole('option')).toHaveText([new RegExp(weeks[0].name)]);
+    await expect(list.getByRole('option',{name:new RegExp(weeks[0].name)})).toHaveAttribute('aria-selected','true');
+    await expect(list.getByRole('option',{name:new RegExp(weeks[1].name)})).toContainText('2 lượt');
+    await expect(page.locator('.ui-shell-week-slots')).toContainText('Tuần sau');await expect(page.locator('.ui-shell-week-slots')).toContainText('Chưa có thực đơn');
+    await page.keyboard.press('Escape');await expect(list).toBeHidden();await expect(trigger).toBeFocused();
+  });
+  test('the week links menu opens only https links of the selected week and Tải lại danh sách tuần reloads the list',async({page})=>{
+    let reads=0;await interceptMealServices(page);await page.route('**/api/dashboard',route=>{if(route.request().method()==='GET')reads++;return route.fallback();});await page.goto('http://127.0.0.1:5175/dashboard');
+    await page.getByRole('button',{name:'Liên kết của tuần',exact:true}).click();
+    const form=page.getByRole('link',{name:'Mở Form',exact:true});await expect(form).toHaveAttribute('href',weeks[0].formUrl);await expect(form).toHaveAttribute('target','_blank');
+    await expect(page.getByRole('link',{name:'Mở Sheet',exact:true})).toHaveAttribute('href',weeks[0].spreadsheetUrl);await expect(page.getByRole('link',{name:'Mở thư mục',exact:true})).toHaveCount(0);
+    await page.keyboard.press('Escape');const before=reads;await page.getByRole('button',{name:/^Tuần /}).first().click();await page.getByRole('button',{name:'Tải lại danh sách tuần',exact:true}).click();await expect.poll(()=>reads).toBe(before+1);
+  });
+  test('owner settings and the viewer link live in the display menu and open their sections',async({page})=>{
+    await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');await openDisplayMenu(page);
+    const menu=page.locator('.comfort-menu');await expect(menu.getByRole('link',{name:'Mở trang xem thực đơn',exact:true})).toHaveAttribute('href','/newest');await expect(menu.getByRole('button',{name:'Đăng xuất',exact:true})).toBeVisible();
+    await menu.getByRole('button',{name:'Hệ thống',exact:true}).click();await expect(menu).toBeHidden();await expect(page.locator('#dashboard-content h1')).toHaveText('Hệ thống');await expect(page).toHaveURL(/tab=health/);
+    await expect(page.getByRole('region',{name:'Cần xử lý',exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Tạo tuần',exact:true}).click();await expect(page).toHaveURL(/tab=create/);await expect(page.getByRole('button',{name:/^Tuần /})).toHaveCount(0);
   });
 });

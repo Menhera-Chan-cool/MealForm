@@ -1,6 +1,6 @@
 import {useEffect,useId,useRef,useState} from 'react';
 
-export default function useAnchoredPopover(side='bottom',{followScroll=false}={}) {
+export default function useAnchoredPopover(side='bottom',{followScroll=false,align='end'}={}) {
   const trigger=useRef(null),panel=useRef(null),id=useId();
   const hideTimer=useRef(null);
   const [open,setOpen]=useState(false);
@@ -23,7 +23,7 @@ export default function useAnchoredPopover(side='bottom',{followScroll=false}={}
   },[open,followScroll]);
   function position(){
     const node=panel.current,rect=trigger.current.getBoundingClientRect(),width=node.offsetWidth,height=node.offsetHeight;
-    const left=side==='right'?rect.right+8:rect.right-width;
+    const left=side==='right'?rect.right+8:align==='start'?rect.left:rect.right-width;
     const top=side==='right'?rect.top:rect.bottom+8+height<=window.innerHeight-12?rect.bottom+8:rect.top-height-8;
     node.style.left=`${Math.max(12,Math.min(left,document.documentElement.clientWidth-width-12))}px`;
     node.style.top=`${Math.max(12,Math.min(top,window.innerHeight-height-12))}px`;

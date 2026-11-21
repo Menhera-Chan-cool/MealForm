@@ -51,18 +51,55 @@
 :root .meal-ui [data-slot=badge] { display:inline-flex; align-items:center; gap:3px; min-height:32px; padding:4px 10px; border:0; border-radius:8px; background:var(--meal-ui-muted); color:var(--meal-ui-foreground); font-size:.875rem; font-weight:400; white-space:nowrap; }
 :root .meal-ui .ui-skip-link { position:fixed; z-index:3000; top:8px; left:8px; transform:translateY(-200%); padding:12px; background:var(--meal-ui-card); color:var(--meal-ui-foreground); }
 :root .meal-ui .ui-skip-link:focus { transform:none; }
-.ui-dashboard-layout { display:grid; grid-template-columns:232px minmax(0,1fr); max-width:1680px; min-height:calc(100dvh - 90px); margin:auto; }
-:root .ui-sidebar { position:sticky; top:0; height:100dvh; overflow:auto; display:flex; flex-direction:column; gap:16px; padding:24px 12px 16px; border-right:1px solid var(--meal-ui-border); background:var(--meal-ui-card); }
-.ui-sidebar-brand { display:flex; gap:12px; padding:0 12px 16px; font-weight:700; font-size:1.125rem; }
-.ui-sidebar-brand svg { flex-shrink:0; color:var(--meal-ui-primary); }
-.ui-sidebar-brand small { display:block; font-size:.875rem; font-weight:400; margin-top:4px; overflow-wrap:anywhere; color:var(--meal-ui-muted-foreground); }
-:root .ui-sidebar .ui-nav-group { font-size:.875rem; color:var(--meal-ui-muted-foreground); padding:12px; margin:4px 0; }
-:root .meal-ui button.ui-nav-item { width:100%; display:flex; justify-content:flex-start; align-items:center; gap:10px; white-space:normal; text-align:left; margin:0 0 4px; }
-:root .meal-ui button.ui-nav-item:not(.ui-selected) { background:transparent; color:var(--meal-ui-foreground); border:1px solid transparent; }
-:root .meal-ui button.ui-nav-item:hover:not(.ui-selected) { background:var(--meal-ui-muted); }
-:root .ui-dashboard-layout.meal-ui button.ui-nav-item[aria-current=page] { background:var(--meal-ui-primary); color:var(--meal-ui-primary-foreground); border-color:var(--meal-ui-primary); }
-.ui-nav-item svg { flex-shrink:0; }
-.ui-sidebar-account { display:flex; flex-direction:column; gap:6px; margin-top:auto; padding:16px 12px 0; border-top:1px solid var(--meal-ui-border); font-size:.875rem; overflow-wrap:anywhere; }
+.ui-dashboard-layout { display:block; max-width:1680px; min-height:calc(100dvh - 90px); margin:auto; --ui-shell-line:color-mix(in srgb,var(--meal-ui-foreground) 12%,transparent); }
+.ui-shell-bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px; padding:16px 32px 12px; }
+.ui-shell-brand { display:flex; align-items:center; gap:10px; min-width:0; }
+.ui-shell-brand svg { flex-shrink:0; color:var(--meal-ui-primary); }
+.ui-shell-brand strong { display:block; font-size:1.125rem; line-height:1.3; white-space:nowrap; }
+.ui-shell-brand small { display:block; font-size:.875rem; color:var(--meal-ui-muted-foreground); overflow-wrap:anywhere; }
+:root .meal-ui .ui-shell-bar .dashboard-week-picker { display:flex; align-items:center; gap:8px; flex:1 1 320px; width:auto; min-width:0; max-width:760px; }
+:root .meal-ui button.ui-shell-week-trigger { display:flex; align-items:center; gap:8px; flex:0 1 auto; min-width:0; max-width:100%; text-align:left; border-color:var(--ui-shell-line); border-radius:12px; }
+.ui-shell-week-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ui-shell-week-trigger .ui-shell-week-name { font-size:1rem; font-weight:700; font-variant-numeric:tabular-nums; }
+.ui-shell-week-status,.ui-shell-week-deadline { flex-shrink:0; white-space:nowrap; font-weight:400; color:var(--meal-ui-muted-foreground); }
+.ui-shell-week-status { padding:2px 8px; border:1px solid var(--ui-shell-line); border-radius:8px; color:var(--meal-ui-foreground); }
+.ui-shell-week-status[data-status=open] { border-color:var(--meal-ui-primary); }
+.ui-shell-week-trigger svg { flex-shrink:0; }
+:root .meal-ui button.ui-shell-week-links { flex-shrink:0; width:44px; padding:10px; display:grid; place-items:center; border-color:var(--ui-shell-line); border-radius:12px; }
+.ui-shell-actions { display:flex; align-items:center; gap:8px; margin-left:auto; }
+:root .meal-ui button.ui-shell-create { display:inline-flex; align-items:center; gap:6px; border-radius:12px; white-space:nowrap; }
+:root .ui-preferences-slot[data-variant=settings] .comfort-menu-toggle svg { fill:none; }
+.ui-shell-tabs { display:flex; gap:4px; padding:0 32px; overflow-x:auto; border-bottom:1px solid var(--ui-shell-line); scrollbar-width:thin; }
+:root .ui-dashboard-layout.meal-ui .ui-shell-tabs button.ui-shell-tab { display:inline-flex; align-items:center; gap:8px; flex-shrink:0; min-height:44px; padding:10px 12px; border:0; border-bottom:2px solid transparent; border-radius:8px 8px 0 0; background:transparent; color:var(--meal-ui-muted-foreground); font-weight:500; }
+:root .ui-dashboard-layout.meal-ui .ui-shell-tabs button.ui-shell-tab:hover:not(:disabled) { color:var(--meal-ui-foreground); background:var(--meal-ui-muted); }
+:root .ui-dashboard-layout.meal-ui .ui-shell-tabs button.ui-shell-tab[aria-current=page] { color:var(--meal-ui-foreground); border-bottom-color:var(--meal-ui-primary); font-weight:700; }
+.ui-shell-tab-label { display:inline-grid; }
+.ui-shell-tab-label>span,.ui-shell-tab-label::after { grid-area:1/1; }
+.ui-shell-tab-label::after { content:attr(data-label); font-weight:700; visibility:hidden; pointer-events:none; user-select:none; }
+:root .ui-shell-week-menu { width:min(420px,calc(100vw - 24px)); max-height:min(560px,calc(100dvh - 24px)); padding:12px; border-color:var(--ui-shell-line,var(--meal-ui-border)); border-radius:16px; }
+:root .ui-shell-week-menu:popover-open { display:grid; gap:10px; }
+.ui-shell-week-slots { display:grid; gap:6px; }
+.ui-shell-week-slots p { display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; margin:0; padding:8px 12px; border:1px dashed var(--meal-ui-border); border-radius:10px; }
+.ui-shell-week-slots p span { color:var(--meal-ui-muted-foreground); }
+:root .meal-ui .ui-shell-week-slots button { margin-left:auto; display:inline-flex; align-items:center; gap:4px; min-height:36px; padding:6px 10px; border-radius:8px; }
+.ui-shell-week-list { display:grid; gap:4px; min-height:0; overflow:auto; }
+.ui-shell-week-list [role=group] { display:grid; gap:2px; }
+.ui-shell-week-group { margin:8px 4px 2px; font-size:.75rem; font-weight:600; color:var(--meal-ui-muted-foreground); }
+:root .meal-ui button.ui-shell-week-option { display:grid; gap:2px; width:100%; min-width:0; padding:8px 12px; text-align:left; border-color:transparent; border-radius:10px; background:transparent; }
+:root .meal-ui button.ui-shell-week-option:hover { background:var(--meal-ui-muted); }
+:root .meal-ui button.ui-shell-week-option[aria-selected=true] { background:var(--meal-ui-muted); border-color:var(--meal-ui-primary); }
+.ui-shell-week-option small { font-weight:400; color:var(--meal-ui-muted-foreground); }
+.ui-shell-week-empty { margin:4px; color:var(--meal-ui-muted-foreground); }
+:root .meal-ui button.ui-shell-week-refresh { display:inline-flex; align-items:center; justify-content:center; gap:6px; border-radius:10px; }
+:root .ui-shell-link-menu { width:220px; padding:8px; border-radius:14px; }
+:root .ui-shell-link-menu:popover-open { display:grid; gap:4px; }
+:root .meal-ui .ui-shell-link-menu a.action-link { display:flex; align-items:center; justify-content:space-between; gap:8px; border-color:transparent; border-radius:8px; }
+:root .meal-ui .ui-shell-link-menu a.action-link:hover { background:var(--meal-ui-muted); }
+.ui-shell-menu-links { display:grid; gap:8px; }
+:root .comfort-menu .ui-shell-menu-links .ui-shell-menu-item { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; text-align:left; }
+.ui-shell-empty { display:grid; justify-items:start; gap:8px; margin:0 0 20px; padding:20px; border:1px dashed var(--meal-ui-border); border-radius:12px; }
+:root .meal-ui .ui-shell-empty :is(h3,p) { margin:0; }
+.ui-dashboard-layout .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 :root main.dashboard-shell.meal-ui { width:100%; max-width:1440px; min-width:0; margin:0; padding:32px; border-radius:0; background:transparent; box-shadow:none; }
 :root .meal-ui .dashboard-header { display:flex; gap:16px; align-items:flex-start; margin-bottom:20px; }
 :root .meal-ui .dashboard-header > div:first-child { flex:1; min-width:0; }
@@ -81,19 +118,8 @@
 :root .meal-ui .dashboard-week-picker { width:min(100%,420px); min-width:0; }
 :root .meal-ui .dashboard-week-picker .combo { min-width:0; }
 :root .meal-ui :is(.dashboard-panel label,.dashboard-search,.dashboard-deadline) { font-size:.875rem; line-height:1.5; }
-.ui-current-weeks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
-.ui-card-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
-:root .meal-ui .ui-card-heading h2 { margin:0; }
-:root .meal-ui .ui-week-card h3 { font-size:1.125rem; margin:0; font-variant-numeric:tabular-nums; }
-.ui-week-actions,.ui-week-links { display:flex; flex-wrap:wrap; gap:8px; }
-.ui-week-links { border-top:1px solid var(--meal-ui-border); padding-top:8px; margin-top:auto; }
-:root .meal-ui .ui-week-links button,:root .meal-ui .ui-week-links a { padding-left:0; background:transparent; border-color:transparent; color:var(--meal-ui-foreground); }
-:root .meal-ui .ui-overview-title { margin:28px 0 16px; }
-.ui-week-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
-.ui-mobile-nav { display:none; }
 .ui-more-menu { position:fixed; inset:auto 12px calc(84px + env(safe-area-inset-bottom)) 12px; width:auto; max-width:460px; max-height:calc(100dvh - 120px); overflow:auto; padding:16px; border:1px solid var(--meal-ui-border); border-radius:14px; background:var(--meal-ui-card); color:var(--meal-ui-foreground); }
 .ui-more-menu h2 { margin:0 0 12px; }
-.ui-more-account { display:grid; gap:8px; margin-top:16px; padding-top:16px; border-top:1px solid var(--meal-ui-border); overflow-wrap:anywhere; }
 :root .meal-ui :is(.dashboard-sticky-tools,.dashboard-response-tools,.dashboard-batch-tools,.dashboard-health-list li,.dashboard-email-list li,.reconciliation-issues li,.audit-filters,.branding-preview) { border-color:var(--meal-ui-border); }
 :root .ui-dashboard-layout.meal-ui .dashboard-sticky-tools { top:0; padding:12px 0; background:var(--meal-ui-card); box-shadow:none; }
 :root .meal-ui .dashboard-message { display:flex; align-items:center; flex-wrap:wrap; gap:8px; overflow-wrap:anywhere; }
@@ -166,10 +192,13 @@
 :root .meal-ui .archive-weeks a { display:flex; justify-content:space-between; gap:16px; align-items:center; padding:20px; border:1px solid var(--meal-ui-border); border-radius:14px; background:var(--meal-ui-card); color:var(--meal-ui-foreground); }
 :root .meal-ui .archive-weeks a span { white-space:nowrap; }
 :root .comfort-menu,:root .quick-dialog { font-family:var(--token-font-family),sans-serif; color:var(--meal-ui-foreground); background:var(--meal-ui-card); border-color:var(--meal-ui-border); }
-@media(max-width:1100px){ .ui-current-weeks,.ui-week-list { grid-template-columns:1fr; } .ui-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } :root .meal-ui .dashboard-header { flex-wrap:wrap; } :root .meal-ui .dashboard-header-actions { order:3; max-width:100%; width:100%; } }
+@media(max-width:1100px){ .ui-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } :root .meal-ui .dashboard-header { flex-wrap:wrap; } :root .meal-ui .dashboard-header-actions { order:3; max-width:100%; width:100%; } }
 @media(max-width:700px){
-  .ui-dashboard-layout { display:block; }
-  .ui-sidebar { display:none!important; }
+  .ui-shell-bar { padding:12px 16px 8px; }
+  .ui-shell-tabs { padding:0 16px; }
+  :root .meal-ui .ui-shell-bar .dashboard-week-picker { order:3; flex-basis:100%; max-width:none; }
+  :root .meal-ui button.ui-shell-week-trigger { flex:1 1 auto; flex-wrap:wrap; row-gap:4px; }
+  .ui-shell-week-trigger .ui-shell-week-name { flex:1 1 100%; }
   :root main.dashboard-shell.meal-ui { padding:20px 16px calc(100px + env(safe-area-inset-bottom)); }
   :root .meal-ui .dashboard-header-actions { display:none; }
   :root .meal-ui .dashboard-header { flex-direction:row; flex-wrap:nowrap; }
@@ -179,10 +208,8 @@
   :root .meal-ui .dashboard-sticky-tools .dashboard-week-picker { grid-column:1/-1; width:100%; }
   :root .meal-ui .dashboard-sticky-tools .dashboard-search { grid-column:1; grid-row:2; }
   :root .meal-ui .dashboard-sticky-tools .dashboard-refresh-bar { grid-column:2; grid-row:2; }
-  .ui-current-weeks,.ui-week-list,.ui-summary-grid { grid-template-columns:1fr; }
+  .ui-summary-grid { grid-template-columns:1fr; }
   :root .meal-ui [data-slot=card] { padding:16px; }
-  .ui-mobile-nav { position:fixed; z-index:1100; bottom:0; left:0; right:0; display:flex; gap:4px; padding:8px 8px calc(8px + env(safe-area-inset-bottom)); border-top:1px solid var(--meal-ui-border); background:var(--meal-ui-card); }
-  :root .meal-ui .ui-mobile-nav .ui-nav-item { flex:1; width:0; justify-content:center; flex-direction:column; gap:4px; margin:0; padding:8px 4px; font-size:.75rem; text-align:center; }
   :root main.ui-viewer.meal-ui { padding:20px 16px 32px; }
   :root .meal-ui .viewer-navigation { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:stretch; }
   :root .meal-ui .viewer-navigation a { display:flex; align-items:center; justify-content:center; width:100%; min-height:48px; padding:10px 8px; font-size:.875rem; line-height:1.4; text-align:center; white-space:normal; }

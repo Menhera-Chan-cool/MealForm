@@ -1,5 +1,5 @@
 import {useEffect,useRef} from 'react';
-import {dashboardHref,readDashboardHistory,readDashboardLocation} from './dashboard-navigation.mjs';
+import {DEFAULT_DASHBOARD_TAB,dashboardHref,readDashboardHistory,readDashboardLocation} from './dashboard-navigation.mjs';
 
 export default function useDashboardHistory({account,tab,week,tabs,weeks,onNavigate,capture}){
   const current=useRef(null),position=useRef(null),reverting=useRef(false),snapshots=useRef(new Map());
@@ -17,7 +17,7 @@ export default function useDashboardHistory({account,tab,week,tabs,weeks,onNavig
       if(reverting.current){reverting.current=false;return;}
       const state=current.current,previous=position.current,entry=readDashboardHistory(event.state?.mealDashboard,state.account);
       snapshots.current.set(previous.index,state.capture());
-      const target=readDashboardLocation(location.search,state.tabs,state.weeks,{tab:'overview',week:state.weeks[0]?.weekKey||''});
+      const target=readDashboardLocation(location.search,state.tabs,state.weeks,{tab:DEFAULT_DASHBOARD_TAB,week:state.weeks[0]?.weekKey||''});
       if(state.onNavigate(target.tab,target.week,entry?snapshots.current.get(entry.index):undefined)){
         position.current=entry||{...previous,...target};
         if(!entry)write(target.tab,target.week);
