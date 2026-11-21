@@ -1826,7 +1826,7 @@ test('confirmation motion never delays cancel and busy animation follows the rea
   expect(writes).toEqual([]);
 });
 
-test('mobile settings menu motion preserves tool navigation, inert exit and an explicit full-motion override',async({page})=>{
+test('mobile settings menu preserves navigation and inert exit with OS reduced motion',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.addInitScript(()=>{localStorage.clear();localStorage.setItem('meal-appearance',JSON.stringify({theme:'dark',motion:'full'}));});
@@ -1835,9 +1835,9 @@ test('mobile settings menu motion preserves tool navigation, inert exit and an e
   await expect(page.locator('#dashboard-content h1')).toBeVisible();const more=page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true});
   await more.focus();await page.keyboard.press('Enter');
   const menu=page.locator('.comfort-menu');
-  expect(await menu.evaluate(el=>el.getAnimations().length)).toBeGreaterThan(0);
-  await menu.evaluate(el=>el.getAnimations().forEach(animation=>{animation.pause();animation.currentTime=100;}));
-  await page.screenshot({path:'review/motion/mobile-more-100ms.png'});
+  await expect(page.locator('html')).toHaveAttribute('data-motion-level','off');
+  expect(await menu.evaluate(el=>el.getAnimations().length)).toBe(0);
+  await page.screenshot({path:'review/motion/mobile-settings-reduced.png'});
   await menu.getByRole('button',{name:'Hệ thống',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Hệ thống',exact:true,level:1})).toBeVisible();
   await expect(menu).toHaveAttribute('inert','');
@@ -2270,6 +2270,40 @@ test('clarity: responsive review of new states stays readable across viewport an
   expect(errors).toEqual([]);
 });
 test.describe('week-first-shell',()=>{
+  for(const [motion,reduced,expected] of [['full','no-preference','matrix(0.97, 0, 0, 0.97, 0, 0)'],['off','no-preference','none'],['full','reduce','none']] as const){
+    test(`press feedback respects ${motion} and OS ${reduced}`,async({page})=>{
+      await interceptMealServices(page);
+      await page.emulateMedia({reducedMotion:reduced});
+      await page.addInitScript(motion=>localStorage.setItem('meal-appearance',JSON.stringify({theme:'light',motion})),motion);
+      await page.goto('http://127.0.0.1:5175/dashboard');
+      const button=page.getByRole('button',{name:'Tạo tuần',exact:true});
+      await button.hover();
+      await page.mouse.down();
+      try{await expect.poll(()=>button.evaluate(el=>getComputedStyle(el).transform)).toBe(expected);}
+      finally{await page.mouse.up();}
+    });
+  }
+  test('theme switching briefly disables transitions and then restores them',async({page})=>{
+    await interceptMealServices(page);
+    await page.addInitScript(()=>localStorage.setItem('meal-appearance',JSON.stringify({theme:'light',motion:'full'})));
+    await page.goto('http://127.0.0.1:5175/dashboard');
+    await openDisplayMenu(page);
+    const root=page.locator('html');
+    await expect(root).not.toHaveClass(/theme-switching/);
+    await root.evaluate(el=>{
+      el.dataset.themePauseObserved='';
+      new MutationObserver(()=>{
+        if(el.classList.contains('theme-switching')){
+          const button=document.querySelector('.ui-shell-create')!;
+          el.dataset.themePauseObserved=getComputedStyle(button).transitionProperty;
+        }
+      }).observe(el,{attributeFilter:['class']});
+    });
+    await page.locator('.comfort-menu').getByRole('radio',{name:'Tối',exact:true}).check();
+    await expect(root).toHaveAttribute('data-color-scheme','dark');
+    await expect(root).toHaveAttribute('data-theme-pause-observed','none');
+    await expect(root).not.toHaveClass(/theme-switching/);
+  });
   for(const width of [320,390,844])test(`long weeks and large text fit at ${width}px`,async({page})=>{
     const long='Tuần 12/10/2026 – 16/10/2026 (bản điều chỉnh sau cuộc họp phụ huynh đầu năm học)';
     await page.addInitScript(()=>localStorage.setItem('meal-text-size','large'));

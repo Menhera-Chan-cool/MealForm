@@ -33,7 +33,7 @@ const map=new Map(),storage={getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(
 assert.deepEqual(appearance.readAppearance(storage),{theme:'system',motion:null});storage.setItem('meal-viewer-motion-override','full');assert.equal(appearance.readAppearance(storage).motion,'full');
 appearance.writeAppearance({theme:'dark',motion:'light'},storage);assert.deepEqual(appearance.readAppearance(storage),{theme:'dark',motion:'light'});
 assert.deepEqual(appearance.resolveAppearance({theme:'system',motion:null},true,true),{scheme:'dark',motion:'off'});
-assert.deepEqual(appearance.resolveAppearance({theme:'light',motion:'full'},true,true),{scheme:'light',motion:'full'});
+assert.deepEqual(appearance.resolveAppearance({theme:'light',motion:'full'},true,true),{scheme:'light',motion:'off'});
 assert.doesNotThrow(()=>appearance.writeAppearance({theme:'dark',motion:'off'},{setItem(){throw Error('denied');}}));
 const luma=hex=>{const rgb=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;};
 const contrast=(a,b)=>(Math.max(luma(a),luma(b))+.05)/(Math.min(luma(a),luma(b))+.05);

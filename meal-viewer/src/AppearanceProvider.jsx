@@ -1,4 +1,4 @@
-import {createContext,useContext,useEffect,useMemo,useState} from 'react';
+import {createContext,useContext,useEffect,useLayoutEffect,useMemo,useState} from 'react';
 import {readAppearance,resolveAppearance,writeAppearance} from './appearance.mjs';
 import './appearance.css';
 const Appearance=createContext({theme:'system',motion:'full',scheme:'light',setPreference(){}});
@@ -10,8 +10,17 @@ export default function AppearanceProvider({children}){
   useEffect(()=>{const sync=()=>setSystem({dark:media.dark.matches,reduced:media.reduced.matches});media.dark.addEventListener('change',sync);media.reduced.addEventListener('change',sync);return()=>{media.dark.removeEventListener('change',sync);media.reduced.removeEventListener('change',sync);};},[media]);
   const resolved=resolveAppearance(preference,system.dark,system.reduced);
   useEffect(()=>{writeAppearance(preference);},[preference]);
+  useLayoutEffect(()=>{
+    const root=document.documentElement;
+    if(root.dataset.colorScheme===resolved.scheme)return;
+    root.classList.add('theme-switching');
+    root.dataset.colorScheme=resolved.scheme;
+    let nextFrame;
+    const frame=requestAnimationFrame(()=>{nextFrame=requestAnimationFrame(()=>root.classList.remove('theme-switching'));});
+    return()=>{cancelAnimationFrame(frame);cancelAnimationFrame(nextFrame);root.classList.remove('theme-switching');};
+  },[resolved.scheme]);
   useEffect(()=>{
-    const root=document.documentElement;root.dataset.colorScheme=resolved.scheme;root.dataset.motionLevel=resolved.motion;
+    const root=document.documentElement;root.dataset.motionLevel=resolved.motion;
     if(resolved.motion==='off')delete root.dataset.motionOverride;else root.dataset.motionOverride='full';
     window.dispatchEvent(new Event('meal-appearance-changed'));
   },[resolved.scheme,resolved.motion]);
