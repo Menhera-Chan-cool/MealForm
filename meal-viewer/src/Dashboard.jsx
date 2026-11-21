@@ -130,6 +130,8 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     } catch (error) { if(error.name!=='AbortError')setFailure(safeErrorReport(dashboardOperation(url, options), error)); throw error; }
     finally{if(ticket)reads.finish(ticket);}
   };
+  // The access check may arrive before the week registry. Keep its initial URL until the registry can validate it.
+  const pendingWeekSearch = useRef((!initialData || initialData.overviewPending) && !initialData?.weeks?.length ? window.location.search : null);
   const [savedWeek] = useState(() => lastDashboardWeek(initialData?.accountId, (initialData?.weeks || []).map(week => week.weekKey)));
   const initialLocation=readDashboardLocation(window.location.search,allowedDashboardSections(initialData?.role,initialData?.permissions||{create:true}).map(section=>section.id),initialData?.weeks||[],{tab:DEFAULT_DASHBOARD_TAB,week:savedWeek||initialData?.weeks?.[0]?.weekKey||''});
   const initialWeek = initialLocation.week;
@@ -252,6 +254,19 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     if(nextWeek!==weekKey){setQuickResponse(null);setWeekKey(nextWeek);}return true;
   }
   const setTab=next=>navigate(next,weekKey),selectWeek=next=>navigate(tab,next);
+  async function beforeLeavingDashboard(){
+    if(!leaveDrafts())return false;
+    viewState.save();
+    await draft.flush();
+  }
+  async function openViewer(event){
+    if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+    event.preventDefault();
+    if(busy||signingOut)return;
+    try{
+      if(await beforeLeavingDashboard()!==false)window.location.assign('/newest');
+    }catch{setMessage('Chưa lưu được nháp. Hãy thử lại.');}
+  }
   useEffect(()=>{const opened=event=>{if(event.data?.type==='meal-open-ocr-notice'&&!navigate('create',weekKey))setMessage('Có kết quả OCR chưa xem. Hoàn tất thao tác hoặc lưu/bỏ thay đổi rồi mở Tạo tuần.','info');};navigator.serviceWorker?.addEventListener('message',opened);return()=>navigator.serviceWorker?.removeEventListener('message',opened);},[weekKey,tab,busy,brandDirty,noticeDirty,permissionDirty]);
   const navigationHistory=useDashboardHistory({account:overview.accountId,tab,week:weekKey,tabs:allowedDashboardSections(overview.role,permissions).map(section=>section.id),weeks:overview.weeks||[],capture:()=>({view:viewState.save()||viewState.view,auditFilters:{...auditFilters},auditLimit}),onNavigate:(nextTab,nextWeek,snapshot)=>navigate(nextTab,nextWeek,false,snapshot)});
   const quickCommands=useMemo(()=>dashboardCommands(overview),[overview]);
@@ -260,7 +275,7 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     viewState.save();await draft.flush();
     if(command.kind==='tab')return navigate(command.tab,weekKey);
     if(command.kind==='week')return navigate('delete',command.weekKey);
-  },async()=>{if(!leaveDrafts())return false;viewState.save();await draft.flush();});
+  },beforeLeavingDashboard);
   function stopWaiting(){
     if(busy)return;
     clearTimeout(weekLoadTimer.current);
@@ -325,7 +340,14 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     try {
       const data = await request();
       setOverview(data);
-      if (!weekKey && data.weeks?.length) setWeekKey(data.weeks[0].weekKey);
+      const requested = pendingWeekSearch.current;
+      pendingWeekSearch.current = null;
+      if (!weekKey && data.weeks?.length) {
+        const available = data.weeks.map(week => week.weekKey);
+        const wanted = requested === null ? '' : new URLSearchParams(requested).get('week');
+        const saved = requested === null ? '' : lastDashboardWeek(data.accountId, available);
+        setWeekKey(available.includes(wanted) ? wanted : saved || available[0]);
+      }
       return data;
     } catch (error) {
       if(error.name!=='AbortError')setMessage(error.message);
@@ -732,12 +754,12 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
   </>;
   const loadedAttention=<LoadedAttention warnings={warnings} weekName={selectedWeek?.name||'Chưa chọn tuần'} loaded={Boolean(health?.uiWeekKey===weekKey||reconciliation?.weekKey===weekKey)} owner={overview.role==='owner'} onOpen={id=>navigate(id,weekKey)}/>;
   const weeksPending=readPending>0&&overview.overviewPending&&!overview.weeks?.length;
-  return <DashboardLayout warnings={warnings} tab={tab} onNavigate={setTab} role={overview.role} permissions={permissions} email={overview.email} schoolName={branding.schoolName} busy={busy||signingOut} weekDisabled={busy||!online||healthBusy} onSignOut={signOut} weeks={overview.weeks||[]} weekKey={weekKey} onWeekChange={selectWeek} onRefreshWeeks={()=>void refreshOverview()} weekLinks={{formUrl:selectedWeek?.formUrl,spreadsheetUrl:selectedWeek?.spreadsheetUrl,folderUrl:selectedWeek?.folderUrl}} menuExtras={menuExtras}><main id="dashboard-content" className="dashboard-shell meal-ui" data-density={viewState.view.density} data-section={tab}>
+  return <DashboardLayout warnings={warnings} tab={tab} onNavigate={setTab} role={overview.role} permissions={permissions} email={overview.email} schoolName={branding.schoolName} busy={busy||signingOut} weekDisabled={busy||!online||healthBusy} onSignOut={signOut} onOpenViewer={openViewer} weeks={overview.weeks||[]} weekKey={weekKey} onWeekChange={selectWeek} onRefreshWeeks={()=>void refreshOverview()} weekLinks={{formUrl:selectedWeek?.formUrl,spreadsheetUrl:selectedWeek?.spreadsheetUrl,folderUrl:selectedWeek?.folderUrl}} menuExtras={menuExtras}><main id="dashboard-content" className="dashboard-shell meal-ui" data-density={viewState.view.density} data-section={tab}>
     <header className="dashboard-header">
       <div><h1>{activeTitle}</h1></div>
     </header>
     <ConnectionNotice online={online} savedAt={cacheTime} hasData={Boolean(displayedWeek)}/>
-    <VersionNotice disabled={busy || !online || signingOut || Boolean(regionBase) || Boolean(mergeBase) || Boolean(confirmation)} beforeReload={async()=>{if(!leaveDrafts())return false;viewState.save();await draft.flush();}} />
+    <VersionNotice disabled={busy || !online || signingOut || Boolean(regionBase) || Boolean(mergeBase) || Boolean(confirmation)} beforeReload={beforeLeavingDashboard} />
     {message && <div className={`dashboard-message ${missingScriptPermission || /không|lỗi|chưa/i.test(message) ? 'error' : ''}`} role={missingScriptPermission?'alert':'status'} aria-live="polite">{missingScriptPermission&&<strong>Thiếu quyền Apps Script. </strong>}{message}{missingScriptPermission&&(overview.role==='owner'?<button className="secondary" type="button" disabled={busy||!online} onClick={()=>void authorizeScript()}>Cấp quyền Apps Script</button>:<span> Liên hệ chủ sở hữu để cấp quyền.</span>)}{authorizationUrl && <> <ExternalLink className="action-link" href={authorizationUrl}>Mở trang cấp quyền Google</ExternalLink></>}</div>}
 
     <ErrorReportButton report={failure || draft.failure} />
@@ -802,7 +824,16 @@ function Dashboard({ initialData, onUnauthorized, onSignOut }) {
     {tab === 'delete' && <section className="dashboard-panel response-workspace" data-pane={responsePane}>
       {mutationReceipt?.weekKey===weekKey&&<MutationReceipt receipt={mutationReceipt}/>}
       <div className="dashboard-section-title"><h2>Lượt gửi và lịch sử thao tác</h2></div>
-      {weeksPending?<ContentSkeleton label="Đang tải danh sách tuần…"/>:!overview.weeks?.length&&<div className="ui-shell-empty" role="status" aria-label="Chưa có tuần nào"><h3>Chưa có tuần nào</h3><p>Trường chưa đăng ký tuần thực đơn nào. Lượt gửi và lịch sử sẽ hiện ở đây sau khi tạo tuần đầu tiên.</p>{permissions.create&&<button type="button" disabled={busy} onClick={()=>navigate('create',weekKey)}>Tạo tuần mới</button>}</div>}
+      {weeksPending?<ContentSkeleton label="Đang tải danh sách tuần…"/>:!overview.weeks?.length&&(
+        overview.overviewPending?<div className="ui-shell-empty" role="status">
+          <h3>Chưa tải được danh sách tuần</h3>
+          <button type="button" className="secondary" disabled={busy||!online} onClick={()=>void refreshOverview()}>Thử lại</button>
+        </div>:<div className="ui-shell-empty" role="status" aria-label="Chưa có tuần nào">
+          <h3>Chưa có tuần nào</h3>
+          <p>Trường chưa đăng ký tuần thực đơn nào. Lượt gửi và lịch sử sẽ hiện ở đây sau khi tạo tuần đầu tiên.</p>
+          {permissions.create&&<button type="button" disabled={busy} onClick={()=>navigate('create',weekKey)}>Tạo tuần mới</button>}
+        </div>
+      )}
       <WeekNotice notice={displayedWeek?.week?.weekNotice} serverNow={displayedWeek?.week?.serverNow}/>
 <div className="dashboard-sticky-tools" ref={viewState.toolbarRef} data-pane={responsePane}><div role="group" aria-label="Tìm và lọc lượt gửi" hidden={responsePane!=='responses'}><label className="dashboard-search">Tìm theo họ tên<SearchInput id="dashboard-name-search" label="Tìm theo họ tên" maxLength={200} value={query} onClear={()=>setQuery('')} onChange={event => setQuery(event.target.value)} placeholder="Nhập tên cần tìm" /></label><SubmissionFilters value={viewState.view} onChange={changeResponseFilters}/></div><div role="group" aria-label="Thao tác lượt gửi"><div className="dashboard-refresh-bar"><ExplainedButton label="Tải lại dữ liệu" className="secondary" disabled={busy || !online || weekLoading || !weekKey} reason={busy?'Đang xử lý thao tác; hãy chờ hoàn tất.':weekLoading?'Đang tải lượt gửi; hãy chờ hoặc dừng chờ dữ liệu.':'Chọn một tuần đã đăng ký để tải lượt gửi.'} aria-busy={weekLoading} onClick={() => void loadWeek(weekKey, true)}>{weekLoading ? 'Đang tải lại…' : 'Tải lại dữ liệu'}</ExplainedButton>{newResponses > 0 && <span className="dashboard-new-badge" role="status">Có {newResponses} lượt gửi mới</span>}</div></div></div>
       {displayedWeek && !weekReady && <p className="dashboard-cache-status" role="status">{cacheTime ? `Bản lưu lúc ${formatTime(cacheTime)}. ` : 'Dữ liệu lần xem trước. '}{weekLoading ? 'Đang xác minh…' : 'Chưa xác minh được; chỉ xem, hãy tải lại trước khi thao tác.'}</p>}

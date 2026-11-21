@@ -22,10 +22,10 @@
   transition:background-color 160ms,color 160ms,border-color 160ms,transform var(--meal-press-duration) ease-out;
 }
 :root[data-motion-level=full] .meal-ui :is(button:not(:disabled),a.form-link:not(.disabled),a.action-link):not(.ui-shell-tab):active { transform:scale(var(--meal-press-scale)); }
-:root[data-motion-level=full] .meal-ui :is(.ui-week-card,.ui-day-card) { transition:border-color 160ms; }
-:root[data-motion-level=full] .meal-ui :is(.ui-week-card,.ui-day-card):focus-within { border-color:var(--meal-ui-primary); }
+:root[data-motion-level=full] .meal-ui .ui-day-card { transition:border-color 160ms; }
+:root[data-motion-level=full] .meal-ui .ui-day-card:focus-within { border-color:var(--meal-ui-primary); }
 @media(hover:hover) and (pointer:fine) {
-  :root[data-motion-level=full] .meal-ui :is(.ui-week-card,.ui-day-card):hover { border-color:var(--meal-ui-primary); }
+  :root[data-motion-level=full] .meal-ui .ui-day-card:hover { border-color:var(--meal-ui-primary); }
 }
 
 :root[data-motion-level=full] .meal-ui .combo-menu {
@@ -39,7 +39,7 @@
 :root[data-motion-level=full] .meal-ui .collapse-panel.closing { transform:none; transition-duration:160ms; transition-delay:0s; }
 :root[data-motion-level=full] .meal-ui .collapse-panel.collapsed { transform:none; }
 :root[data-motion-level=full] .meal-ui .filter-chip { animation:meal-chip-reveal 180ms var(--meal-motion-ease); }
-:root[data-motion-level=full] .meal-ui :is(.detail-results,.dashboard-panel,.ui-overview):not(.ui-dashboard-layout .dashboard-panel) { animation:meal-content-acknowledge 180ms ease-out; }
+:root[data-motion-level=full] .meal-ui .detail-results { animation:meal-content-acknowledge 180ms ease-out; }
 :root[data-motion-level=full] .meal-ui .filter-fields-clip.expanded { animation:meal-content-acknowledge 180ms ease-out; }
 :root[data-motion-level=full] dialog[open] { animation:meal-dialog-focus 180ms var(--meal-motion-ease); }
 :root[data-motion-level=full] dialog[open]::backdrop { animation:meal-content-acknowledge 180ms ease-out; }

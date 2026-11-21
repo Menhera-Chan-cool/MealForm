@@ -161,7 +161,7 @@ test.describe('workspace-shell',()=>{
     await page.addInitScript(()=>localStorage.setItem('meal-appearance',JSON.stringify({theme:'light',motion:'off'})));const writes:object[]=[];await page.setViewportSize({width:390,height:844});await interceptMealServices(page,'owner','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await openDisplayMenu(page);const grid=shellMenu(page);const a=(await grid.getByRole('button',{name:'Thương hiệu',exact:true}).boundingBox())!,b=(await grid.getByRole('button',{name:'Hệ thống',exact:true}).boundingBox())!;expect(b.y).toBeGreaterThanOrEqual(a.y+a.height);expect(a.x+a.width).toBeLessThanOrEqual(390);await page.keyboard.press('Escape');await page.addInitScript(()=>localStorage.setItem('meal-text-size','large'));await page.reload();await openDisplayMenu(page);const c=(await grid.getByRole('button',{name:'Thương hiệu',exact:true}).boundingBox())!,d=(await grid.getByRole('button',{name:'Hệ thống',exact:true}).boundingBox())!;expect(d.y).toBeGreaterThanOrEqual(c.y+c.height);expect(c.x+c.width).toBeLessThanOrEqual(390);expect(writes).toEqual([]);
   });
   test('the shell only exposes permitted navigation and the attention block does not invent readiness',async({page})=>{
-    const writes:object[]=[];await interceptMealServices(page,'viewer','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await expect(sectionNav(page).getByRole('button')).toHaveText(['Lượt gửi & lịch sử','Đối soát']);await expect(page.getByRole('button',{name:'Tạo tuần',exact:true})).toHaveCount(0);await openSection(page,'Đối soát');await expect(page.getByRole('region',{name:'Cần xử lý',exact:true})).toContainText('Chưa có kết quả kiểm tra');expect(writes).toEqual([]);
+    const writes:object[]=[];await interceptMealServices(page,'viewer','#357185',writes);await page.goto('http://127.0.0.1:5175/dashboard');await expect(sectionNav(page).locator('.ui-shell-tab-label>span:first-child')).toHaveText(['Lượt gửi & lịch sử','Đối soát']);await expect(page.getByRole('button',{name:'Tạo tuần',exact:true})).toHaveCount(0);await openSection(page,'Đối soát');await expect(page.getByRole('region',{name:'Cần xử lý',exact:true})).toContainText('Chưa có kết quả kiểm tra');expect(writes).toEqual([]);
   });
 });
 
@@ -1188,7 +1188,11 @@ test('operate: Dashboard columns keep actions without hiding timeline actor or r
   const writes:object[]=[];await interceptMealServices(page,'owner','#357185',writes);
   await page.route('**/api/dashboard?**',route=>new URL(route.request().url()).searchParams.has('week')?route.fulfill({json:{week:{...weeks[0],dayLabels:days.map(day=>day.day)},responses:[{responseId:'sample-a',name:'Trường An',timestamp:1791467940000,meals:days.map(()=> 'CƠM GÀ'),deletable:true,deleteToken:'synthetic-token'}],history:[{id:'audit-a',entryId:'entry-a',action:'deleted',name:'Trường An',at:1791467940000,actor:'admin@example.com',meals:['CƠM GÀ'],restorable:false}]}}):route.fallback());
   await page.goto('http://127.0.0.1:5175/dashboard');await openSection(page,'Lượt gửi & lịch sử');
-  const responses=page.getByRole('region',{name:'Bảng lượt gửi',exact:true});await responses.getByRole('button',{name:'Cột hiển thị',exact:true}).click();
+  const responses=page.getByRole('region',{name:'Bảng lượt gửi',exact:true});
+  await expect(responses.getByRole('button',{name:'Xem nhanh',exact:true})).toBeVisible();
+  const columnTrigger=responses.getByRole('button',{name:'Cột hiển thị',exact:true});
+  await columnTrigger.click();
+  await expect(columnTrigger).toHaveAttribute('aria-expanded','true');
   const choices=page.getByRole('dialog',{name:'Cột hiển thị · Bảng lượt gửi',exact:true});
   await expect(choices.getByRole('checkbox',{name:'Họ tên',exact:true})).toBeDisabled();await expect(choices.getByRole('checkbox',{name:'Thao tác',exact:true})).toBeDisabled();
   await choices.getByRole('checkbox',{name:'Món đã chọn',exact:true}).uncheck();await page.keyboard.press('Escape');
@@ -2270,6 +2274,37 @@ test('clarity: responsive review of new states stays readable across viewport an
   expect(errors).toEqual([]);
 });
 test.describe('week-first-shell',()=>{
+  test('capture the week shell at desktop, tablet, phone and accessibility widths',async({page})=>{
+    test.setTimeout(90000);
+    const writes:object[]=[];
+    await interceptMealServices(page,'owner','#357185',writes);
+    await page.clock.install({time:new Date('2026-10-13T03:00:00Z')});
+    const viewports=[[1440,900],[1024,768],[768,1024],[390,844],[320,568]] as const;
+    for(const [width,height] of viewports){
+      await page.setViewportSize({width,height});
+      await page.goto('http://127.0.0.1:5175/dashboard');
+      for(const theme of ['light','dark']){
+        await page.evaluate(theme=>{localStorage.setItem('meal-appearance',JSON.stringify({theme,motion:'off'}));localStorage.setItem('meal-text-size','normal');},theme);
+        await page.reload();
+        await expect(weekSwitcher(page)).toBeVisible();
+        await expect(page.locator('[data-response-id=sample-a]')).toBeVisible();
+        await expect(page.locator('html')).toHaveAttribute('data-color-scheme',theme);
+        expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+        await page.screenshot({path:`review/week-first-shell/${width}x${height}-${theme}.png`});
+      }
+    }
+    // 1280 CSS pixels at 400% browser zoom leave a 320 CSS pixel layout viewport.
+    await page.setViewportSize({width:320,height:568});
+    await page.emulateMedia({forcedColors:'active',reducedMotion:'reduce'});
+    await page.evaluate(()=>localStorage.setItem('meal-text-size','large'));
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-text-size','large');
+    await weekSwitcher(page).click();
+    await expect(page.getByRole('listbox',{name:'Các tuần đã đăng ký'})).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({path:'review/week-first-shell/320x568-large-forced-colors-400-percent-equivalent.png'});
+    expect(writes).toEqual([]);
+  });
   for(const [motion,reduced,expected] of [['full','no-preference','matrix(0.97, 0, 0, 0.97, 0, 0)'],['off','no-preference','none'],['full','reduce','none']] as const){
     test(`press feedback respects ${motion} and OS ${reduced}`,async({page})=>{
       await interceptMealServices(page);
@@ -2402,6 +2437,21 @@ test.describe('week-first-shell',()=>{
     }
     const length=await page.evaluate(()=>history.length);await page.goto('http://127.0.0.1:5175/dashboard?tab=overview');await expect(page).toHaveURL(/tab=delete/);expect(await page.evaluate(()=>history.length)).toBe(length+1);
   });
+  test('legacy overview keeps a registered deep-linked week when access precedes the catalog',async({page})=>{
+    const writes:object[]=[];
+    await interceptMealServices(page,'owner','#357185',writes);
+    await page.route('**/api/dashboard?access=1',route=>route.fulfill({json:{accountId:'synthetic-owner',email:'admin@example.com',role:'owner',permissions:{view:true,create:true,manageResponses:true},weeks:[],overviewPending:true}}));
+    await page.goto('http://127.0.0.1:5175/dashboard?tab=overview&week='+weeks[1].weekKey);
+    const destination=new RegExp('tab=delete&week='+weeks[1].weekKey+'$');
+    await expect(page).toHaveURL(destination);
+    await expect(weekSwitcher(page)).toContainText(weeks[1].name);
+    await openSection(page,'Đối soát');
+    await expect(page).toHaveURL(new RegExp('tab=reconcile&week='+weeks[1].weekKey+'$'));
+    await page.goBack();await expect(page).toHaveURL(destination);
+    await expect(weekSwitcher(page)).toContainText(weeks[1].name);
+    await page.goForward();await expect(sectionNav(page).getByRole('button',{name:'Đối soát'})).toHaveAttribute('aria-current','page');
+    expect(writes).toEqual([]);
+  });
   test('changing the week keeps the tab and Back returns to the previous week',async({page})=>{
     await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard?tab=reconcile');
     await expect(page).toHaveURL(/week=/);
@@ -2412,13 +2462,19 @@ test.describe('week-first-shell',()=>{
     await expect(page.getByRole('navigation',{name:'Khu vực quản trị',exact:true}).getByRole('button',{name:'Đối soát'})).toHaveAttribute('aria-current','page');
     await page.goBack();expect(new URL(page.url()).searchParams.get('week')).toBe(first);
   });
-  test('unsaved notice text asks before changing the week and Cancel keeps it',async({page})=>{
+  test('Cancel keeps unsaved notice text when changing week or opening the viewer',async({page})=>{
     await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard?tab=notice');
     await page.getByLabel('Nội dung thông báo',{exact:true}).fill('Nháp chưa lưu');
     const before=page.url();
     page.once('dialog',d=>d.dismiss());
     await page.getByRole('button',{name:/^Tuần /}).first().click();await page.getByRole('option').nth(1).click();
     expect(page.url()).toBe(before);
+    await expect(page.getByLabel('Nội dung thông báo',{exact:true})).toHaveValue('Nháp chưa lưu');
+    await openDisplayMenu(page);
+    const confirmation=page.waitForEvent('dialog').then(dialog=>dialog.dismiss());
+    await shellMenu(page).getByRole('link',{name:'Mở trang xem thực đơn',exact:true}).click();
+    await confirmation;
+    await expect(page).toHaveURL(before);
     await expect(page.getByLabel('Nội dung thông báo',{exact:true})).toHaveValue('Nháp chưa lưu');
   });
   test('a school with no weeks still gets a usable week bar; Tạo tuần appears only with permission',async({page})=>{

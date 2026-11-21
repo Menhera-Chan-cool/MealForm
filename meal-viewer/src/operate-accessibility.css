@@ -61,7 +61,6 @@
   .branding-name-control {width:100%;}
   .ocr-workspace .menu-image-controls {gap:8px;}
   :root .meal-ui :is(input:not([type=checkbox]),textarea,select) {font-size:max(1rem,16px);}
-  :root[data-virtual-keyboard=open] .ui-mobile-nav {display:none;}
   :root[data-virtual-keyboard=open] .contextual-save-bar {position:static;}
 }
 @media(max-width:360px){.contextual-save-bar .actions {display:grid;grid-template-columns:minmax(0,1fr);}.contextual-save-bar .actions>button,.contextual-save-bar .actions>.explained-action {width:100%;}}
@@ -72,11 +71,6 @@
   .menu-image-viewport {max-height:55dvh;}
   .filter-sheet {max-height:calc(var(--meal-viewport-height,100dvh) - 8px);}
   .action-toast {position:static;max-height:none;margin:12px 0;width:auto;max-width:100%;}
-}
-@media(max-width:700px) and (max-height:480px){
-  :root .ui-mobile-nav {position:static;display:flex;flex-wrap:wrap;min-height:44px;margin:8px;padding:8px;}
-  :root .ui-dashboard-layout .dashboard-shell {padding-bottom:24px;}
-  :root[data-virtual-keyboard=open] .ui-mobile-nav {display:none;}
 }
 @media(forced-colors:active){
   :root {--meal-ui-primary:Highlight!important;--meal-ui-primary-foreground:HighlightText!important;--meal-ui-hover:Highlight!important;--meal-ui-background:Canvas!important;--meal-ui-card:Canvas!important;--meal-ui-muted:Canvas!important;--meal-ui-field:Canvas!important;--meal-ui-foreground:CanvasText!important;--meal-ui-muted-foreground:CanvasText!important;--meal-ui-border:CanvasText!important;--brand-primary:Highlight!important;--brand-foreground:HighlightText!important;--brand-canvas:Canvas!important;--brand-panel:Canvas!important;--brand-field:Canvas!important;--brand-raised:Canvas!important;--brand-text:CanvasText!important;--brand-muted:CanvasText!important;--brand-line:CanvasText!important;--brand-border:CanvasText!important;--brand-ink:CanvasText!important;--brand-surface:Canvas!important;}

@@ -30,7 +30,7 @@ function SettingsItem({item,current,badge,onNavigate}){
   </button>;
 }
 
-export function DashboardLayout({tab,onNavigate,role,permissions,email,schoolName,busy,weekDisabled=false,onSignOut,warnings={},weeks=[],weekKey='',onWeekChange,onRefreshWeeks,weekLinks,menuExtras,children}) {
+export function DashboardLayout({tab,onNavigate,role,permissions,email,schoolName,busy,weekDisabled=false,onSignOut,onOpenViewer,warnings={},weeks=[],weekKey='',onWeekChange,onRefreshWeeks,weekLinks,menuExtras,children}) {
   const tabs=shellTabs(role,permissions),settings=shellSettings(role),canCreate=canCreateWeek(role,permissions);
   const navigation=useRef(null);
   useEffect(()=>{
@@ -61,7 +61,7 @@ export function DashboardLayout({tab,onNavigate,role,permissions,email,schoolNam
       {menuExtras}
       <div className="ui-shell-menu-links" role="group" aria-label="Quản trị và tài khoản">
         {settings.map(item=><SettingsItem key={item.id} item={item} current={tab===item.id} badge={warnings[item.id]} onNavigate={onNavigate}/>)}
-        <a className="action-link ui-shell-menu-item" href="/newest">Mở trang xem thực đơn</a>
+        <a className="action-link ui-shell-menu-item" href="/newest" onClick={onOpenViewer}>Mở trang xem thực đơn</a>
         <button type="button" className="secondary comfort-command ui-shell-menu-item" disabled={busy} title={email||undefined} onClick={onSignOut}>Đăng xuất</button>
       </div>
     </MenuExtraSlot>

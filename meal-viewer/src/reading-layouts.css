@@ -1,9 +1,4 @@
 /* Approved reading layouts reuse runtime brand roles and the existing input DOM. */
-.week-ledger{display:block!important}
-.week-ledger-row{display:grid;grid-template-columns:minmax(220px,2fr) minmax(120px,1fr) minmax(100px,.7fr) minmax(240px,2fr);gap:16px;align-items:center;padding:16px 0;border-bottom:1px solid var(--meal-ui-border)}
-.week-ledger-row>div{min-width:0;overflow-wrap:anywhere}
-.week-ledger-row .ui-week-links{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.week-ledger-row .ui-week-links a{padding:8px 4px}
 .table-header-groups th{position:static;font-weight:600;background:var(--meal-ui-muted)!important;color:var(--meal-ui-foreground)!important;border-bottom:1px solid var(--meal-ui-border)}
 .mobile-response-expansion,.mobile-response-toggle{display:none!important}
 .table-data-footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-block:16px;margin-block:0;border-top:1px solid var(--meal-ui-border);color:var(--meal-ui-muted-foreground)}
@@ -101,7 +96,7 @@
   :root .ui-viewer>.filters{grid-column:1;grid-row:3/span 24;display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:16px;position:static}
   :root .ui-viewer>.filters .filter-fields{display:grid;grid-template-columns:minmax(0,1fr)}
 }
-@media(max-width:1100px){.week-ledger-row{grid-template-columns:minmax(0,1fr) auto}.week-ledger-row .ui-week-links{grid-column:1/-1}.notice-editor-workspace{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:1100px){.notice-editor-workspace{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:700px){
   .table-header-groups{display:none!important}
   .mobile-response-expansion:not([hidden]){display:flex!important;margin-bottom:12px}
@@ -118,8 +113,6 @@
   :root .detail-wrap td[data-kind=name]>.mobile-cell-label{display:none}
   .logo-edit-group{grid-template-columns:minmax(0,1fr)}
   .logo-edit-thumbnail{justify-self:start}
-  .week-ledger-row{grid-template-columns:minmax(0,1fr);gap:8px}
-  .week-ledger-row .ui-week-links{grid-column:auto}
   :root .session-group li,:root .device-data-rows>li{grid-template-columns:minmax(0,1fr)}
   .session-group li>button{grid-column:1;grid-row:auto;justify-self:start}
   .confirmation-layout{display:flex;flex-direction:column;gap:16px}
