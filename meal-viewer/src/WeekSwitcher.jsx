@@ -42,7 +42,7 @@ export default function WeekSwitcher({weeks,weekKey,onChange,onRefresh,canCreate
   function choose(row){menu.hide();menu.trigger.current?.focus();if(row.weekKey!==weekKey)onChange?.(row.weekKey);}
   function create(){menu.hide();onCreate?.();}
   return <div className="dashboard-week-picker ui-shell-week">
-    <button ref={menu.trigger} type="button" className="secondary ui-shell-week-trigger" title={name} disabled={disabled} popoverTarget={menu.id} aria-haspopup="listbox" aria-expanded={menu.open} aria-controls={menu.id}>
+    <button ref={menu.trigger} type="button" className="secondary ui-shell-week-trigger" title={name} disabled={disabled} popoverTarget={menu.id} aria-haspopup="dialog" aria-expanded={menu.open} aria-controls={menu.id}>
       <span className="sr-only">Tuần đang chọn: </span><span className="ui-shell-week-name">{name}</span>
       {status&&<span className="ui-shell-week-status" data-status={selected?.formStatus||'unknown'}>{status}</span>}
       {deadline&&<span className="ui-shell-week-deadline">{deadline}</span>}
@@ -57,7 +57,7 @@ export default function WeekSwitcher({weeks,weekKey,onChange,onRefresh,canCreate
       </div>
       <button type="button" className="secondary ui-shell-week-refresh" disabled={disabled} onClick={()=>{menu.hide();onRefresh?.();}}><RefreshCw aria-hidden="true" size={16}/>Tải lại danh sách tuần</button>
     </div>
-    <button ref={linkMenu.trigger} type="button" className="secondary ui-shell-week-links" aria-label="Liên kết của tuần" title="Liên kết của tuần" disabled={disabled||!selected} popoverTarget={linkMenu.id} aria-haspopup="menu" aria-expanded={linkMenu.open} aria-controls={linkMenu.id}><MoreHorizontal aria-hidden="true" size={20}/></button>
+    <button ref={linkMenu.trigger} type="button" className="secondary ui-shell-week-links" aria-label="Liên kết của tuần" title="Liên kết của tuần" disabled={disabled||!selected} popoverTarget={linkMenu.id} aria-haspopup="dialog" aria-expanded={linkMenu.open} aria-controls={linkMenu.id}><MoreHorizontal aria-hidden="true" size={20}/></button>
     <div ref={linkMenu.panel} id={linkMenu.id} className="ui-shell-link-menu ui-anchored-popover meal-ui" popover="auto" role="dialog" aria-label="Liên kết của tuần" {...linkMenu.events} onToggle={event=>{linkMenu.events.onToggle(event);if(event.newState==='open')requestAnimationFrame(()=>linkMenu.panel.current?.querySelector('a')?.focus());else returnFocus(linkMenu.panel.current,linkMenu.trigger.current);}}>
       {available.length?available.map(([label,url])=><ExternalLink key={label} className="action-link" href={url} onClick={()=>linkMenu.hide()}>{label}</ExternalLink>):<p>Tuần này chưa có liên kết hợp lệ.</p>}
     </div>

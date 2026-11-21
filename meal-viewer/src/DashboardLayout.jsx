@@ -1,4 +1,4 @@
-import {useId} from 'react';
+import {useEffect,useId,useRef} from 'react';
 import {CalendarDays,Plus} from 'lucide-react';
 import {DisplayPreferencesSlot,MenuExtraSlot} from './ComfortProvider.jsx';
 import {shellTabs,shellSettings,canCreateWeek,isWeekScopedTab} from './dashboard-shell.mjs';
@@ -17,7 +17,9 @@ function WarningBadge({id,label,badge}){
 function ShellTab({item,current,badge,disabled,onNavigate}){
   const warningId=useId();
   return <button type="button" className="secondary ui-shell-tab" aria-label={item.label} aria-current={current?'page':undefined} aria-describedby={badge?warningId:undefined} disabled={disabled} onClick={()=>onNavigate(item.id)}>
-    <span className="ui-shell-tab-label" data-label={item.label}><span>{item.label}</span></span><WarningBadge id={warningId} label={item.label} badge={badge}/>
+    <span className="ui-shell-tab-label" data-label={item.label} data-short-label={item.shortLabel}>
+      <span>{item.label}</span><span className="ui-shell-tab-short">{item.shortLabel}</span>
+    </span><WarningBadge id={warningId} label={item.label} badge={badge}/>
   </button>;
 }
 
@@ -30,6 +32,20 @@ function SettingsItem({item,current,badge,onNavigate}){
 
 export function DashboardLayout({tab,onNavigate,role,permissions,email,schoolName,busy,weekDisabled=false,onSignOut,warnings={},weeks=[],weekKey='',onWeekChange,onRefreshWeeks,weekLinks,menuExtras,children}) {
   const tabs=shellTabs(role,permissions),settings=shellSettings(role),canCreate=canCreateWeek(role,permissions);
+  const navigation=useRef(null);
+  useEffect(()=>{
+    const node=navigation.current;
+    const updateEdges=()=>{
+      node.toggleAttribute('data-scroll-left',node.scrollLeft>1);
+      node.toggleAttribute('data-scroll-right',node.scrollWidth-node.clientWidth-node.scrollLeft>1);
+    };
+    const observer=new ResizeObserver(updateEdges);
+    observer.observe(node);
+    for(const button of node.children)observer.observe(button);
+    node.addEventListener('scroll',updateEdges,{passive:true});
+    updateEdges();
+    return()=>{observer.disconnect();node.removeEventListener('scroll',updateEdges);};
+  },[role]);
   return <div className="ui-dashboard-layout meal-ui">
     <a className="ui-skip-link" href="#dashboard-content">Đến nội dung chính</a>
     <header className="ui-shell-bar">
@@ -40,7 +56,7 @@ export function DashboardLayout({tab,onNavigate,role,permissions,email,schoolNam
         <DisplayPreferencesSlot variant="settings"/>
       </div>
     </header>
-    <nav className="ui-shell-tabs" aria-label="Khu vực quản trị">{tabs.map(item=><ShellTab key={item.id} item={item} current={tab===item.id} badge={warnings[item.id]} disabled={item.id==='notice'&&busy} onNavigate={onNavigate}/>)}</nav>
+    <nav ref={navigation} className="ui-shell-tabs" aria-label="Khu vực quản trị">{tabs.map(item=><ShellTab key={item.id} item={item} current={tab===item.id} badge={warnings[item.id]} disabled={item.id==='notice'&&busy} onNavigate={onNavigate}/>)}</nav>
     <MenuExtraSlot>
       {menuExtras}
       <div className="ui-shell-menu-links" role="group" aria-label="Quản trị và tài khoản">

@@ -76,6 +76,7 @@
 .ui-shell-tab-label { display:inline-grid; }
 .ui-shell-tab-label>span,.ui-shell-tab-label::after { grid-area:1/1; }
 .ui-shell-tab-label::after { content:attr(data-label); font-weight:700; visibility:hidden; pointer-events:none; user-select:none; }
+.ui-shell-tab-label>.ui-shell-tab-short { display:none; }
 :root .ui-shell-week-menu { width:min(420px,calc(100vw - 24px)); max-height:min(560px,calc(100dvh - 24px)); padding:12px; border-color:var(--ui-shell-line,var(--meal-ui-border)); border-radius:16px; }
 :root .ui-shell-week-menu:popover-open { display:grid; gap:10px; }
 .ui-shell-week-slots { display:grid; gap:6px; }
@@ -195,7 +196,32 @@
 @media(max-width:1100px){ .ui-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } :root .meal-ui .dashboard-header { flex-wrap:wrap; } :root .meal-ui .dashboard-header-actions { order:3; max-width:100%; width:100%; } }
 @media(max-width:700px){
   .ui-shell-bar { padding:12px 16px 8px; }
-  .ui-shell-tabs { padding:0 16px; }
+  .ui-shell-tabs {
+    position:fixed; inset:auto 0 0; z-index:20;
+    padding:4px 8px calc(4px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--ui-shell-line); border-bottom:0; background:var(--meal-ui-card);
+    overscroll-behavior-inline:contain;
+  }
+  .ui-shell-tabs[data-scroll-left] { --tabs-fade-left:10px; }
+  .ui-shell-tabs[data-scroll-right] { --tabs-fade-right:10px; }
+  .ui-shell-tabs:is([data-scroll-left],[data-scroll-right]) {
+    mask-image:linear-gradient(to right,transparent,#000 var(--tabs-fade-left,0px),#000 calc(100% - var(--tabs-fade-right,0px)),transparent);
+  }
+  :root .ui-dashboard-layout.meal-ui .ui-shell-tabs button.ui-shell-tab {
+    flex:1 0 auto; justify-content:center; padding:8px;
+    border-bottom:0; border-top:2px solid transparent; border-radius:0 0 8px 8px;
+  }
+  :root .ui-dashboard-layout.meal-ui .ui-shell-tabs button.ui-shell-tab[aria-current=page] { border-top-color:var(--meal-ui-primary); }
+  .ui-shell-tab-label>span:first-child { display:none; }
+  .ui-shell-tab-label>.ui-shell-tab-short { display:inline; }
+  .ui-shell-tab-label::after { content:attr(data-short-label); }
+  :root :is(.ui-shell-week-menu,.ui-preferences-slot[data-variant=settings] .comfort-menu) {
+    position:fixed; inset:auto 0 0!important; width:100%; max-width:none; margin:0;
+    max-height:min(80dvh,560px,var(--meal-viewport-height,100dvh)); overflow:auto;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom)); border-radius:16px 16px 0 0;
+  }
+  :root .meal-ui .ui-shell-week-slots button { min-height:44px; }
+  :root[data-virtual-keyboard=open] .ui-shell-tabs { display:none; }
   :root .meal-ui .ui-shell-bar .dashboard-week-picker { order:3; flex-basis:100%; max-width:none; }
   :root .meal-ui button.ui-shell-week-trigger { flex:1 1 auto; flex-wrap:wrap; row-gap:4px; }
   .ui-shell-week-trigger .ui-shell-week-name { flex:1 1 100%; }

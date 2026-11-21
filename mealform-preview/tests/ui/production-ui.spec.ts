@@ -2270,6 +2270,38 @@ test('clarity: responsive review of new states stays readable across viewport an
   expect(errors).toEqual([]);
 });
 test.describe('week-first-shell',()=>{
+  for(const width of [320,390,844])test(`long weeks and large text fit at ${width}px`,async({page})=>{
+    const long='Tuần 12/10/2026 – 16/10/2026 (bản điều chỉnh sau cuộc họp phụ huynh đầu năm học)';
+    await page.addInitScript(()=>localStorage.setItem('meal-text-size','large'));
+    await page.clock.install({time:new Date('2026-10-13T03:00:00Z')});
+    await interceptMealServices(page,'owner','#357185',[],{weeks:[{weekKey:'2026-10-12_2026-10-16',name:long,formStatus:'open',responseCount:42}]});
+    await page.setViewportSize({width,height:width===844?390:700});
+    await page.goto('http://127.0.0.1:5175/dashboard');
+    const trigger=page.locator('.ui-shell-week-trigger');
+    await expect(trigger).toHaveAttribute('title',long);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await trigger.click();
+    await expect(page.getByRole('option',{name:long,exact:true})).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  });
+  test('phone tabs and both sheets anchor to the bottom, and Escape restores focus',async({page})=>{
+    await page.setViewportSize({width:390,height:844});
+    await interceptMealServices(page);
+    await page.goto('http://127.0.0.1:5175/dashboard');
+    const nav=sectionNav(page);
+    await expect(nav.locator('.ui-shell-tab-short').first()).toHaveText('Lượt gửi');
+    await expect(nav.locator('.ui-shell-tab-short').first()).toBeVisible();
+    expect(await nav.evaluate(el=>el.getBoundingClientRect().bottom)).toBeCloseTo(844);
+    for(const [trigger,panel] of [[weekSwitcher(page),page.getByRole('dialog',{name:'Chọn tuần',exact:true})],
+      [page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}),page.locator('.comfort-menu')]]){
+      await trigger.click();
+      await expect(panel).toBeVisible();
+      await expect.poll(()=>panel.evaluate(el=>el.getBoundingClientRect().bottom)).toBeCloseTo(844);
+      await page.keyboard.press('Escape');
+      await expect(panel).toBeHidden();
+      await expect(trigger).toBeFocused();
+    }
+  });
   test('dashboard account, guide and session notices live in the display menu, not on the page',async({page})=>{
     await interceptMealServices(page);await page.goto('http://127.0.0.1:5175/dashboard');
     await expect(page.getByRole('button',{name:'Hướng dẫn mục này',exact:true})).toBeHidden();
@@ -2314,14 +2346,14 @@ test.describe('week-first-shell',()=>{
   test('owner sees four tabs and the settings; manager sees two tabs and no owner settings',async({page})=>{
     await interceptMealServices(page,'owner');await page.goto('http://127.0.0.1:5175/dashboard');
     const nav=page.getByRole('navigation',{name:'Khu vực quản trị',exact:true});
-    await expect(nav.getByRole('button')).toHaveText(['Lượt gửi & lịch sử','Điều khiển Form','Thông báo tuần','Đối soát']);
+    await expect(nav.locator('.ui-shell-tab-label>span:first-child')).toHaveText(['Lượt gửi & lịch sử','Điều khiển Form','Thông báo tuần','Đối soát']);
     await page.getByRole('button',{name:'Tùy chọn hiển thị',exact:true}).click();
     for(const name of ['Thương hiệu','Hệ thống','Quyền Gmail'])await expect(page.locator('.comfort-menu').getByRole('button',{name,exact:true})).toBeVisible();
   });
   test('a manager sees two tabs and cannot reach owner tabs through the URL',async({page})=>{
     await interceptMealServices(page,'manager');await page.goto('http://127.0.0.1:5175/dashboard?tab=branding');
     const nav=page.getByRole('navigation',{name:'Khu vực quản trị',exact:true});
-    await expect(nav.getByRole('button')).toHaveText(['Lượt gửi & lịch sử','Đối soát']);
+    await expect(nav.locator('.ui-shell-tab-label>span:first-child')).toHaveText(['Lượt gửi & lịch sử','Đối soát']);
     await expect(nav.getByRole('button',{name:'Lượt gửi & lịch sử'})).toHaveAttribute('aria-current','page');
     await expect(page.getByLabel('Tên trường',{exact:true})).toHaveCount(0);await openDisplayMenu(page);
     for(const name of ['Thương hiệu','Hệ thống','Quyền Gmail'])await expect(page.locator('.comfort-menu').getByRole('button',{name,exact:true})).toHaveCount(0);
