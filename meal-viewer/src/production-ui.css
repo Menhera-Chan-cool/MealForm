@@ -178,6 +178,30 @@
 :root .meal-ui .section-toggle { width:44px; height:44px; padding:10px; border:1px solid var(--meal-ui-border); background:var(--meal-ui-card); color:var(--meal-ui-foreground); box-shadow:none; }
 :root .meal-ui .summary-result-count { color:var(--meal-ui-muted-foreground); font-size:.875rem; margin:0 0 16px; }
 .ui-summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+:root .meal-ui .viewer-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 20px; }
+.viewer-v2-layout { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,285px),1fr)); gap:20px; align-items:start; }
+.viewer-v2-layout[data-view=detail] { grid-template-columns:minmax(0, 1fr); }
+.viewer-v2-layout > * { min-width:0; }
+.viewer-week-info { border:1px solid var(--meal-ui-border); border-radius:10px; padding:18px; background:var(--meal-ui-muted); }
+.viewer-week-info h2 { margin:0 0 12px; }
+.viewer-menu-list,.viewer-daily-list { display:grid; gap:12px; }
+.viewer-menu-day,.viewer-daily-day { border:1px solid var(--meal-ui-border); border-radius:10px; padding:16px; background:var(--meal-ui-card); }
+.viewer-menu-day h3,.viewer-daily-day h3 { margin:0 0 10px; }
+.viewer-menu-day dl { margin:0; }
+.viewer-menu-day dl > div + div { margin-top:10px; }
+.viewer-meal-line { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.viewer-meal-line dt { min-width:0; }
+.viewer-meal-line dd { margin:0; font-weight:700; font-variant-numeric:tabular-nums; }
+.viewer-meal-track { height:4px; border-radius:4px; background:var(--meal-ui-border); margin-top:6px; }
+.viewer-meal-track span { display:block; height:100%; border-radius:inherit; background:var(--meal-ui-primary); }
+.viewer-daily-day ul { list-style:none; margin:0; padding:0; }
+.viewer-daily-day li { display:grid; grid-template-columns:minmax(120px,1fr) minmax(0,2fr); gap:8px; padding:10px 0; border-top:1px solid var(--meal-ui-border); overflow-wrap:anywhere; }
+.viewer-daily-time { display:block; color:var(--meal-ui-muted-foreground); margin-top:3px; }
+@media(max-width:700px) {
+  .viewer-v2-layout { grid-template-columns:minmax(0,1fr); }
+  .viewer-daily-day li { grid-template-columns:minmax(0,1fr); gap:3px; }
+  :root .meal-ui .viewer-week-info .form-status { min-height:48px; }
+}
 :root .meal-ui .ui-day-card { padding:16px; gap:12px; }
 :root .meal-ui .ui-day-card h3 { margin:0; }
 .ui-day-card dl { margin:0; }

@@ -11,8 +11,6 @@ import {identityDetailModel} from './workspace-ui.mjs';
 import LoginContext from './LoginContext.jsx';
 import FilterControls, { ComboSelect } from './FilterControls.jsx';
 import RegistrationContext from './RegistrationContext.jsx';
-import ChevronIcon from './ChevronIcon.jsx';
-import useDisclosureAnimation from './useDisclosureAnimation.js';
 import ArchiveWorkspace from './ArchiveWorkspace.jsx';
 import SetupChecklist from './SetupChecklist.jsx';
 import VersionNotice from './VersionNotice.jsx';
@@ -20,6 +18,7 @@ import { readLoginState } from './session-client.mjs';
 import useReadWait,{cancelledRead,STOP_WAIT_MESSAGE} from './useReadWait.js';
 import WeekNotice from './WeekNotice.jsx';
 import ViewerSummary from './ViewerSummary.jsx';
+import ViewerDailyDetail from './ViewerDailyDetail.jsx';
 import ViewerTabs from './ViewerTabs.jsx';
 import usePageTitle from './usePageTitle.js';
 import {ArchiveBreadcrumbs} from './WeekContext.jsx';
@@ -34,11 +33,11 @@ import WeekNavigation from './WeekNavigation.jsx';
 import {DisplayPreferencesSlot} from './ComfortProvider.jsx';
 import useFocusVisibility from './useFocusVisibility.js';
 import ConnectionNotice,{useOnlineState} from './ConnectionNotice.jsx';
+import {sameDisplayDay} from './reading-ui.mjs';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '';
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 const FILTERS_STORAGE_KEY = 'meal-viewer-filters';
-const SUMMARY_PANEL_STORAGE_KEY = 'meal-viewer-summary-open';
 const RESPONSE_SORT_OPTIONS = [
   { value: 'newest', label: 'Mới nhất' },
   { value: 'oldest', label: 'Cũ nhất' },
@@ -104,21 +103,17 @@ function App() {
   const [loadProblem,setLoadProblem]=useState(null);
   const [failure, setFailure] = useState(null);
   const [message, setMessage] = useState('Đang kiểm tra đăng nhập…');
-  const { open: summaryOpen, closing: summaryClosing, active: summaryActive, toggle: toggleSummary } = useDisclosureAnimation(SUMMARY_PANEL_STORAGE_KEY);
-  const [mobileViewer,setMobileViewer]=useState(()=>window.matchMedia('(max-width:700px)').matches);
-  const [viewerTab,setViewerTab]=useState(()=>summaryOpen?'summary':'detail');
-  useEffect(()=>{
-    const media=window.matchMedia('(max-width:700px)');
-    const update=()=>setMobileViewer(media.matches);
-    media.addEventListener('change',update);return()=>media.removeEventListener('change',update);
-  },[]);
-  const summaryVisible=mobileViewer?viewerTab==='summary':summaryOpen;
+  const [viewerTab,setViewerTab]=useState('summary');
+  const [detailTableOpen,setDetailTableOpen]=useState(false);
+  const viewerDays=useRef({summary:null,detail:null});
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState('');
   const [advancedError, setAdvancedError] = useState('');
   const [dashboardData, setDashboardData] = useState(null);
   const [weekUnavailable, setWeekUnavailable] = useState(false);
   const [serverClockOffset, setServerClockOffset] = useState(0);
+  const [viewerNow,setViewerNow]=useState(()=>Date.now());
+  const [todayMessage,setTodayMessage]=useState('');
   const signInRoot = useRef(null);
   const googleClient = useRef(null);
   const currentSessionCheck = useRef(null);
@@ -158,7 +153,8 @@ function App() {
       const result = await response.json();
       if(!reads.current(ticket))throw cancelledRead();
       const responseTime = Date.parse(response.headers.get('date') || '');
-      if (Number.isFinite(responseTime)) setServerClockOffset(responseTime - Date.now());
+      const serverTime=Number.isFinite(responseTime)?responseTime:typeof result.serverNow==='number'&&Number.isFinite(result.serverNow)?result.serverNow:null;
+      if (serverTime!==null) setServerClockOffset(serverTime - Date.now());
       if (isWeekPage) {
         const serverTime = Date.parse(response.headers.get('date') || '');
         window.clearTimeout(rolloverTimer.current);
@@ -210,6 +206,21 @@ function App() {
   }, [viewerPath, viewerSearch, isWeekPage,reads]);
 
   useEffect(() => () => window.clearTimeout(rolloverTimer.current), [loadData]);
+  useEffect(()=>{
+    let timer;
+    const schedule=()=>{
+      window.clearTimeout(timer);
+      const now=Date.now()+serverClockOffset;
+      setViewerNow(now);
+      setTodayMessage('');
+      const vietnamDay=(now+7*3600000)%86400000;
+      timer=window.setTimeout(schedule,86400000-vietnamDay+20);
+    };
+    const visible=()=>{if(document.visibilityState==='visible')schedule();};
+    schedule();
+    document.addEventListener('visibilitychange',visible);
+    return()=>{window.clearTimeout(timer);document.removeEventListener('visibilitychange',visible);};
+  },[serverClockOffset]);
 
   const checkSession = useCallback(async () => {
     const request = ++authRequest.current;
@@ -333,7 +344,7 @@ function App() {
       return day === current.day && meal === current.meal ? current : { ...current, day, meal };
     });
   }, [data, days, mealOptions]);
-  const activeDrilldown=Boolean(drilldown&&drilldown.data===data&&JSON.stringify(drilldown.selected)===JSON.stringify(filters));
+  const activeDrilldown=Boolean(drilldown&&drilldown.data===data&&drilldown.selected.name===filters.name&&drilldown.selected.meal===filters.meal&&(drilldown.selected.day===filters.day||(detailTableOpen&&filters.day===ALL)));
   useEffect(()=>{if(drilldown&&!activeDrilldown)setDrilldown(null);},[drilldown,activeDrilldown]);
   const model = useMemo(() => buildDetailModel(data, filters, responseSort,activeDrilldown), [data, filters, responseSort,activeDrilldown]);
   const displayModel=useMemo(()=>identityDetailModel(model),[model]);
@@ -341,15 +352,23 @@ function App() {
   const emptyResults=Boolean(data&&model.sourceRows.length===0);
   const formStatus = busy || !data ? 'loading' : data.formStatus || 'loading';
   const registration = mealRegistrationTarget(data, isNewestPage);
-  const todayLabel = todayDayLabel(days, Date.now() + serverClockOffset);
+  const todayLabel = todayDayLabel(days, viewerNow);
 
   function setFilter(key, value) { setFilters(current => ({ ...current, [key]: value })); }
+  function changeViewerTab(next) {
+    viewerDays.current[viewerTab]=filters.day;
+    let day=viewerDays.current[next];
+    if(day===null)day=next==='detail'&&filters.day===ALL?(todayLabel||days.map(item=>typeof item==='string'?item:item.day)[0]||ALL):filters.day;
+    if(day!==ALL)day=days.map(item=>typeof item==='string'?item:item.day).find(label=>sameDisplayDay(label,day))||(next==='detail'?(todayLabel||days.map(item=>typeof item==='string'?item:item.day)[0]||ALL):ALL);
+    setFilters(current=>({...current,day}));
+    setViewerTab(next);
+  }
   function selectSummaryMeal(day,meal){
-    const selected={...filters,day,meal};setDrilldown({data,filters:{...filters},selected,origin:document.activeElement,x:window.scrollX,y:window.scrollY});setFilters(selected);setViewerTab('detail');
+    const selected={...filters,day,meal};viewerDays.current.detail=day;setDetailTableOpen(false);setDrilldown({data,filters:{...filters},selected,origin:document.activeElement,x:window.scrollX,y:window.scrollY});setFilters(selected);setViewerTab('detail');
     requestAnimationFrame(()=>{const heading=document.getElementById('viewer-detail-title'),target=heading?.getClientRects().length?heading:document.getElementById('viewer-result-count');target?.scrollIntoView({block:'start'});target?.focus({preventScroll:true});});
   }
   function returnToSummary(){
-    const previous=drilldown;setDrilldown(null);setFilters(previous.filters);setViewerTab('summary');if(!summaryOpen)toggleSummary();
+    const previous=drilldown;setDrilldown(null);setDetailTableOpen(false);setFilters(previous.filters);setViewerTab('summary');
     requestAnimationFrame(()=>{window.scrollTo(previous.x,previous.y);const target=previous.origin?.isConnected?previous.origin:document.getElementById('viewer-summary-title');target?.focus({preventScroll:true});});
   }
   function openSpreadsheet() {
@@ -373,6 +392,13 @@ function App() {
     setAuth('anonymous');
     setMessage('Đã đăng xuất. Hãy dùng Gmail được cấp quyền dashboard.');
   }
+
+  const sortControl=<div className="detail-sort">
+    <label htmlFor="response-sort">Sắp xếp</label>
+    <ComboSelect id="response-sort" label="Sắp xếp" value={RESPONSE_SORT_OPTIONS.find(option => option.value === responseSort)?.label || RESPONSE_SORT_OPTIONS[0].label}
+      values={RESPONSE_SORT_OPTIONS.map(option => option.label)} searchable={false} includeAll={false}
+      onChange={label => setResponseSort(RESPONSE_SORT_OPTIONS.find(option => option.label === label)?.value || 'newest')} />
+  </div>;
 
   if(routeIssue)return <main className="meal-ui ui-viewer"><header className="viewer-header"><h1>Liên kết thực đơn</h1><DisplayPreferencesSlot/></header><ViewerLinkProblem kind={routeIssue}/></main>;
   if (isSetup) return <SetupChecklist authenticated={auth === 'authenticated'} />;
@@ -398,7 +424,6 @@ function App() {
     <ConnectionNotice online={online} savedAt={readAt} hasData={Boolean(data)}/>
     <WeekNavigation current={isNewestPage?'current':isNextPage?'next':isHistory?'history':''} selected={isHistory} backHref={archiveBackHref(new URLSearchParams(viewerSearch).get('week')||'',viewerSearch)}/>
     {isHistory&&<ArchiveBreadcrumbs weekKey={new URLSearchParams(viewerSearch).get('week')||''}/>}
-    <WeekNotice notice={data?.weekNotice} serverNow={data?.serverNow}/>
     {auth==='loading'&&<ElapsedWait active label="Đang xác nhận đăng nhập"/>}
     {readPending>0&&<div className="read-wait"><ElapsedWait active label="Đang tải thực đơn" requestKey={viewerPath+viewerSearch}/><button className="secondary" type="button" onClick={stopWaiting}>Dừng chờ dữ liệu</button><small>Không hủy tác vụ máy chủ.</small></div>}
     {stoppedReading&&<p className="dashboard-cache-status" role="status">{message}</p>}
@@ -429,8 +454,15 @@ function App() {
             {busy ? 'Đang tải…' : pendingUpdate ? 'Có dữ liệu mới · Cập nhật' : 'Tải lại dữ liệu'}
           </ExplainedButton>
           <button className="secondary" type="button" aria-expanded={advancedOpen} onClick={() => { setAdvancedOpen(open => !open); setAdvancedError(''); }}>Nâng cao</button>
-          <ExplainedButton className="secondary today-button" type="button" disabled={busy || !todayLabel} reason={busy?'Đang tải thực đơn.':'Tuần đang xem không có ngày phục vụ trùng với hôm nay theo giờ Việt Nam.'} aria-pressed={Boolean(todayLabel && filters.day === todayLabel)} title={todayLabel || 'Tuần đang xem không có thực đơn cho hôm nay'} onClick={() => setFilters({ name: ALL, meal: ALL, day: todayLabel })}>Hôm nay</ExplainedButton>
+          <ExplainedButton className="secondary today-button" type="button" disabled={busy} reason="Đang tải thực đơn." aria-pressed={Boolean(todayLabel && filters.day === todayLabel)} onClick={()=>{
+            const now=Date.now()+serverClockOffset;
+            const label=todayDayLabel(days,now);
+            setViewerNow(now);
+            if(label){setTodayMessage('');setFilters({ name: ALL, meal: ALL, day: label });}
+            else setTodayMessage(todayDayLabel(data?.closedDays,now)?'Hôm nay là ngày nghỉ, không phục vụ.':'Hôm nay không có ngày phục vụ trong tuần đang xem.');
+          }}>Hôm nay</ExplainedButton>
         </div>
+        {todayMessage&&<p role="status" aria-label="Thông tin ngày hôm nay">{todayMessage}</p>}
         {advancedOpen && <div className="advanced-panel" aria-label="Lấy dữ liệu từ Spreadsheet">
           <label htmlFor="spreadsheet-url">URL Spreadsheet</label>
           <div className="advanced-row">
@@ -447,10 +479,6 @@ function App() {
           <p className="advanced-hint">Dán URL hoặc mã Spreadsheet để mở trang xem riêng.</p>
           {advancedError && <p className="advanced-error" role="alert">{advancedError}</p>}
         </div>}
-        <div className="form-access" aria-label="Trạng thái Form">
-          <RegistrationContext dates={weekDates.length?`${weekDates[0]} – ${weekDates.at(-1)}`:''} status={formStatus} registration={registration} lockAt={data?.lockAt} serverNow={data?.serverNow}/>
-          {data?.nextFormUnavailable && <small>Chưa kiểm tra được Form tuần sau. Hãy thử tải lại dữ liệu.</small>}
-        </div>
       </div>
 
       {loadError && <div className="viewer-error" role="alert">
@@ -464,35 +492,40 @@ function App() {
       {data?.closedDays?.length > 0 && <p className="closed-days-note">Ngày không phục vụ: {data.closedDays.join(' · ')}</p>}
       {activeDrilldown&&<div className="summary-return"><button type="button" className="secondary" onClick={returnToSummary}>Quay lại Tổng hợp</button><span>Đang xem đúng món đã chọn: {filters.meal} · {filters.day}</span></div>}
       {data&&<p id="viewer-result-count" tabIndex={-1} className="viewer-result-count" role="status" aria-live="polite" aria-atomic="true" aria-label="Kết quả lọc"><span>Theo bộ lọc hiện tại:</span><strong>{resultCounts.responses} lượt gửi</strong><span>·</span><strong>{resultCounts.choices} lựa chọn món</strong></p>}
-      {emptyResults&&<FilterEmptyState title={data.rows?.length?'Không có kết quả phù hợp':'Tuần đang xem chưa có lượt gửi'} conditions={data.rows?.length?filterConditions(filters):[]} recoveries={viewerFilterRecovery(data,filters,responseSort)} onClear={key=>{setFilter(key,ALL);document.getElementById('name')?.focus();}}/>}
-      <div hidden={emptyResults}>
-      <ViewerTabs value={viewerTab} onChange={setViewerTab}/>
-      <section className="data-section viewer-reading-panel" id="viewer-summary" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-summary':undefined} hidden={mobileViewer&&viewerTab!=='summary'}>
-        <div className="section-heading"><div className="section-heading-title"><SummaryIcon /><h2 id="viewer-summary-title" tabIndex={-1}>Tổng hợp lựa chọn</h2></div><button
-          className="section-toggle" type="button" aria-expanded={summaryOpen} data-active={summaryActive}
-          aria-controls="summary-panel" aria-label={summaryOpen ? 'Đóng tổng hợp' : 'Mở tổng hợp'}
-          title={summaryOpen ? 'Đóng tổng hợp' : 'Mở tổng hợp'} onClick={toggleSummary}
-        ><ChevronIcon expanded={summaryActive} className="summary-chevron" /></button></div>
-        <div id="summary-panel" className={`collapse-panel ${summaryVisible ? 'expanded' : !mobileViewer&&summaryClosing ? 'closing' : 'collapsed'}`} aria-hidden={!summaryVisible} inert={!summaryVisible}>
+      {emptyResults&&data?.rows?.length>0&&<FilterEmptyState title="Không có kết quả phù hợp" conditions={filterConditions(filters)} recoveries={viewerFilterRecovery(data,filters,responseSort)} onClear={key=>{setFilter(key,ALL);document.getElementById('name')?.focus();}}/>}
+      <ViewerTabs value={viewerTab} onChange={changeViewerTab}/>
+      <div className="viewer-v2-layout" data-view={viewerTab}>
+      <section className="data-section viewer-reading-panel" id="viewer-summary" role="tabpanel" aria-labelledby="viewer-tab-summary" hidden={viewerTab!=='summary'}>
+        <div className="section-heading"><div className="section-heading-title"><SummaryIcon /><h2 id="viewer-summary-title" tabIndex={-1}>Món theo ngày</h2></div></div>
+        <div id="summary-panel" className="collapse-panel expanded">
           <div className="summary-content">
-            <ViewerSummary days={days} filters={filters} model={model} onMealSelect={selectSummaryMeal}/>
+            <ViewerSummary days={days} filters={filters} model={model} onMealSelect={selectSummaryMeal} closedDays={data?.closedDays} calendarDays={data?.calendarDays}/>
           </div>
         </div>
       </section>
 
-      <section className="data-section viewer-reading-panel" id="viewer-detail" role={mobileViewer?'tabpanel':undefined} aria-labelledby={mobileViewer?'viewer-tab-detail':undefined} hidden={mobileViewer&&viewerTab!=='detail'}>
+      {viewerTab==='summary'&&<aside className="viewer-week-info" aria-label="Thông tin tuần">
+        <h2>Thông tin tuần</h2>
+        <WeekNotice notice={data?.weekNotice} serverNow={data?.serverNow}/>
+        <RegistrationContext dates={weekDates.length?`${weekDates[0]} – ${weekDates.at(-1)}`:''} status={formStatus} registration={registration} lockAt={data?.lockAt} serverNow={data?.serverNow}/>
+        {data?.nextFormUnavailable && <small>Chưa kiểm tra được Form tuần sau. Hãy thử tải lại dữ liệu.</small>}
+      </aside>}
+      <section className="data-section viewer-reading-panel" id="viewer-detail" role="tabpanel" aria-labelledby="viewer-tab-detail" hidden={viewerTab!=='detail'}>
+        <div className="section-heading"><h2 id="viewer-detail-title" tabIndex={-1}>Chi tiết lựa chọn</h2><button type="button" className="secondary" aria-expanded={detailTableOpen} onClick={()=>{
+          if(detailTableOpen)setFilters(current=>({...current,day:days.map(item=>typeof item==='string'?item:item.day).find(label=>sameDisplayDay(label,viewerDays.current.detail))||ALL}));
+          else {viewerDays.current.detail=filters.day;setFilters(current=>({...current,day:ALL}));}
+          setDetailTableOpen(open=>!open);
+        }}>{detailTableOpen?'Xem theo ngày':'Xem bảng cả tuần'}</button></div>
+        {!detailTableOpen&&sortControl}
+        {!detailTableOpen&&<ViewerDailyDetail data={data} filters={filters} sort={responseSort} exactMeal={activeDrilldown}/>}
+        {detailTableOpen&&
         <TableWorkspace label="Bảng chi tiết" expandLabel="Phóng rộng bảng chi tiết" preferenceKey="viewer-detail" context={{week:weekDates.length?`Tuần ${weekDates[0]} – ${weekDates.at(-1)}`:'Chưa đọc được ngày của tuần',filters:formatFilterSummary(filters),sort:RESPONSE_SORT_OPTIONS.find(option=>option.value===responseSort)?.label}} headers={displayModel.headers} requiredColumns={[displayModel.nameIndex,...(displayModel.headers.indexOf('Ngày')>=0?[displayModel.headers.indexOf('Ngày')]:[])]}>
         <div className="section-heading detail-heading">
-          <div className="section-heading-title"><PeopleIcon /><h2 id="viewer-detail-title" tabIndex={-1}>Chi tiết lựa chọn</h2></div>
-          <div className="detail-sort">
-            <label htmlFor="response-sort">Sắp xếp</label>
-            <ComboSelect id="response-sort" label="Sắp xếp" value={RESPONSE_SORT_OPTIONS.find(option => option.value === responseSort)?.label || RESPONSE_SORT_OPTIONS[0].label}
-              values={RESPONSE_SORT_OPTIONS.map(option => option.label)} searchable={false} includeAll={false}
-              onChange={label => setResponseSort(RESPONSE_SORT_OPTIONS.find(option => option.label === label)?.value || 'newest')} />
-          </div>
+          <div className="section-heading-title"><PeopleIcon /><h3>Bảng lựa chọn</h3></div>
+          {sortControl}
         </div>
         <div key={JSON.stringify([filters, responseSort])} className="detail-results"><DetailTable model={displayModel} filters={filters} closedDays={data?.closedDays}/><p className="table-data-footer">Đã tải {data?.rows?.length??0} lượt gửi · Đang hiển thị {resultCounts.responses} lượt gửi theo bộ lọc.</p></div>
-        </TableWorkspace>
+        </TableWorkspace>}
       </section>
       </div>
     </>}
